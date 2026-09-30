@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns:fx="http://javafx.com/fxml"
+            fx:controller="lk.ac.ruhuna.ftms.controller.MarksController"
+            prefWidth="950"
+            prefHeight="600">
+
+    <top>
+
+        <VBox spacing="5"
+              style="-fx-background-color: #1f2937;">
+
+            <padding>
+                <Insets top="20"
+                        right="25"
+                        bottom="20"
+                        left="25"/>
+            </padding>
+
+            <Label text="Marks Entry"
+                   style="-fx-text-fill: white;
+                          -fx-font-size: 24px;
+                          -fx-font-weight: bold;"/>
+
+            <Label text="FTMS - Assessment Marks Management"
+                   style="-fx-text-fill: #d1d5db;
+                          -fx-font-size: 13px;"/>
+
+        </VBox>
+
+    </top>
+
+    <center>
+
+        <VBox spacing="18">
+
+            <padding>
+                <Insets top="25"
+                        right="30"
+                        bottom="25"
+                        left="30"/>
+            </padding>
+
+            <GridPane hgap="15"
+                      vgap="15">
+
+                <Label text="Enrollment ID"
+                       GridPane.columnIndex="0"
+                       GridPane.rowIndex="0"/>
+
+                <TextField fx:id="enrollmentIdField"
+                           promptText="Example: 1"
+                           GridPane.columnIndex="1"
+                           GridPane.rowIndex="0"/>
+
+                <Label text="Assessment ID"
+                       GridPane.columnIndex="2"
+                       GridPane.rowIndex="0"/>
+
+                <TextField fx:id="assessmentIdField"
+                           promptText="Example: 1"
+                           GridPane.columnIndex="3"
+                           GridPane.rowIndex="0"/>
+
+                <Label text="Mark"
+                       GridPane.columnIndex="0"
+                       GridPane.rowIndex="1"/>
+
+                <TextField fx:id="markField"
+                           promptText="0 - 100"
+                           GridPane.columnIndex="1"
+                           GridPane.rowIndex="1"/>
+
+                <Label text="Attempt No"
+                       GridPane.columnIndex="2"
+                       GridPane.rowIndex="1"/>
+
+                <TextField fx:id="attemptNoField"
+                           text="1"
+                           GridPane.columnIndex="3"
+                           GridPane.rowIndex="1"/>
+
+            </GridPane>
+
+            <HBox spacing="10">
+
+                <Button text="Save / Update"
+                        onAction="#handleSave"
+                        prefWidth="130"/>
+
+                <Button text="Delete"
+                        onAction="#handleDelete"
+                        prefWidth="100"/>
+
+                <Button text="Clear"
+                        onAction="#handleClear"
+                        prefWidth="100"/>
+
+            </HBox>
+
+            <TableView fx:id="marksTable"
+                       VBox.vgrow="ALWAYS">
+
+                <columns>
+
+                    <TableColumn fx:id="markIdColumn"
+                                 text="ID"
+                                 prefWidth="80"/>
+
+                    <TableColumn fx:id="enrollmentColumn"
+                                 text="Enrollment ID"
+                                 prefWidth="170"/>
+
+                    <TableColumn fx:id="assessmentColumn"
+                                 text="Assessment ID"
+                                 prefWidth="170"/>
+
+                    <TableColumn fx:id="markColumn"
+                                 text="Mark"
+                                 prefWidth="160"/>
+
+                    <TableColumn fx:id="attemptColumn"
+                                 text="Attempt"
+                                 prefWidth="130"/>
+
+                </columns>
+
+            </TableView>
+
+        </VBox>
+
+    </center>
+
+</BorderPane>
