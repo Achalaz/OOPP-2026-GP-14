@@ -53,7 +53,7 @@
                        GridPane.rowIndex="0"/>
 
                 <TextField fx:id="enrollmentIdField"
-                           promptText="Example: 1"
+                           promptText="Example: 101"
                            GridPane.columnIndex="1"
                            GridPane.rowIndex="0"/>
 
@@ -62,7 +62,7 @@
                        GridPane.rowIndex="0"/>
 
                 <TextField fx:id="assessmentIdField"
-                           promptText="Example: 1"
+                           promptText="Example: 101"
                            GridPane.columnIndex="3"
                            GridPane.rowIndex="0"/>
 
@@ -71,7 +71,7 @@
                        GridPane.rowIndex="1"/>
 
                 <TextField fx:id="markField"
-                           promptText="0 - 100"
+                           promptText="Enter mark"
                            GridPane.columnIndex="1"
                            GridPane.rowIndex="1"/>
 
@@ -81,6 +81,7 @@
 
                 <TextField fx:id="attemptNoField"
                            text="1"
+                           editable="false"
                            GridPane.columnIndex="3"
                            GridPane.rowIndex="1"/>
 

@@ -13,10 +13,11 @@ public class MarkDAO {
 
         String sql = """
                 INSERT INTO marks
-                (enrollment_id, assessment_id, marks_obtained, attempt_no)
+                (enrollment_id, assessment_id, marks_obtained, mark_status)
                 VALUES (?, ?, ?, ?)
                 ON DUPLICATE KEY UPDATE
-                    marks_obtained = VALUES(marks_obtained)
+                    marks_obtained = VALUES(marks_obtained),
+                    mark_status = VALUES(mark_status)
                 """;
 
         try (Connection con = DBConnection.getConnection();
@@ -27,11 +28,11 @@ public class MarkDAO {
 
             if (mark.getMarksObtained() == null) {
                 ps.setNull(3, Types.DECIMAL);
+                ps.setString(4, "PENDING");
             } else {
                 ps.setDouble(3, mark.getMarksObtained());
+                ps.setString(4, "PRESENT");
             }
-
-            ps.setInt(4, mark.getAttemptNo());
 
             ps.executeUpdate();
         }
@@ -42,9 +43,16 @@ public class MarkDAO {
         List<Mark> marks = new ArrayList<>();
 
         String sql = """
-                SELECT *
-                FROM marks
-                ORDER BY mark_id
+                SELECT
+                    m.mark_id,
+                    m.enrollment_id,
+                    m.assessment_id,
+                    m.marks_obtained,
+                    e.attempt_no
+                FROM marks m
+                JOIN enrollments e
+                    ON m.enrollment_id = e.enrollment_id
+                ORDER BY m.mark_id
                 """;
 
         try (Connection con = DBConnection.getConnection();
@@ -58,13 +66,15 @@ public class MarkDAO {
                                 ? null
                                 : rs.getDouble("marks_obtained");
 
-                marks.add(new Mark(
+                Mark mark = new Mark(
                         rs.getInt("mark_id"),
                         rs.getInt("enrollment_id"),
                         rs.getInt("assessment_id"),
                         value,
                         rs.getInt("attempt_no")
-                ));
+                );
+
+                marks.add(mark);
             }
         }
 
