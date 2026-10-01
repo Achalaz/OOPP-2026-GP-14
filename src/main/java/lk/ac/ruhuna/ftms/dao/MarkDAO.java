@@ -10,6 +10,9 @@ import java.util.List;
 
 public class MarkDAO {
 
+    // ---------------------------------------------------------
+    // SAVE OR UPDATE MARK
+    // ---------------------------------------------------------
     public void saveOrUpdate(Mark mark) throws SQLException {
 
         String sql = """
@@ -39,6 +42,9 @@ public class MarkDAO {
         }
     }
 
+    // ---------------------------------------------------------
+    // GET ALL MARKS
+    // ---------------------------------------------------------
     public List<Mark> findAll() throws SQLException {
 
         List<Mark> marks = new ArrayList<>();
@@ -82,6 +88,10 @@ public class MarkDAO {
         return marks;
     }
 
+    // ---------------------------------------------------------
+    // GET CA MARKS FOR ONE ENROLLMENT
+    // FINAL_EXAM excluded
+    // ---------------------------------------------------------
     public List<AssessmentMark> findCAMarksByEnrollment(
             int enrollmentId) throws SQLException {
 
@@ -130,6 +140,9 @@ public class MarkDAO {
         return marks;
     }
 
+    // ---------------------------------------------------------
+    // DELETE MARK
+    // ---------------------------------------------------------
     public void delete(int markId) throws SQLException {
 
         String sql =
@@ -139,6 +152,7 @@ public class MarkDAO {
              PreparedStatement ps = con.prepareStatement(sql)) {
 
             ps.setInt(1, markId);
+
             ps.executeUpdate();
         }
     }
