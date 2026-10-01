@@ -1,5 +1,6 @@
 package lk.ac.ruhuna.ftms.service;
 
+import lk.ac.ruhuna.ftms.dao.AssessmentDAO;
 import lk.ac.ruhuna.ftms.dao.MarkDAO;
 import lk.ac.ruhuna.ftms.exception.InvalidMarkException;
 import lk.ac.ruhuna.ftms.model.Mark;
@@ -10,9 +11,11 @@ import java.util.List;
 public class MarkService {
 
     private final MarkDAO markDAO;
+    private final AssessmentDAO assessmentDAO;
 
     public MarkService() {
         markDAO = new MarkDAO();
+        assessmentDAO = new AssessmentDAO();
     }
 
     public void saveMark(Mark mark) {
@@ -21,9 +24,12 @@ public class MarkService {
 
         try {
             markDAO.saveOrUpdate(mark);
+
         } catch (SQLException e) {
+
             throw new RuntimeException(
-                    "Failed to save mark.", e
+                    "Failed to save mark.",
+                    e
             );
         }
     }
@@ -32,9 +38,12 @@ public class MarkService {
 
         try {
             return markDAO.findAll();
+
         } catch (SQLException e) {
+
             throw new RuntimeException(
-                    "Failed to load marks.", e
+                    "Failed to load marks.",
+                    e
             );
         }
     }
@@ -43,9 +52,12 @@ public class MarkService {
 
         try {
             markDAO.delete(markId);
+
         } catch (SQLException e) {
+
             throw new RuntimeException(
-                    "Failed to delete mark.", e
+                    "Failed to delete mark.",
+                    e
             );
         }
     }
@@ -70,13 +82,35 @@ public class MarkService {
             );
         }
 
+        Double maxMark;
+
+        try {
+
+            maxMark = assessmentDAO.getMaxMarkById(
+                    mark.getAssessmentId()
+            );
+
+        } catch (SQLException e) {
+
+            throw new RuntimeException(
+                    "Failed to read assessment details.",
+                    e
+            );
+        }
+
+        if (maxMark == null) {
+            throw new InvalidMarkException(
+                    "Assessment ID does not exist."
+            );
+        }
+
         Double value = mark.getMarksObtained();
 
         if (value != null &&
-                (value < 0 || value > 100)) {
+                (value < 0 || value > maxMark)) {
 
             throw new InvalidMarkException(
-                    "Mark must be between 0 and 100."
+                    "Mark must be between 0 and " + maxMark + "."
             );
         }
     }
