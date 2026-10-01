@@ -73,57 +73,7 @@ public class MarkDAO {
                         rs.getInt("assessment_id"),
                         value,
                         rs.getInt("attempt_no")
-                );
-
-                marks.add(mark);
-            }
-        }
-
-        return marks;
-    }
-
-    public List<AssessmentMark> findCAMarksByEnrollment(
-            int enrollmentId) throws SQLException {
-
-        List<AssessmentMark> marks = new ArrayList<>();
-
-        String sql = """
-                SELECT
-                    m.marks_obtained,
-                    a.max_mark,
-                    a.weight_percentage
-                FROM marks m
-                JOIN assessments a
-                    ON m.assessment_id = a.assessment_id
-                WHERE m.enrollment_id = ?
-                  AND a.assessment_type <> 'FINAL_EXAM'
-                  AND m.mark_status = 'PRESENT'
-                ORDER BY a.assessment_id
-                """;
-
-        try (Connection con = DBConnection.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql)) {
-
-            ps.setInt(1, enrollmentId);
-
-            try (ResultSet rs = ps.executeQuery()) {
-
-                while (rs.next()) {
-
-                    Double value =
-                            rs.getObject("marks_obtained") == null
-                                    ? null
-                                    : rs.getDouble("marks_obtained");
-
-                    AssessmentMark assessmentMark =
-                            new AssessmentMark(
-                                    value,
-                                    rs.getDouble("max_mark"),
-                                    rs.getDouble("weight_percentage")
-                            );
-
-                    marks.add(assessmentMark);
-                }
+                ));
             }
         }
 
