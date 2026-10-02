@@ -1,5 +1,7 @@
 package lk.ac.ruhuna.ftms.service;
 
+import lk.ac.ruhuna.ftms.dao.AttendanceRecordDAO;
+import lk.ac.ruhuna.ftms.dao.AttendanceSessionDAO;
 import lk.ac.ruhuna.ftms.dao.MarkDAO;
 import lk.ac.ruhuna.ftms.model.AssessmentMark;
 
@@ -9,9 +11,13 @@ import java.util.List;
 public class EligibilityService {
 
     private final MarkDAO markDAO;
+    private final AttendanceRecordDAO attendanceRecordDAO;
+    private final AttendanceSessionDAO attendanceSessionDAO;
 
     public EligibilityService() {
         this.markDAO = new MarkDAO();
+        this.attendanceRecordDAO = new AttendanceRecordDAO();
+        this.attendanceSessionDAO = new AttendanceSessionDAO();
     }
 
     public double calculateCAWeightedScore(int enrollmentId) {
@@ -76,6 +82,42 @@ public class EligibilityService {
         } catch (SQLException e) {
             throw new RuntimeException(
                     "Failed to calculate CA percentage.",
+                    e
+            );
+        }
+    }
+
+    public double calculateAttendancePercentage(int enrollmentId) {
+
+        if (enrollmentId <= 0) {
+            throw new IllegalArgumentException(
+                    "Invalid enrollment ID."
+            );
+        }
+
+        try {
+            int totalSessions =
+                    attendanceSessionDAO.countSessionsByEnrollment(
+                            enrollmentId
+                    );
+
+            if (totalSessions == 0) {
+                return 0.0;
+            }
+
+            int attendedSessions =
+                    attendanceRecordDAO.countPresentByEnrollment(
+                            enrollmentId
+                    );
+
+            double attendancePercentage =
+                    ((double) attendedSessions / totalSessions) * 100;
+
+            return round(attendancePercentage);
+
+        } catch (SQLException e) {
+            throw new RuntimeException(
+                    "Failed to calculate attendance percentage.",
                     e
             );
         }
