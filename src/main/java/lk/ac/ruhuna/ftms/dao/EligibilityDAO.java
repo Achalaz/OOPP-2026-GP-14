@@ -1,15 +1,85 @@
 package lk.ac.ruhuna.ftms.dao;
 
 import lk.ac.ruhuna.ftms.database.DBConnection;
+import lk.ac.ruhuna.ftms.model.EligibilityOffering;
 import lk.ac.ruhuna.ftms.model.EligibilityResult;
+import lk.ac.ruhuna.ftms.model.EligibilityRow;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
+import java.util.ArrayList;
+import java.util.List;
 
 public class EligibilityDAO {
+
+    public List<EligibilityOffering> findOfferings() throws SQLException {
+        String sql = """
+                SELECT o.offering_id, c.course_code, c.course_name, o.offering_group
+                FROM course_offerings o
+                JOIN courses c ON c.course_id = o.course_id
+                ORDER BY c.course_code, o.offering_id
+                """;
+
+        List<EligibilityOffering> offerings = new ArrayList<>();
+        try (Connection con = DBConnection.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                offerings.add(new EligibilityOffering(
+                        rs.getInt("offering_id"), rs.getString("course_code"),
+                        rs.getString("course_name"), rs.getString("offering_group")
+                ));
+            }
+        }
+        return offerings;
+    }
+
+    /** Includes enrollments with no saved result; missing values stay unknown. */
+    public List<EligibilityRow> findByOfferingId(int offeringId) throws SQLException {
+        String sql = """
+                SELECT e.enrollment_id, r.eligibility_id, r.ca_score, r.ca_eligible,
+                       r.attendance_percentage, r.attendance_eligible,
+                       r.overall_eligible, r.reason
+                FROM enrollments e
+                LEFT JOIN eligibility_records r ON r.enrollment_id = e.enrollment_id
+                WHERE e.offering_id = ?
+                ORDER BY e.enrollment_id
+                """;
+
+        List<EligibilityRow> rows = new ArrayList<>();
+        try (Connection con = DBConnection.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, offeringId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    rows.add(new EligibilityRow(
+                            rs.getInt("enrollment_id"),
+                            nullableDouble(rs, "ca_score"),
+                            nullableBoolean(rs, "ca_eligible"),
+                            nullableDouble(rs, "attendance_percentage"),
+                            nullableBoolean(rs, "attendance_eligible"),
+                            nullableBoolean(rs, "overall_eligible"),
+                            rs.getString("reason"),
+                            rs.getObject("eligibility_id") != null
+                    ));
+                }
+            }
+        }
+        return rows;
+    }
+
+    private Double nullableDouble(ResultSet rs, String column) throws SQLException {
+        double value = rs.getDouble(column);
+        return rs.wasNull() ? null : value;
+    }
+
+    private Boolean nullableBoolean(ResultSet rs, String column) throws SQLException {
+        boolean value = rs.getBoolean(column);
+        return rs.wasNull() ? null : value;
+    }
 
     public void saveOrUpdateEligibility(
             EligibilityResult result,
