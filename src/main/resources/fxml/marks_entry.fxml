@@ -101,6 +101,10 @@
                         onAction="#handleClear"
                         prefWidth="100"/>
 
+                <Button text="Eligibility"
+                        onAction="#handleEligibility"
+                        prefWidth="130"/>
+
             </HBox>
 
             <TableView fx:id="marksTable"

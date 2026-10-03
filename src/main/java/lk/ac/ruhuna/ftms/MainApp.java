@@ -11,12 +11,12 @@ public class MainApp extends Application {
     public void start(Stage stage) throws Exception {
 
         FXMLLoader loader = new FXMLLoader(
-                MainApp.class.getResource("/fxml/marks_entry.fxml")
+                MainApp.class.getResource("/fxml/eligibility.fxml")
         );
 
         Scene scene = new Scene(loader.load());
 
-        stage.setTitle("FTMS - Marks Entry Test");
+        stage.setTitle("FTMS - Eligibility Management");
         stage.setScene(scene);
         stage.show();
     }
