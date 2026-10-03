@@ -1,5 +1,6 @@
 package lk.ac.ruhuna.ftms.service;
 
+import lk.ac.ruhuna.ftms.dao.EligibilityDAO;
 import lk.ac.ruhuna.ftms.dao.MarkDAO;
 import lk.ac.ruhuna.ftms.model.AssessmentMark;
 import lk.ac.ruhuna.ftms.model.EligibilityResult;
@@ -12,9 +13,11 @@ public class EligibilityService {
     private static final double CA_ELIGIBILITY_THRESHOLD = 40.0;
 
     private final MarkDAO markDAO;
+    private final EligibilityDAO eligibilityDAO;
 
     public EligibilityService() {
         this.markDAO = new MarkDAO();
+        this.eligibilityDAO = new EligibilityDAO();
     }
 
     // ---------------------------------------------------------
@@ -143,6 +146,29 @@ public class EligibilityService {
                 overallEligible,
                 reason
         );
+    }
+
+    // ---------------------------------------------------------
+    // CALCULATE AND SAVE ELIGIBILITY
+    // ---------------------------------------------------------
+    public EligibilityResult evaluateAndSaveEligibility(
+            int enrollmentId,
+            double attendancePercentage,
+            boolean attendanceEligible,
+            Integer calculatedBy) {
+
+        EligibilityResult result = evaluateEligibility(
+                enrollmentId,
+                attendancePercentage,
+                attendanceEligible
+        );
+
+        try {
+            eligibilityDAO.saveOrUpdateEligibility(result, calculatedBy);
+            return result;
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to save eligibility result.", e);
+        }
     }
 
     // ---------------------------------------------------------
