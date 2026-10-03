@@ -105,6 +105,10 @@
                         onAction="#handleEligibility"
                         prefWidth="130"/>
 
+                <Button text="Results &amp; Grades"
+                        onAction="#handleResults"
+                        prefWidth="145"/>
+
             </HBox>
 
             <TableView fx:id="marksTable"
