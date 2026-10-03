@@ -1,25 +1,28 @@
 package lk.ac.ruhuna.ftms.service;
 
-import lk.ac.ruhuna.ftms.dao.AttendanceRecordDAO;
-import lk.ac.ruhuna.ftms.dao.AttendanceSessionDAO;
+import lk.ac.ruhuna.ftms.dao.EligibilityDAO;
 import lk.ac.ruhuna.ftms.dao.MarkDAO;
 import lk.ac.ruhuna.ftms.model.AssessmentMark;
+import lk.ac.ruhuna.ftms.model.EligibilityResult;
 
 import java.sql.SQLException;
 import java.util.List;
-
 public class EligibilityService {
 
+    // Confirmed SRS rule
+    private static final double CA_ELIGIBILITY_THRESHOLD = 40.0;
+
     private final MarkDAO markDAO;
-    private final AttendanceRecordDAO attendanceRecordDAO;
-    private final AttendanceSessionDAO attendanceSessionDAO;
+    private final EligibilityDAO eligibilityDAO;
 
     public EligibilityService() {
         this.markDAO = new MarkDAO();
-        this.attendanceRecordDAO = new AttendanceRecordDAO();
-        this.attendanceSessionDAO = new AttendanceSessionDAO();
+        this.eligibilityDAO = new EligibilityDAO();
     }
 
+    // ---------------------------------------------------------
+    // CALCULATE RAW WEIGHTED CA SCORE
+    // ---------------------------------------------------------
     public double calculateCAWeightedScore(int enrollmentId) {
 
         try {
@@ -30,11 +33,12 @@ public class EligibilityService {
 
             for (AssessmentMark item : marks) {
 
-                if (item.getMarksObtained() != null &&
-                        item.getMaxMark() > 0) {
+                if (item.getMarksObtained() != null
+                        && item.getMaxMark() > 0) {
 
                     total +=
-                            (item.getMarksObtained() / item.getMaxMark())
+                            (item.getMarksObtained()
+                                    / item.getMaxMark())
                                     * item.getWeightPercentage();
                 }
             }
@@ -42,6 +46,7 @@ public class EligibilityService {
             return round(total);
 
         } catch (SQLException e) {
+
             throw new RuntimeException(
                     "Failed to calculate CA score.",
                     e
@@ -49,6 +54,9 @@ public class EligibilityService {
         }
     }
 
+    // ---------------------------------------------------------
+    // CALCULATE CA PERCENTAGE
+    // ---------------------------------------------------------
     public double calculateCAPercentage(int enrollmentId) {
 
         try {
@@ -60,14 +68,16 @@ public class EligibilityService {
 
             for (AssessmentMark item : marks) {
 
-                if (item.getMarksObtained() != null &&
-                        item.getMaxMark() > 0) {
+                if (item.getMarksObtained() != null
+                        && item.getMaxMark() > 0) {
 
                     weightedScore +=
-                            (item.getMarksObtained() / item.getMaxMark())
+                            (item.getMarksObtained()
+                                    / item.getMaxMark())
                                     * item.getWeightPercentage();
 
-                    totalWeight += item.getWeightPercentage();
+                    totalWeight +=
+                            item.getWeightPercentage();
                 }
             }
 
@@ -80,6 +90,7 @@ public class EligibilityService {
             );
 
         } catch (SQLException e) {
+
             throw new RuntimeException(
                     "Failed to calculate CA percentage.",
                     e
@@ -87,42 +98,104 @@ public class EligibilityService {
         }
     }
 
-    public double calculateAttendancePercentage(int enrollmentId) {
+    // ---------------------------------------------------------
+    // CA ELIGIBILITY
+    // CA >= 40%
+    // ---------------------------------------------------------
+    public boolean isCAEligible(int enrollmentId) {
 
-        if (enrollmentId <= 0) {
-            throw new IllegalArgumentException(
-                    "Invalid enrollment ID."
-            );
-        }
+        double caPercentage =
+                calculateCAPercentage(enrollmentId);
+
+        return caPercentage >=
+                CA_ELIGIBILITY_THRESHOLD;
+    }
+
+    // ---------------------------------------------------------
+    // COMPLETE ELIGIBILITY RESULT
+    //
+    // Attendance eligibility is passed from the Attendance
+    // module because the official attendance threshold is TBC.
+    // ---------------------------------------------------------
+    public EligibilityResult evaluateEligibility(
+            int enrollmentId,
+            double attendancePercentage,
+            boolean attendanceEligible) {
+
+        double caPercentage =
+                calculateCAPercentage(enrollmentId);
+
+        boolean caEligible =
+                caPercentage >= CA_ELIGIBILITY_THRESHOLD;
+
+        boolean overallEligible =
+                caEligible && attendanceEligible;
+
+        String reason =
+                buildReason(
+                        caEligible,
+                        attendanceEligible
+                );
+
+        return new EligibilityResult(
+                enrollmentId,
+                caPercentage,
+                caEligible,
+                round(attendancePercentage),
+                attendanceEligible,
+                overallEligible,
+                reason
+        );
+    }
+
+    // ---------------------------------------------------------
+    // CALCULATE AND SAVE ELIGIBILITY
+    // ---------------------------------------------------------
+    public EligibilityResult evaluateAndSaveEligibility(
+            int enrollmentId,
+            double attendancePercentage,
+            boolean attendanceEligible,
+            Integer calculatedBy) {
+
+        EligibilityResult result = evaluateEligibility(
+                enrollmentId,
+                attendancePercentage,
+                attendanceEligible
+        );
 
         try {
-            int totalSessions =
-                    attendanceSessionDAO.countSessionsByEnrollment(
-                            enrollmentId
-                    );
-
-            if (totalSessions == 0) {
-                return 0.0;
-            }
-
-            int attendedSessions =
-                    attendanceRecordDAO.countPresentByEnrollment(
-                            enrollmentId
-                    );
-
-            double attendancePercentage =
-                    ((double) attendedSessions / totalSessions) * 100;
-
-            return round(attendancePercentage);
-
+            eligibilityDAO.saveOrUpdateEligibility(result, calculatedBy);
+            return result;
         } catch (SQLException e) {
-            throw new RuntimeException(
-                    "Failed to calculate attendance percentage.",
-                    e
-            );
+            throw new RuntimeException("Failed to save eligibility result.", e);
         }
     }
 
+    // ---------------------------------------------------------
+    // RESULT REASON
+    // ---------------------------------------------------------
+    private String buildReason(
+            boolean caEligible,
+            boolean attendanceEligible) {
+
+        if (caEligible && attendanceEligible) {
+            return "Eligible";
+        }
+
+        if (!caEligible && !attendanceEligible) {
+            return "CA and attendance requirements not met.";
+        }
+
+        if (!caEligible) {
+            return "CA requirement not met.";
+        }
+
+        return "Attendance requirement not met.";
+    }
+
+    // ---------------------------------------------------------
+    // ROUND TO 2 DECIMAL PLACES
+    // ---------------------------------------------------------
     private double round(double value) {
         return Math.round(value * 100.0) / 100.0;
     }
