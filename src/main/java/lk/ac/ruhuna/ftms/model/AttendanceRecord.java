@@ -88,8 +88,10 @@ public class AttendanceRecord {
         this.markedAt = markedAt;
     }
 
+//method over write
     @Override
     public String toString() {
         return "Enrollment " + enrollmentId + " - " + attendanceStatus;
     }
 }
+
