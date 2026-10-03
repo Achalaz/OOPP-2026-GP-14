@@ -229,6 +229,16 @@ public class MarksController {
         }
     }
 
+    @FXML
+    private void handleResults() {
+        try {
+            NavigationUtil.navigate(marksTable, "/fxml/results.fxml", "FTMS - Results & Grades");
+        } catch (IOException e) {
+            showAlert(Alert.AlertType.ERROR, "Navigation Error", "Unable to open results.");
+            e.printStackTrace();
+        }
+    }
+
     private void loadMarks() {
 
         marksTable.setItems(
