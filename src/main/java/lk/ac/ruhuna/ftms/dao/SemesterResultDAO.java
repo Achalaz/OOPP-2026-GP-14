@@ -13,6 +13,7 @@ import java.util.List;
 
 public class SemesterResultDAO {
 
+    // Course/result data used for GPA calculation
     public record GpaCourseRow(
             int enrollmentId,
             int semesterId,
@@ -28,6 +29,7 @@ public class SemesterResultDAO {
     ) {
     }
 
+    // Student ComboBox item
     public record StudentOption(
             int studentId,
             String registrationNo,
@@ -39,6 +41,7 @@ public class SemesterResultDAO {
         }
     }
 
+    // Semester ComboBox item
     public record SemesterOption(
             int semesterId,
             String academicYear,
@@ -60,6 +63,10 @@ public class SemesterResultDAO {
         }
     }
 
+    // ---------------------------------------------------------
+    // SAVE / UPDATE SEMESTER RESULT
+    // ---------------------------------------------------------
+
     public void saveOrUpdateSemesterResult(
             SemesterResult result
     ) throws SQLException {
@@ -78,6 +85,7 @@ public class SemesterResultDAO {
                 VALUES (?, ?, ?, ?, ?, ?, ?)
 
                 ON DUPLICATE KEY UPDATE
+
                     total_registered_credits =
                         VALUES(total_registered_credits),
 
@@ -87,10 +95,14 @@ public class SemesterResultDAO {
                     total_quality_points =
                         VALUES(total_quality_points),
 
-                    sgpa = VALUES(sgpa),
-                    cgpa = VALUES(cgpa),
+                    sgpa =
+                        VALUES(sgpa),
 
-                    calculated_at = CURRENT_TIMESTAMP
+                    cgpa =
+                        VALUES(cgpa),
+
+                    calculated_at =
+                        CURRENT_TIMESTAMP
                 """;
 
         try (Connection connection =
@@ -158,6 +170,10 @@ public class SemesterResultDAO {
         }
     }
 
+    // ---------------------------------------------------------
+    // GET ONE SEMESTER RESULT
+    // ---------------------------------------------------------
+
     public SemesterResult getByStudentAndSemester(
             int studentId,
             int semesterId
@@ -201,6 +217,10 @@ public class SemesterResultDAO {
         return null;
     }
 
+    // ---------------------------------------------------------
+    // GET ALL STORED SEMESTER RESULTS FOR STUDENT
+    // ---------------------------------------------------------
+
     public List<SemesterResult> getSemesterResultsByStudent(
             int studentId
     ) throws SQLException {
@@ -243,6 +263,10 @@ public class SemesterResultDAO {
         return results;
     }
 
+    // ---------------------------------------------------------
+    // GET COURSE RESULTS FOR GPA CALCULATION
+    // ---------------------------------------------------------
+
     public List<GpaCourseRow> getCourseRowsForSemester(
             int studentId,
             int semesterId
@@ -265,16 +289,20 @@ public class SemesterResultDAO {
                 FROM enrollments e
 
                 JOIN course_offerings co
-                    ON co.offering_id = e.offering_id
+                    ON co.offering_id =
+                       e.offering_id
 
                 JOIN courses c
-                    ON c.course_id = co.course_id
+                    ON c.course_id =
+                       co.course_id
 
                 LEFT JOIN course_results cr
-                    ON cr.enrollment_id = e.enrollment_id
+                    ON cr.enrollment_id =
+                       e.enrollment_id
 
                 LEFT JOIN grade_rules gr
-                    ON gr.grade_rule_id = cr.grade_rule_id
+                    ON gr.grade_rule_id =
+                       cr.grade_rule_id
 
                 WHERE e.student_id = ?
                   AND co.semester_id = ?
@@ -372,21 +400,35 @@ public class SemesterResultDAO {
         return rows;
     }
 
+    // ---------------------------------------------------------
+    // GET STUDENT SEMESTERS FOR CGPA
+    // ---------------------------------------------------------
+
     public List<Integer> getSemesterIdsByStudent(
             int studentId
     ) throws SQLException {
 
+        /*
+         * academic_year_id and semester_no are included
+         * in SELECT because MySQL requires ORDER BY
+         * columns to be in the SELECT list when DISTINCT
+         * is used.
+         */
         String sql = """
                 SELECT DISTINCT
-                    sem.semester_id
+                    sem.semester_id,
+                    sem.academic_year_id,
+                    sem.semester_no
 
                 FROM enrollments e
 
                 JOIN course_offerings co
-                    ON co.offering_id = e.offering_id
+                    ON co.offering_id =
+                       e.offering_id
 
                 JOIN semesters sem
-                    ON sem.semester_id = co.semester_id
+                    ON sem.semester_id =
+                       co.semester_id
 
                 WHERE e.student_id = ?
 
@@ -427,6 +469,10 @@ public class SemesterResultDAO {
         return semesterIds;
     }
 
+    // ---------------------------------------------------------
+    // LOAD STUDENTS FOR COMBOBOX
+    // ---------------------------------------------------------
+
     public List<StudentOption> getStudents()
             throws SQLException {
 
@@ -434,6 +480,7 @@ public class SemesterResultDAO {
                 SELECT
                     s.student_id,
                     s.registration_no,
+
                     CONCAT(
                         u.first_name,
                         ' ',
@@ -443,7 +490,8 @@ public class SemesterResultDAO {
                 FROM students s
 
                 JOIN users u
-                    ON u.user_id = s.student_id
+                    ON u.user_id =
+                       s.student_id
 
                 ORDER BY
                     s.registration_no
@@ -463,7 +511,7 @@ public class SemesterResultDAO {
 
             while (resultSet.next()) {
 
-                students.add(
+                StudentOption student =
                         new StudentOption(
 
                                 resultSet.getInt(
@@ -477,21 +525,37 @@ public class SemesterResultDAO {
                                 resultSet.getString(
                                         "student_name"
                                 )
-                        )
-                );
+                        );
+
+                students.add(student);
             }
         }
 
         return students;
     }
 
+    // ---------------------------------------------------------
+    // LOAD SEMESTERS FOR SELECTED STUDENT
+    // ---------------------------------------------------------
+
     public List<SemesterOption> getSemestersForStudent(
             int studentId
     ) throws SQLException {
 
+        /*
+         * FIX:
+         *
+         * sem.academic_year_id is included in SELECT.
+         * This fixes:
+         *
+         * "Expression of ORDER BY clause is not in SELECT list"
+         *
+         * when DISTINCT is used.
+         */
         String sql = """
                 SELECT DISTINCT
                     sem.semester_id,
+                    sem.academic_year_id,
                     ay.academic_year_name,
                     sem.semester_no,
                     sem.semester_name
@@ -499,10 +563,12 @@ public class SemesterResultDAO {
                 FROM enrollments e
 
                 JOIN course_offerings co
-                    ON co.offering_id = e.offering_id
+                    ON co.offering_id =
+                       e.offering_id
 
                 JOIN semesters sem
-                    ON sem.semester_id = co.semester_id
+                    ON sem.semester_id =
+                       co.semester_id
 
                 JOIN academic_years ay
                     ON ay.academic_year_id =
@@ -535,7 +601,7 @@ public class SemesterResultDAO {
 
                 while (resultSet.next()) {
 
-                    semesters.add(
+                    SemesterOption semester =
                             new SemesterOption(
 
                                     resultSet.getInt(
@@ -553,7 +619,10 @@ public class SemesterResultDAO {
                                     resultSet.getString(
                                             "semester_name"
                                     )
-                            )
+                            );
+
+                    semesters.add(
+                            semester
                     );
                 }
             }
@@ -561,6 +630,10 @@ public class SemesterResultDAO {
 
         return semesters;
     }
+
+    // ---------------------------------------------------------
+    // RESULTSET -> SEMESTER RESULT OBJECT
+    // ---------------------------------------------------------
 
     private SemesterResult mapSemesterResult(
             ResultSet resultSet
@@ -611,9 +684,16 @@ public class SemesterResultDAO {
                 );
 
         if (resultSet.wasNull()) {
-            result.setSgpa(null);
+
+            result.setSgpa(
+                    null
+            );
+
         } else {
-            result.setSgpa(sgpa);
+
+            result.setSgpa(
+                    sgpa
+            );
         }
 
         double cgpa =
@@ -622,9 +702,16 @@ public class SemesterResultDAO {
                 );
 
         if (resultSet.wasNull()) {
-            result.setCgpa(null);
+
+            result.setCgpa(
+                    null
+            );
+
         } else {
-            result.setCgpa(cgpa);
+
+            result.setCgpa(
+                    cgpa
+            );
         }
 
         Timestamp calculatedAt =
@@ -635,7 +722,8 @@ public class SemesterResultDAO {
         if (calculatedAt != null) {
 
             result.setCalculatedAt(
-                    calculatedAt.toLocalDateTime()
+                    calculatedAt
+                            .toLocalDateTime()
             );
         }
 
