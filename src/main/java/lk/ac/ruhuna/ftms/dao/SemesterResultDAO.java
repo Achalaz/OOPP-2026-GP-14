@@ -1,7 +1,7 @@
 package lk.ac.ruhuna.ftms.dao;
 
-import lk.ac.ruhuna.ftms.model.SemesterResult;
 import lk.ac.ruhuna.ftms.database.DBConnection;
+import lk.ac.ruhuna.ftms.model.SemesterResult;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -13,7 +13,24 @@ import java.util.List;
 
 public class SemesterResultDAO {
 
-    public void saveOrUpdateSemesterResult(SemesterResult result) throws SQLException {
+    // Data needed for GPA calculation and GPA table display
+    public record GpaCourseRow(
+            int enrollmentId,
+            int semesterId,
+            String courseCode,
+            String courseName,
+            double credits,
+            String enrollmentStatus,
+            String gradeLetter,
+            Double gradePoint,
+            String resultStatus,
+            boolean passed,
+            boolean published
+    ) {
+    }
+
+    public void saveOrUpdateSemesterResult(SemesterResult result)
+            throws SQLException {
 
         String sql = """
                 INSERT INTO semester_results
@@ -37,24 +54,46 @@ public class SemesterResultDAO {
                 """;
 
         try (Connection connection = DBConnection.getConnection();
-             PreparedStatement statement = connection.prepareStatement(sql)) {
+             PreparedStatement statement =
+                     connection.prepareStatement(sql)) {
 
             statement.setInt(1, result.getStudentId());
             statement.setInt(2, result.getSemesterId());
-            statement.setDouble(3, result.getTotalRegisteredCredits());
-            statement.setDouble(4, result.getTotalEarnedCredits());
-            statement.setDouble(5, result.getTotalQualityPoints());
+            statement.setDouble(
+                    3,
+                    result.getTotalRegisteredCredits()
+            );
+            statement.setDouble(
+                    4,
+                    result.getTotalEarnedCredits()
+            );
+            statement.setDouble(
+                    5,
+                    result.getTotalQualityPoints()
+            );
 
             if (result.getSgpa() != null) {
-                statement.setDouble(6, result.getSgpa());
+                statement.setDouble(
+                        6,
+                        result.getSgpa()
+                );
             } else {
-                statement.setNull(6, java.sql.Types.DECIMAL);
+                statement.setNull(
+                        6,
+                        java.sql.Types.DECIMAL
+                );
             }
 
             if (result.getCgpa() != null) {
-                statement.setDouble(7, result.getCgpa());
+                statement.setDouble(
+                        7,
+                        result.getCgpa()
+                );
             } else {
-                statement.setNull(7, java.sql.Types.DECIMAL);
+                statement.setNull(
+                        7,
+                        java.sql.Types.DECIMAL
+                );
             }
 
             statement.executeUpdate();
@@ -63,7 +102,8 @@ public class SemesterResultDAO {
 
     public SemesterResult getByStudentAndSemester(
             int studentId,
-            int semesterId) throws SQLException {
+            int semesterId
+    ) throws SQLException {
 
         String sql = """
                 SELECT *
@@ -72,13 +112,17 @@ public class SemesterResultDAO {
                   AND semester_id = ?
                 """;
 
-        try (Connection connection = DBConnection.getConnection();
-             PreparedStatement statement = connection.prepareStatement(sql)) {
+        try (Connection connection =
+                     DBConnection.getConnection();
+
+             PreparedStatement statement =
+                     connection.prepareStatement(sql)) {
 
             statement.setInt(1, studentId);
             statement.setInt(2, semesterId);
 
-            try (ResultSet resultSet = statement.executeQuery()) {
+            try (ResultSet resultSet =
+                         statement.executeQuery()) {
 
                 if (resultSet.next()) {
                     return mapSemesterResult(resultSet);
@@ -90,7 +134,8 @@ public class SemesterResultDAO {
     }
 
     public List<SemesterResult> getSemesterResultsByStudent(
-            int studentId) throws SQLException {
+            int studentId
+    ) throws SQLException {
 
         String sql = """
                 SELECT *
@@ -99,17 +144,24 @@ public class SemesterResultDAO {
                 ORDER BY semester_id
                 """;
 
-        List<SemesterResult> results = new ArrayList<>();
+        List<SemesterResult> results =
+                new ArrayList<>();
 
-        try (Connection connection = DBConnection.getConnection();
-             PreparedStatement statement = connection.prepareStatement(sql)) {
+        try (Connection connection =
+                     DBConnection.getConnection();
+
+             PreparedStatement statement =
+                     connection.prepareStatement(sql)) {
 
             statement.setInt(1, studentId);
 
-            try (ResultSet resultSet = statement.executeQuery()) {
+            try (ResultSet resultSet =
+                         statement.executeQuery()) {
 
                 while (resultSet.next()) {
-                    results.add(mapSemesterResult(resultSet));
+                    results.add(
+                            mapSemesterResult(resultSet)
+                    );
                 }
             }
         }
@@ -117,47 +169,172 @@ public class SemesterResultDAO {
         return results;
     }
 
-    private SemesterResult mapSemesterResult(ResultSet resultSet)
-            throws SQLException {
+    public List<GpaCourseRow> getCourseRowsForSemester(
+            int studentId,
+            int semesterId
+    ) throws SQLException {
 
-        SemesterResult result = new SemesterResult();
+        String sql = """
+                SELECT
+                    e.enrollment_id,
+                    co.semester_id,
+                    c.course_code,
+                    c.course_name,
+                    c.credits,
+                    e.status AS enrollment_status,
+                    cr.grade_letter,
+                    cr.grade_point,
+                    cr.result_status,
+                    COALESCE(gr.is_pass, FALSE) AS is_pass,
+                    COALESCE(cr.published, FALSE) AS published
+                FROM enrollments e
+                JOIN course_offerings co
+                    ON co.offering_id = e.offering_id
+                JOIN courses c
+                    ON c.course_id = co.course_id
+                LEFT JOIN course_results cr
+                    ON cr.enrollment_id = e.enrollment_id
+                LEFT JOIN grade_rules gr
+                    ON gr.grade_rule_id = cr.grade_rule_id
+                WHERE e.student_id = ?
+                  AND co.semester_id = ?
+                ORDER BY c.course_code, e.attempt_no
+                """;
+
+        List<GpaCourseRow> rows =
+                new ArrayList<>();
+
+        try (Connection connection =
+                     DBConnection.getConnection();
+
+             PreparedStatement statement =
+                     connection.prepareStatement(sql)) {
+
+            statement.setInt(1, studentId);
+            statement.setInt(2, semesterId);
+
+            try (ResultSet resultSet =
+                         statement.executeQuery()) {
+
+                while (resultSet.next()) {
+
+                    double gradePointValue =
+                            resultSet.getDouble(
+                                    "grade_point"
+                            );
+
+                    Double gradePoint =
+                            resultSet.wasNull()
+                                    ? null
+                                    : gradePointValue;
+
+                    rows.add(
+                            new GpaCourseRow(
+                                    resultSet.getInt(
+                                            "enrollment_id"
+                                    ),
+                                    resultSet.getInt(
+                                            "semester_id"
+                                    ),
+                                    resultSet.getString(
+                                            "course_code"
+                                    ),
+                                    resultSet.getString(
+                                            "course_name"
+                                    ),
+                                    resultSet.getDouble(
+                                            "credits"
+                                    ),
+                                    resultSet.getString(
+                                            "enrollment_status"
+                                    ),
+                                    resultSet.getString(
+                                            "grade_letter"
+                                    ),
+                                    gradePoint,
+                                    resultSet.getString(
+                                            "result_status"
+                                    ),
+                                    resultSet.getBoolean(
+                                            "is_pass"
+                                    ),
+                                    resultSet.getBoolean(
+                                            "published"
+                                    )
+                            )
+                    );
+                }
+            }
+        }
+
+        return rows;
+    }
+
+    private SemesterResult mapSemesterResult(
+            ResultSet resultSet
+    ) throws SQLException {
+
+        SemesterResult result =
+                new SemesterResult();
 
         result.setSemesterResultId(
-                resultSet.getInt("semester_result_id")
+                resultSet.getInt(
+                        "semester_result_id"
+                )
         );
 
         result.setStudentId(
-                resultSet.getInt("student_id")
+                resultSet.getInt(
+                        "student_id"
+                )
         );
 
         result.setSemesterId(
-                resultSet.getInt("semester_id")
+                resultSet.getInt(
+                        "semester_id"
+                )
         );
 
         result.setTotalRegisteredCredits(
-                resultSet.getDouble("total_registered_credits")
+                resultSet.getDouble(
+                        "total_registered_credits"
+                )
         );
 
         result.setTotalEarnedCredits(
-                resultSet.getDouble("total_earned_credits")
+                resultSet.getDouble(
+                        "total_earned_credits"
+                )
         );
 
         result.setTotalQualityPoints(
-                resultSet.getDouble("total_quality_points")
+                resultSet.getDouble(
+                        "total_quality_points"
+                )
         );
 
-        double sgpa = resultSet.getDouble("sgpa");
+        double sgpa =
+                resultSet.getDouble("sgpa");
+
         result.setSgpa(
-                resultSet.wasNull() ? null : sgpa
+                resultSet.wasNull()
+                        ? null
+                        : sgpa
         );
 
-        double cgpa = resultSet.getDouble("cgpa");
+        double cgpa =
+                resultSet.getDouble("cgpa");
+
         result.setCgpa(
-                resultSet.wasNull() ? null : cgpa
+                resultSet.wasNull()
+                        ? null
+                        : cgpa
         );
 
         Timestamp calculatedAt =
-                resultSet.getTimestamp("calculated_at");
+                resultSet.getTimestamp(
+                        "calculated_at"
+                );
 
         if (calculatedAt != null) {
             result.setCalculatedAt(
