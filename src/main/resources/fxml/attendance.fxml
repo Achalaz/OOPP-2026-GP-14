@@ -1,0 +1,235 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns:fx="http://javafx.com/fxml"
+            fx:controller="lk.ac.ruhuna.ftms.controller.AttendanceController"
+            prefWidth="1000"
+            prefHeight="720">
+
+    <top>
+        <VBox spacing="5"
+              style="-fx-background-color: #1f2937;">
+
+            <padding>
+                <Insets top="20" right="25" bottom="20" left="25"/>
+            </padding>
+
+            <Label text="Attendance Management"
+                   style="-fx-text-fill: white;
+                          -fx-font-size: 24px;
+                          -fx-font-weight: bold;"/>
+
+            <Label text="FTMS - Attendance Session and Student Attendance"
+                   style="-fx-text-fill: #d1d5db;
+                          -fx-font-size: 13px;"/>
+        </VBox>
+    </top>
+
+    <center>
+        <ScrollPane fitToWidth="true">
+
+            <VBox spacing="20">
+
+                <padding>
+                    <Insets top="25" right="30" bottom="25" left="30"/>
+                </padding>
+
+                <!-- Attendance Session -->
+                <VBox spacing="12"
+                      style="-fx-border-color: #d1d5db;
+                             -fx-border-radius: 5;
+                             -fx-padding: 15;">
+
+                    <Label text="Attendance Session"
+                           style="-fx-font-size: 17px;
+                                  -fx-font-weight: bold;"/>
+
+                    <GridPane hgap="15" vgap="12">
+
+                        <columnConstraints>
+                            <ColumnConstraints minWidth="150"/>
+                            <ColumnConstraints minWidth="250"
+                                               hgrow="ALWAYS"/>
+                            <ColumnConstraints minWidth="150"/>
+                            <ColumnConstraints minWidth="250"
+                                               hgrow="ALWAYS"/>
+                        </columnConstraints>
+
+                        <Label text="Offering ID"
+                               GridPane.columnIndex="0"
+                               GridPane.rowIndex="0"/>
+
+                        <TextField fx:id="offeringIdField"
+                                   promptText="Enter offering ID"
+                                   GridPane.columnIndex="1"
+                                   GridPane.rowIndex="0"/>
+
+                        <Label text="Session Date"
+                               GridPane.columnIndex="2"
+                               GridPane.rowIndex="0"/>
+
+                        <DatePicker fx:id="sessionDatePicker"
+                                    maxWidth="Infinity"
+                                    GridPane.columnIndex="3"
+                                    GridPane.rowIndex="0"/>
+
+                        <Label text="Start Time"
+                               GridPane.columnIndex="0"
+                               GridPane.rowIndex="1"/>
+
+                        <TextField fx:id="startTimeField"
+                                   promptText="Example: 09:00"
+                                   GridPane.columnIndex="1"
+                                   GridPane.rowIndex="1"/>
+
+                        <Label text="End Time"
+                               GridPane.columnIndex="2"
+                               GridPane.rowIndex="1"/>
+
+                        <TextField fx:id="endTimeField"
+                                   promptText="Example: 11:00"
+                                   GridPane.columnIndex="3"
+                                   GridPane.rowIndex="1"/>
+
+                        <Label text="Session Type"
+                               GridPane.columnIndex="0"
+                               GridPane.rowIndex="2"/>
+
+                        <ComboBox fx:id="sessionTypeCombo"
+                                  promptText="Select session type"
+                                  maxWidth="Infinity"
+                                  GridPane.columnIndex="1"
+                                  GridPane.rowIndex="2"/>
+
+                        <Label text="Conducted By"
+                               GridPane.columnIndex="2"
+                               GridPane.rowIndex="2"/>
+
+                        <TextField fx:id="conductedByField"
+                                   promptText="User ID (optional)"
+                                   GridPane.columnIndex="3"
+                                   GridPane.rowIndex="2"/>
+
+                        <Label text="Topic"
+                               GridPane.columnIndex="0"
+                               GridPane.rowIndex="3"/>
+
+                        <TextField fx:id="topicField"
+                                   promptText="Session topic"
+                                   GridPane.columnIndex="1"
+                                   GridPane.rowIndex="3"
+                                   GridPane.columnSpan="3"/>
+                    </GridPane>
+
+                    <Button text="Save Session"
+                            onAction="#handleSaveSession"
+                            prefWidth="140"/>
+                </VBox>
+
+
+                <!-- Attendance Entry -->
+                <VBox spacing="12"
+                      style="-fx-border-color: #d1d5db;
+                             -fx-border-radius: 5;
+                             -fx-padding: 15;">
+
+                    <Label text="Student Attendance"
+                           style="-fx-font-size: 17px;
+                                  -fx-font-weight: bold;"/>
+
+                    <GridPane hgap="15" vgap="12">
+
+                        <columnConstraints>
+                            <ColumnConstraints minWidth="150"/>
+                            <ColumnConstraints minWidth="220"
+                                               hgrow="ALWAYS"/>
+                            <ColumnConstraints minWidth="150"/>
+                            <ColumnConstraints minWidth="220"
+                                               hgrow="ALWAYS"/>
+                        </columnConstraints>
+
+                        <Label text="Session ID"
+                               GridPane.columnIndex="0"
+                               GridPane.rowIndex="0"/>
+
+                        <TextField fx:id="sessionIdField"
+                                   promptText="Session ID"
+                                   GridPane.columnIndex="1"
+                                   GridPane.rowIndex="0"/>
+
+                        <Label text="Enrollment ID"
+                               GridPane.columnIndex="2"
+                               GridPane.rowIndex="0"/>
+
+                        <TextField fx:id="enrollmentIdField"
+                                   promptText="Enrollment ID"
+                                   GridPane.columnIndex="3"
+                                   GridPane.rowIndex="0"/>
+
+                        <Label text="Attendance Status"
+                               GridPane.columnIndex="0"
+                               GridPane.rowIndex="1"/>
+
+                        <ComboBox fx:id="attendanceStatusCombo"
+                                  promptText="Select status"
+                                  maxWidth="Infinity"
+                                  GridPane.columnIndex="1"
+                                  GridPane.rowIndex="1"/>
+                    </GridPane>
+
+                    <HBox spacing="10">
+
+                        <Button text="Save / Update Attendance"
+                                onAction="#handleSaveAttendance"
+                                prefWidth="190"/>
+
+                        <Button text="Load Attendance"
+                                onAction="#handleLoadAttendance"
+                                prefWidth="150"/>
+
+                        <Button text="Clear"
+                                onAction="#handleClear"
+                                prefWidth="100"/>
+                    </HBox>
+                </VBox>
+
+
+                <!-- Attendance Table -->
+                <VBox spacing="10">
+
+                    <Label text="Attendance Records"
+                           style="-fx-font-size: 17px;
+                                  -fx-font-weight: bold;"/>
+
+                    <TableView fx:id="attendanceTable"
+                               prefHeight="250">
+
+                        <columns>
+
+                            <TableColumn fx:id="enrollmentColumn"
+                                         text="Enrollment ID"
+                                         prefWidth="250"/>
+
+                            <TableColumn fx:id="statusColumn"
+                                         text="Attendance Status"
+                                         prefWidth="300"/>
+
+                        </columns>
+
+                    </TableView>
+                </VBox>
+
+                <Label fx:id="statusLabel"
+                       text=""
+                       wrapText="true"
+                       style="-fx-font-weight: bold;"/>
+
+            </VBox>
+
+        </ScrollPane>
+    </center>
+
+</BorderPane>
