@@ -1,24 +1,22 @@
 package lk.ac.ruhuna.ftms;
 
-
 import javafx.application.Application;
+import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
-import javafx.scene.control.Label;
-import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 
 public class MainApp extends Application {
 
     @Override
-    public void start(Stage stage) {
+    public void start(Stage stage) throws Exception {
 
-        Label label = new Label("Faculty Technology Management System");
+        FXMLLoader loader = new FXMLLoader(
+                MainApp.class.getResource("/fxml/gpa.fxml")
+        );
 
-        StackPane root = new StackPane(label);
+        Scene scene = new Scene(loader.load());
 
-        Scene scene = new Scene(root, 800, 500);
-
-        stage.setTitle("FTMS - Group 14");
+        stage.setTitle("FTMS - SGPA / CGPA Management");
         stage.setScene(scene);
         stage.show();
     }

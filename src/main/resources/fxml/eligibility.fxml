@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns:fx="http://javafx.com/fxml"
+            fx:controller="lk.ac.ruhuna.ftms.controller.EligibilityController"
+            prefWidth="1120" prefHeight="780">
+    <top>
+        <HBox alignment="CENTER_LEFT" spacing="20" style="-fx-background-color: #1f2937;">
+            <padding>
+                <Insets top="20" right="25" bottom="20" left="25"/>
+            </padding>
+            <VBox spacing="5" HBox.hgrow="ALWAYS">
+                <Label text="Eligibility"
+                       style="-fx-text-fill: white; -fx-font-size: 24px; -fx-font-weight: bold;"/>
+                <Label text="FTMS - Individual and Batch Eligibility"
+                       style="-fx-text-fill: #d1d5db; -fx-font-size: 13px;"/>
+            </VBox>
+            <Button fx:id="backButton" text="Back to Marks Dashboard" onAction="#handleBack"/>
+        </HBox>
+    </top>
+    <center>
+        <VBox spacing="15">
+            <padding>
+                <Insets top="25" right="30" bottom="25" left="30"/>
+            </padding>
+            <GridPane hgap="15" vgap="8">
+                <columnConstraints>
+                    <ColumnConstraints percentWidth="68" hgrow="ALWAYS"/>
+                    <ColumnConstraints percentWidth="32" hgrow="ALWAYS"/>
+                </columnConstraints>
+                <Label text="Course / Offering" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+                <ComboBox fx:id="offeringCombo" promptText="Select a course/offering"
+                          maxWidth="Infinity" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+                <Label text="Student / Enrollment" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+                <ComboBox fx:id="enrollmentCombo" promptText="Select an enrollment"
+                          maxWidth="Infinity" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+            </GridPane>
+
+            <VBox spacing="10">
+                <Label text="Individual eligibility" style="-fx-font-size: 16px; -fx-font-weight: bold;"/>
+                <Label fx:id="resultStateLabel" text="No enrollment selected" wrapText="true"/>
+                <GridPane hgap="20" vgap="10">
+                    <columnConstraints>
+                        <ColumnConstraints minWidth="135"/>
+                        <ColumnConstraints minWidth="140" hgrow="ALWAYS"/>
+                        <ColumnConstraints minWidth="155"/>
+                        <ColumnConstraints minWidth="140" hgrow="ALWAYS"/>
+                    </columnConstraints>
+                    <Label text="CA percentage" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+                    <Label fx:id="caPercentageLabel" text="--" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+                    <Label text="CA eligibility" GridPane.columnIndex="2" GridPane.rowIndex="0"/>
+                    <Label fx:id="caEligibilityLabel" text="--" GridPane.columnIndex="3" GridPane.rowIndex="0"/>
+                    <Label text="Attendance percentage" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+                    <Label fx:id="attendancePercentageLabel" text="--" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+                    <Label text="Attendance eligibility" GridPane.columnIndex="2" GridPane.rowIndex="1"/>
+                    <Label fx:id="attendanceEligibilityLabel" text="--" GridPane.columnIndex="3" GridPane.rowIndex="1"/>
+                    <Label text="Overall eligibility" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
+                    <Label fx:id="overallEligibilityLabel" text="--" style="-fx-font-weight: bold;"
+                           GridPane.columnIndex="1" GridPane.rowIndex="2" GridPane.columnSpan="3"/>
+                    <Label text="Reason" GridPane.columnIndex="0" GridPane.rowIndex="3"/>
+                    <Label fx:id="reasonLabel" text="Select an enrollment to view eligibility."
+                           wrapText="true" maxWidth="Infinity"
+                           GridPane.columnIndex="1" GridPane.rowIndex="3" GridPane.columnSpan="3"/>
+                </GridPane>
+                <Label text="CA eligibility requires at least 40%. Attendance eligibility is supplied by the Attendance module. If unavailable, it stays pending and saving is disabled."
+                       wrapText="true" maxWidth="Infinity" style="-fx-text-fill: #4b5563;"/>
+            </VBox>
+
+            <HBox spacing="10">
+                <Button fx:id="calculateButton" text="Calculate Eligibility" onAction="#handleCalculate" prefWidth="155"/>
+                <Button fx:id="saveButton" text="Save / Update" onAction="#handleSave" prefWidth="130"/>
+                <Button fx:id="clearButton" text="Clear" onAction="#handleClear" prefWidth="100"/>
+                <Button fx:id="refreshButton" text="Refresh" onAction="#handleRefresh" prefWidth="100"/>
+            </HBox>
+
+            <VBox spacing="5" VBox.vgrow="ALWAYS">
+                <Label text="Batch eligibility" style="-fx-font-size: 16px; -fx-font-weight: bold;"/>
+                <Label text="Saved results and calculations from this session. Select a row to view individual eligibility."
+                       wrapText="true"/>
+                <TableView fx:id="batchTable" VBox.vgrow="ALWAYS" minHeight="140">
+                    <columns>
+                        <TableColumn fx:id="enrollmentColumn" text="Enrollment ID" prefWidth="100"/>
+                        <TableColumn fx:id="caPercentageColumn" text="CA %" prefWidth="80"/>
+                        <TableColumn fx:id="caEligibilityColumn" text="CA eligibility" prefWidth="105"/>
+                        <TableColumn fx:id="attendancePercentageColumn" text="Attendance %" prefWidth="105"/>
+                        <TableColumn fx:id="attendanceEligibilityColumn" text="Attendance eligibility" prefWidth="140"/>
+                        <TableColumn fx:id="overallEligibilityColumn" text="Overall eligibility" prefWidth="125"/>
+                        <TableColumn fx:id="reasonColumn" text="Reason" prefWidth="240"/>
+                        <TableColumn fx:id="stateColumn" text="Result status" prefWidth="155"/>
+                    </columns>
+                </TableView>
+            </VBox>
+            <Label fx:id="statusLabel" text="Loading course offerings..." wrapText="true" maxWidth="Infinity"/>
+        </VBox>
+    </center>
+</BorderPane>

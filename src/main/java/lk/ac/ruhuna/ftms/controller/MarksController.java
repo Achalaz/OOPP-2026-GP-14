@@ -8,6 +8,9 @@ import javafx.scene.control.cell.PropertyValueFactory;
 import lk.ac.ruhuna.ftms.exception.InvalidMarkException;
 import lk.ac.ruhuna.ftms.model.Mark;
 import lk.ac.ruhuna.ftms.service.MarkService;
+import lk.ac.ruhuna.ftms.util.NavigationUtil;
+
+import java.io.IOException;
 
 public class MarksController {
 
@@ -214,6 +217,26 @@ public class MarksController {
     @FXML
     private void handleClear() {
         clearFields();
+    }
+
+    @FXML
+    private void handleEligibility() {
+        try {
+            NavigationUtil.navigate(marksTable, "/fxml/eligibility.fxml", "FTMS - Eligibility");
+        } catch (IOException e) {
+            showAlert(Alert.AlertType.ERROR, "Navigation Error", "Unable to open eligibility.");
+            e.printStackTrace();
+        }
+    }
+
+    @FXML
+    private void handleResults() {
+        try {
+            NavigationUtil.navigate(marksTable, "/fxml/results.fxml", "FTMS - Results & Grades");
+        } catch (IOException e) {
+            showAlert(Alert.AlertType.ERROR, "Navigation Error", "Unable to open results.");
+            e.printStackTrace();
+        }
     }
 
     private void loadMarks() {
