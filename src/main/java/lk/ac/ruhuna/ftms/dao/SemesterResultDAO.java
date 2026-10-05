@@ -1,7 +1,7 @@
 package lk.ac.ruhuna.ftms.dao;
 
 import lk.ac.ruhuna.ftms.model.SemesterResult;
-import lk.ac.ruhuna.ftms.util.DBConnection;
+import lk.ac.ruhuna.ftms.database.DBConnection;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
