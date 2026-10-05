@@ -2,6 +2,8 @@ package lk.ac.ruhuna.ftms.service;
 
 import lk.ac.ruhuna.ftms.dao.SemesterResultDAO;
 import lk.ac.ruhuna.ftms.dao.SemesterResultDAO.GpaCourseRow;
+import lk.ac.ruhuna.ftms.dao.SemesterResultDAO.SemesterOption;
+import lk.ac.ruhuna.ftms.dao.SemesterResultDAO.StudentOption;
 import lk.ac.ruhuna.ftms.model.SemesterResult;
 
 import java.sql.SQLException;
@@ -15,7 +17,7 @@ public class GPAService {
         this.semesterResultDAO = new SemesterResultDAO();
     }
 
-    // Calculate SGPA + CGPA for one student and semester
+    // Calculate SGPA + CGPA
     public SemesterResult calculateSemesterGPA(
             int studentId,
             int semesterId
@@ -48,21 +50,22 @@ public class GPAService {
                 continue;
             }
 
-            // Every enrolled course contributes to registered credits
+            // All enrolled courses count as registered credits
             totalRegisteredCredits += credits;
 
-            // GPA calculation uses only published results
+            // GPA calculation uses published results only
             if (!row.published()) {
                 continue;
             }
 
-            // Cannot calculate quality points without a grade point
             if (row.gradePoint() == null) {
                 continue;
             }
 
-            // Only completed PASS / FAIL results are GPA-applicable here
-            if (!isGpaApplicableStatus(row.resultStatus())) {
+            // Current GPA-applicable statuses
+            if (!isGpaApplicableStatus(
+                    row.resultStatus()
+            )) {
                 continue;
             }
 
@@ -111,7 +114,7 @@ public class GPAService {
         );
     }
 
-    // Calculate cumulative GPA up to selected semester
+    // Calculate CGPA up to selected semester
     public Double calculateCGPA(
             int studentId,
             int selectedSemesterId
@@ -131,18 +134,9 @@ public class GPAService {
         double cumulativeQualityPoints = 0.0;
         double cumulativeCredits = 0.0;
 
-        for (Integer semesterId : semesterIds) {
+        boolean selectedSemesterReached = false;
 
-            /*
-             * Current implementation assumes semester_id order
-             * follows chronological order.
-             *
-             * This can later be replaced with academic-year /
-             * semester ordering if required by the final schema.
-             */
-            if (semesterId > selectedSemesterId) {
-                continue;
-            }
+        for (Integer semesterId : semesterIds) {
 
             List<GpaCourseRow> rows =
                     semesterResultDAO
@@ -178,6 +172,15 @@ public class GPAService {
                 cumulativeQualityPoints +=
                         credits * row.gradePoint();
             }
+
+            if (semesterId == selectedSemesterId) {
+                selectedSemesterReached = true;
+                break;
+            }
+        }
+
+        if (!selectedSemesterReached) {
+            return null;
         }
 
         if (cumulativeCredits <= 0) {
@@ -190,7 +193,7 @@ public class GPAService {
         );
     }
 
-    // Save or update GPA result in semester_results table
+    // Save / update GPA result
     public void saveSemesterResult(
             SemesterResult result
     ) throws SQLException {
@@ -201,17 +204,10 @@ public class GPAService {
             );
         }
 
-        if (result.getStudentId() <= 0) {
-            throw new IllegalArgumentException(
-                    "Invalid student ID."
-            );
-        }
-
-        if (result.getSemesterId() <= 0) {
-            throw new IllegalArgumentException(
-                    "Invalid semester ID."
-            );
-        }
+        validateIds(
+                result.getStudentId(),
+                result.getSemesterId()
+        );
 
         semesterResultDAO
                 .saveOrUpdateSemesterResult(
@@ -219,7 +215,7 @@ public class GPAService {
                 );
     }
 
-    // Get previously stored GPA result
+    // Get stored semester result
     public SemesterResult getSemesterResult(
             int studentId,
             int semesterId
@@ -237,7 +233,7 @@ public class GPAService {
                 );
     }
 
-    // Used by GPA GUI table
+    // Get course rows for GPA table
     public List<GpaCourseRow> getCourseRows(
             int studentId,
             int semesterId
@@ -255,8 +251,9 @@ public class GPAService {
                 );
     }
 
-    // Get all previously stored semester results
-    public List<SemesterResult> getSemesterResultsByStudent(
+    // Get previous stored semester results
+    public List<SemesterResult>
+    getSemesterResultsByStudent(
             int studentId
     ) throws SQLException {
 
@@ -268,6 +265,31 @@ public class GPAService {
 
         return semesterResultDAO
                 .getSemesterResultsByStudent(
+                        studentId
+                );
+    }
+
+    // Load students for GPA GUI
+    public List<StudentOption> getStudents()
+            throws SQLException {
+
+        return semesterResultDAO
+                .getStudents();
+    }
+
+    // Load semesters for selected student
+    public List<SemesterOption> getSemestersForStudent(
+            int studentId
+    ) throws SQLException {
+
+        if (studentId <= 0) {
+            throw new IllegalArgumentException(
+                    "Invalid student ID."
+            );
+        }
+
+        return semesterResultDAO
+                .getSemestersForStudent(
                         studentId
                 );
     }
