@@ -13,7 +13,7 @@ import java.util.List;
 
 public class SemesterResultDAO {
 
-    // Data needed for GPA calculation and GPA table display
+    // Data required for GPA calculation and GPA table display
     public record GpaCourseRow(
             int enrollmentId,
             int semesterId,
@@ -29,8 +29,10 @@ public class SemesterResultDAO {
     ) {
     }
 
-    public void saveOrUpdateSemesterResult(SemesterResult result)
-            throws SQLException {
+    // Save new semester result or update existing result
+    public void saveOrUpdateSemesterResult(
+            SemesterResult result
+    ) throws SQLException {
 
         String sql = """
                 INSERT INTO semester_results
@@ -53,31 +55,46 @@ public class SemesterResultDAO {
                     calculated_at = CURRENT_TIMESTAMP
                 """;
 
-        try (Connection connection = DBConnection.getConnection();
+        try (Connection connection =
+                     DBConnection.getConnection();
+
              PreparedStatement statement =
                      connection.prepareStatement(sql)) {
 
-            statement.setInt(1, result.getStudentId());
-            statement.setInt(2, result.getSemesterId());
+            statement.setInt(
+                    1,
+                    result.getStudentId()
+            );
+
+            statement.setInt(
+                    2,
+                    result.getSemesterId()
+            );
+
             statement.setDouble(
                     3,
                     result.getTotalRegisteredCredits()
             );
+
             statement.setDouble(
                     4,
                     result.getTotalEarnedCredits()
             );
+
             statement.setDouble(
                     5,
                     result.getTotalQualityPoints()
             );
 
             if (result.getSgpa() != null) {
+
                 statement.setDouble(
                         6,
                         result.getSgpa()
                 );
+
             } else {
+
                 statement.setNull(
                         6,
                         java.sql.Types.DECIMAL
@@ -85,11 +102,14 @@ public class SemesterResultDAO {
             }
 
             if (result.getCgpa() != null) {
+
                 statement.setDouble(
                         7,
                         result.getCgpa()
                 );
+
             } else {
+
                 statement.setNull(
                         7,
                         java.sql.Types.DECIMAL
@@ -100,6 +120,7 @@ public class SemesterResultDAO {
         }
     }
 
+    // Get GPA result for one student and one semester
     public SemesterResult getByStudentAndSemester(
             int studentId,
             int semesterId
@@ -118,14 +139,24 @@ public class SemesterResultDAO {
              PreparedStatement statement =
                      connection.prepareStatement(sql)) {
 
-            statement.setInt(1, studentId);
-            statement.setInt(2, semesterId);
+            statement.setInt(
+                    1,
+                    studentId
+            );
+
+            statement.setInt(
+                    2,
+                    semesterId
+            );
 
             try (ResultSet resultSet =
                          statement.executeQuery()) {
 
                 if (resultSet.next()) {
-                    return mapSemesterResult(resultSet);
+
+                    return mapSemesterResult(
+                            resultSet
+                    );
                 }
             }
         }
@@ -133,6 +164,7 @@ public class SemesterResultDAO {
         return null;
     }
 
+    // Get all stored semester GPA results for a student
     public List<SemesterResult> getSemesterResultsByStudent(
             int studentId
     ) throws SQLException {
@@ -153,14 +185,20 @@ public class SemesterResultDAO {
              PreparedStatement statement =
                      connection.prepareStatement(sql)) {
 
-            statement.setInt(1, studentId);
+            statement.setInt(
+                    1,
+                    studentId
+            );
 
             try (ResultSet resultSet =
                          statement.executeQuery()) {
 
                 while (resultSet.next()) {
+
                     results.add(
-                            mapSemesterResult(resultSet)
+                            mapSemesterResult(
+                                    resultSet
+                            )
                     );
                 }
             }
@@ -169,6 +207,7 @@ public class SemesterResultDAO {
         return results;
     }
 
+    // Get course/result details used to calculate SGPA
     public List<GpaCourseRow> getCourseRowsForSemester(
             int studentId,
             int semesterId
@@ -210,8 +249,15 @@ public class SemesterResultDAO {
              PreparedStatement statement =
                      connection.prepareStatement(sql)) {
 
-            statement.setInt(1, studentId);
-            statement.setInt(2, semesterId);
+            statement.setInt(
+                    1,
+                    studentId
+            );
+
+            statement.setInt(
+                    2,
+                    semesterId
+            );
 
             try (ResultSet resultSet =
                          statement.executeQuery()) {
@@ -228,41 +274,53 @@ public class SemesterResultDAO {
                                     ? null
                                     : gradePointValue;
 
-                    rows.add(
+                    GpaCourseRow row =
                             new GpaCourseRow(
+
                                     resultSet.getInt(
                                             "enrollment_id"
                                     ),
+
                                     resultSet.getInt(
                                             "semester_id"
                                     ),
+
                                     resultSet.getString(
                                             "course_code"
                                     ),
+
                                     resultSet.getString(
                                             "course_name"
                                     ),
+
                                     resultSet.getDouble(
                                             "credits"
                                     ),
+
                                     resultSet.getString(
                                             "enrollment_status"
                                     ),
+
                                     resultSet.getString(
                                             "grade_letter"
                                     ),
+
                                     gradePoint,
+
                                     resultSet.getString(
                                             "result_status"
                                     ),
+
                                     resultSet.getBoolean(
                                             "is_pass"
                                     ),
+
                                     resultSet.getBoolean(
                                             "published"
                                     )
-                            )
-                    );
+                            );
+
+                    rows.add(row);
                 }
             }
         }
@@ -270,6 +328,53 @@ public class SemesterResultDAO {
         return rows;
     }
 
+    // Get all semesters in which the student has enrollments
+    // Used for CGPA calculation
+    public List<Integer> getSemesterIdsByStudent(
+            int studentId
+    ) throws SQLException {
+
+        String sql = """
+                SELECT DISTINCT co.semester_id
+                FROM enrollments e
+                JOIN course_offerings co
+                    ON co.offering_id = e.offering_id
+                WHERE e.student_id = ?
+                ORDER BY co.semester_id
+                """;
+
+        List<Integer> semesterIds =
+                new ArrayList<>();
+
+        try (Connection connection =
+                     DBConnection.getConnection();
+
+             PreparedStatement statement =
+                     connection.prepareStatement(sql)) {
+
+            statement.setInt(
+                    1,
+                    studentId
+            );
+
+            try (ResultSet resultSet =
+                         statement.executeQuery()) {
+
+                while (resultSet.next()) {
+
+                    semesterIds.add(
+                            resultSet.getInt(
+                                    "semester_id"
+                            )
+                    );
+                }
+            }
+        }
+
+        return semesterIds;
+    }
+
+    // Convert ResultSet row into SemesterResult object
     private SemesterResult mapSemesterResult(
             ResultSet resultSet
     ) throws SQLException {
@@ -314,22 +419,32 @@ public class SemesterResultDAO {
         );
 
         double sgpa =
-                resultSet.getDouble("sgpa");
+                resultSet.getDouble(
+                        "sgpa"
+                );
 
-        result.setSgpa(
-                resultSet.wasNull()
-                        ? null
-                        : sgpa
-        );
+        if (resultSet.wasNull()) {
+
+            result.setSgpa(null);
+
+        } else {
+
+            result.setSgpa(sgpa);
+        }
 
         double cgpa =
-                resultSet.getDouble("cgpa");
+                resultSet.getDouble(
+                        "cgpa"
+                );
 
-        result.setCgpa(
-                resultSet.wasNull()
-                        ? null
-                        : cgpa
-        );
+        if (resultSet.wasNull()) {
+
+            result.setCgpa(null);
+
+        } else {
+
+            result.setCgpa(cgpa);
+        }
 
         Timestamp calculatedAt =
                 resultSet.getTimestamp(
@@ -337,6 +452,7 @@ public class SemesterResultDAO {
                 );
 
         if (calculatedAt != null) {
+
             result.setCalculatedAt(
                     calculatedAt.toLocalDateTime()
             );
