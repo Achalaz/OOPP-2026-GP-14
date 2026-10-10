@@ -1,13 +1,14 @@
-
 package lk.ac.ruhuna.ftms.controller;
 
 import javafx.fxml.FXML;
-import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
+import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.StackPane;
+
+import java.util.Objects;
 
 public class LoginController {
 
@@ -27,33 +28,37 @@ public class LoginController {
     private TextField visiblePasswordField;
 
     @FXML
-    private Button eyeButton;
-
-    @FXML
-    private Button loginButton;
+    private ImageView eyeIcon;
 
     @FXML
     private Label messageLabel;
 
     private boolean passwordVisible = false;
 
+    private Image visibleIcon;
+    private Image hiddenIcon;
+
     @FXML
     public void initialize() {
 
-        // Resize background with window
+        // Resize background
         backgroundImage.fitWidthProperty()
                 .bind(loginRoot.widthProperty());
 
         backgroundImage.fitHeightProperty()
                 .bind(loginRoot.heightProperty());
 
-        // Keep both password fields synchronized
+        // Load custom eye images
+        visibleIcon = loadImage("/images/visible.png");
+        hiddenIcon = loadImage("/images/hidden.png");
+
+        // Synchronize both password fields
         visiblePasswordField.textProperty()
                 .bindBidirectional(
                         passwordField.textProperty()
                 );
 
-        // Password hidden by default
+        // Hide password initially
         passwordField.setVisible(true);
         visiblePasswordField.setVisible(false);
 
@@ -63,22 +68,33 @@ public class LoginController {
         visiblePasswordField.managedProperty()
                 .bind(visiblePasswordField.visibleProperty());
 
-        eyeButton.setText("👁");
+        // Show eye-open icon initially
+        eyeIcon.setImage(visibleIcon);
     }
 
-    // Show or hide password
+    private Image loadImage(String path) {
+
+        return new Image(
+                Objects.requireNonNull(
+                        getClass().getResource(path),
+                        "Image not found: " + path
+                ).toExternalForm()
+        );
+    }
+
+    // Show / Hide password
     @FXML
     private void togglePasswordVisibility() {
 
         passwordVisible = !passwordVisible;
 
+        passwordField.setVisible(!passwordVisible);
+        visiblePasswordField.setVisible(passwordVisible);
+
         if (passwordVisible) {
 
             // Show password
-            passwordField.setVisible(false);
-            visiblePasswordField.setVisible(true);
-
-            eyeButton.setText("🙈");
+            eyeIcon.setImage(hiddenIcon);
 
             visiblePasswordField.requestFocus();
 
@@ -89,10 +105,7 @@ public class LoginController {
         } else {
 
             // Hide password
-            visiblePasswordField.setVisible(false);
-            passwordField.setVisible(true);
-
-            eyeButton.setText("👁");
+            eyeIcon.setImage(visibleIcon);
 
             passwordField.requestFocus();
 
@@ -102,7 +115,7 @@ public class LoginController {
         }
     }
 
-    // Temporary GUI-only login handler
+    // Temporary GUI-only login test
     @FXML
     private void handleLogin() {
 
@@ -129,7 +142,6 @@ public class LoginController {
             return;
         }
 
-        // Authentication will be added later
         messageLabel.setStyle(
                 "-fx-text-fill: #90EE90;"
         );
