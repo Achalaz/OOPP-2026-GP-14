@@ -10,7 +10,7 @@
            prefWidth="1200"
            prefHeight="700">
 
-    <!-- Faculty background image -->
+    <!-- Faculty background -->
     <ImageView fx:id="backgroundImage"
                fitWidth="1200"
                fitHeight="700"
@@ -22,15 +22,15 @@
 
     </ImageView>
 
-    <!-- Login form on the right -->
+    <!-- Right side login panel -->
     <HBox alignment="CENTER_RIGHT"
           style="-fx-padding: 50;">
 
         <VBox alignment="CENTER_LEFT"
               spacing="18"
-              prefWidth="350"
-              maxWidth="350"
-              style="-fx-background-color: rgba(8, 25, 50, 0.93);
+              prefWidth="380"
+              maxWidth="380"
+              style="-fx-background-color: rgba(8,25,50,0.93);
                      -fx-background-radius: 15;
                      -fx-padding: 35;">
 
@@ -48,25 +48,61 @@
                    style="-fx-text-fill: #dddddd;
                           -fx-font-size: 13;"/>
 
+            <!-- Username -->
             <Label text="Username"
-                   style="-fx-text-fill: white;"/>
+                   style="-fx-text-fill: white;
+                          -fx-font-size: 14;"/>
 
             <TextField fx:id="usernameField"
                        promptText="Enter username"
                        prefHeight="42"/>
 
+            <!-- Password -->
             <Label text="Password"
-                   style="-fx-text-fill: white;"/>
+                   style="-fx-text-fill: white;
+                          -fx-font-size: 14;"/>
 
-            <PasswordField fx:id="passwordField"
+            <StackPane prefHeight="42">
+
+                <!-- Password hidden -->
+                <PasswordField fx:id="passwordField"
+                               promptText="Enter password"
+                               prefHeight="42"
+                               style="-fx-padding: 0 48 0 12;"/>
+
+                <!-- Password visible -->
+                <TextField fx:id="visiblePasswordField"
                            promptText="Enter password"
-                           prefHeight="42"/>
+                           prefHeight="42"
+                           visible="false"
+                           managed="false"
+                           style="-fx-padding: 0 48 0 12;"/>
 
+                <!-- Eye button -->
+                <Button fx:id="eyeButton"
+                        text="👁"
+                        onAction="#togglePasswordVisibility"
+                        prefWidth="40"
+                        prefHeight="36"
+                        maxWidth="40"
+                        focusTraversable="false"
+                        StackPane.alignment="CENTER_RIGHT"
+                        style="-fx-background-color: transparent;
+                               -fx-cursor: hand;
+                               -fx-font-size: 18;"/>
+
+            </StackPane>
+
+            <!-- Message -->
             <Label fx:id="messageLabel"
                    wrapText="true"
-                   style="-fx-text-fill: #ff9999;"/>
+                   minHeight="20"
+                   style="-fx-text-fill: #ff9999;
+                          -fx-font-size: 12;"/>
 
-            <Button text="LOGIN"
+            <!-- Login button -->
+            <Button fx:id="loginButton"
+                    text="LOGIN"
                     onAction="#handleLogin"
                     defaultButton="true"
                     prefHeight="45"
@@ -74,7 +110,8 @@
                     style="-fx-background-color: #1683dc;
                            -fx-text-fill: white;
                            -fx-font-size: 15;
-                           -fx-font-weight: bold;"/>
+                           -fx-font-weight: bold;
+                           -fx-cursor: hand;"/>
 
             <Label text="University of Ruhuna"
                    style="-fx-text-fill: #bbbbbb;
