@@ -10,27 +10,25 @@
            prefWidth="1200"
            prefHeight="700">
 
-    <!-- Faculty background image -->
+    <!-- Background -->
     <ImageView fx:id="backgroundImage"
                fitWidth="1200"
                fitHeight="700"
                preserveRatio="false">
-
         <image>
             <Image url="@../images/faculty_background.png"/>
         </image>
-
     </ImageView>
 
-    <!-- Login form on the right -->
+    <!-- Login panel -->
     <HBox alignment="CENTER_RIGHT"
           style="-fx-padding: 50;">
 
         <VBox alignment="CENTER_LEFT"
               spacing="18"
-              prefWidth="350"
-              maxWidth="350"
-              style="-fx-background-color: rgba(8, 25, 50, 0.93);
+              prefWidth="380"
+              maxWidth="380"
+              style="-fx-background-color: rgba(8,25,50,0.93);
                      -fx-background-radius: 15;
                      -fx-padding: 35;">
 
@@ -48,6 +46,7 @@
                    style="-fx-text-fill: #dddddd;
                           -fx-font-size: 13;"/>
 
+            <!-- Username -->
             <Label text="Username"
                    style="-fx-text-fill: white;"/>
 
@@ -55,18 +54,56 @@
                        promptText="Enter username"
                        prefHeight="42"/>
 
+            <!-- Password -->
             <Label text="Password"
                    style="-fx-text-fill: white;"/>
 
-            <PasswordField fx:id="passwordField"
-                           promptText="Enter password"
-                           prefHeight="42"/>
+            <StackPane prefHeight="42">
 
+                <PasswordField fx:id="passwordField"
+                               promptText="Enter password"
+                               prefHeight="42"
+                               style="-fx-padding: 0 50 0 12;"/>
+
+                <TextField fx:id="visiblePasswordField"
+                           promptText="Enter password"
+                           prefHeight="42"
+                           visible="false"
+                           managed="false"
+                           style="-fx-padding: 0 50 0 12;"/>
+
+                <!-- Custom PNG eye button -->
+                <Button fx:id="eyeButton"
+                        onAction="#togglePasswordVisibility"
+                        prefWidth="44"
+                        prefHeight="42"
+                        focusTraversable="false"
+                        StackPane.alignment="CENTER_RIGHT"
+                        style="-fx-background-color: transparent;
+                               -fx-padding: 0;
+                               -fx-cursor: hand;">
+
+                    <graphic>
+                        <ImageView fx:id="eyeIcon"
+                                   fitWidth="24"
+                                   fitHeight="24"
+                                   preserveRatio="true"/>
+                    </graphic>
+
+                </Button>
+
+            </StackPane>
+
+            <!-- Validation -->
             <Label fx:id="messageLabel"
                    wrapText="true"
-                   style="-fx-text-fill: #ff9999;"/>
+                   minHeight="20"
+                   style="-fx-text-fill: #ff9999;
+                          -fx-font-size: 12;"/>
 
-            <Button text="LOGIN"
+            <!-- Login button -->
+            <Button fx:id="loginButton"
+                    text="LOGIN"
                     onAction="#handleLogin"
                     defaultButton="true"
                     prefHeight="45"
@@ -74,14 +111,14 @@
                     style="-fx-background-color: #1683dc;
                            -fx-text-fill: white;
                            -fx-font-size: 15;
-                           -fx-font-weight: bold;"/>
+                           -fx-font-weight: bold;
+                           -fx-cursor: hand;"/>
 
             <Label text="University of Ruhuna"
                    style="-fx-text-fill: #bbbbbb;
                           -fx-font-size: 12;"/>
 
         </VBox>
-
     </HBox>
 
 </StackPane>
