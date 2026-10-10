@@ -10,19 +10,17 @@
            prefWidth="1200"
            prefHeight="700">
 
-    <!-- Faculty background -->
+    <!-- Background -->
     <ImageView fx:id="backgroundImage"
                fitWidth="1200"
                fitHeight="700"
                preserveRatio="false">
-
         <image>
             <Image url="@../images/faculty_background.png"/>
         </image>
-
     </ImageView>
 
-    <!-- Right side login panel -->
+    <!-- Login panel -->
     <HBox alignment="CENTER_RIGHT"
           style="-fx-padding: 50;">
 
@@ -50,8 +48,7 @@
 
             <!-- Username -->
             <Label text="Username"
-                   style="-fx-text-fill: white;
-                          -fx-font-size: 14;"/>
+                   style="-fx-text-fill: white;"/>
 
             <TextField fx:id="usernameField"
                        promptText="Enter username"
@@ -59,41 +56,45 @@
 
             <!-- Password -->
             <Label text="Password"
-                   style="-fx-text-fill: white;
-                          -fx-font-size: 14;"/>
+                   style="-fx-text-fill: white;"/>
 
             <StackPane prefHeight="42">
 
-                <!-- Password hidden -->
                 <PasswordField fx:id="passwordField"
                                promptText="Enter password"
                                prefHeight="42"
-                               style="-fx-padding: 0 48 0 12;"/>
+                               style="-fx-padding: 0 50 0 12;"/>
 
-                <!-- Password visible -->
                 <TextField fx:id="visiblePasswordField"
                            promptText="Enter password"
                            prefHeight="42"
                            visible="false"
                            managed="false"
-                           style="-fx-padding: 0 48 0 12;"/>
+                           style="-fx-padding: 0 50 0 12;"/>
 
-                <!-- Eye button -->
+                <!-- Custom PNG eye button -->
                 <Button fx:id="eyeButton"
-                        text="👁"
                         onAction="#togglePasswordVisibility"
-                        prefWidth="40"
-                        prefHeight="36"
-                        maxWidth="40"
+                        prefWidth="44"
+                        prefHeight="42"
                         focusTraversable="false"
                         StackPane.alignment="CENTER_RIGHT"
                         style="-fx-background-color: transparent;
-                               -fx-cursor: hand;
-                               -fx-font-size: 18;"/>
+                               -fx-padding: 0;
+                               -fx-cursor: hand;">
+
+                    <graphic>
+                        <ImageView fx:id="eyeIcon"
+                                   fitWidth="24"
+                                   fitHeight="24"
+                                   preserveRatio="true"/>
+                    </graphic>
+
+                </Button>
 
             </StackPane>
 
-            <!-- Message -->
+            <!-- Validation -->
             <Label fx:id="messageLabel"
                    wrapText="true"
                    minHeight="20"
@@ -118,7 +119,6 @@
                           -fx-font-size: 12;"/>
 
         </VBox>
-
     </HBox>
 
 </StackPane>
