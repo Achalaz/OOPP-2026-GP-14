@@ -1,0 +1,299 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Priority?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
+
+<BorderPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="lk.ac.ruhuna.ftms.controller.GPAController"
+            prefWidth="1200.0"
+            prefHeight="720.0"
+            style="-fx-background-color: #f4f6f8;">
+
+    <!-- HEADER -->
+    <top>
+        <HBox alignment="CENTER_LEFT"
+              spacing="15"
+              style="-fx-background-color: #1f2937;
+                     -fx-padding: 18;">
+
+            <Button fx:id="backButton"
+                    text="← Back"
+                    onAction="#handleBack"
+                    style="-fx-background-color: #374151;
+                           -fx-text-fill: white;
+                           -fx-font-size: 14px;
+                           -fx-background-radius: 6;"/>
+
+            <Label text="SGPA / CGPA Management"
+                   style="-fx-text-fill: white;
+                          -fx-font-size: 22px;
+                          -fx-font-weight: bold;"/>
+
+        </HBox>
+    </top>
+
+    <!-- MAIN CONTENT -->
+    <center>
+
+        <VBox spacing="18"
+              style="-fx-padding: 22;">
+
+            <!-- STUDENT / SEMESTER SELECTION -->
+            <VBox spacing="10"
+                  style="-fx-background-color: white;
+                         -fx-padding: 18;
+                         -fx-background-radius: 10;
+                         -fx-border-color: #d1d5db;
+                         -fx-border-radius: 10;">
+
+                <Label text="GPA Calculation"
+                       style="-fx-font-size: 18px;
+                              -fx-font-weight: bold;
+                              -fx-text-fill: #111827;"/>
+
+                <GridPane hgap="15"
+                          vgap="10">
+
+                    <Label text="Student:"
+                           GridPane.rowIndex="0"
+                           GridPane.columnIndex="0"
+                           style="-fx-font-weight: bold;"/>
+
+                    <ComboBox fx:id="studentCombo"
+                              promptText="Select Student"
+                              prefWidth="350"
+                              GridPane.rowIndex="0"
+                              GridPane.columnIndex="1"/>
+
+                    <Label text="Semester:"
+                           GridPane.rowIndex="0"
+                           GridPane.columnIndex="2"
+                           style="-fx-font-weight: bold;"/>
+
+                    <ComboBox fx:id="semesterCombo"
+                              promptText="Select Semester"
+                              prefWidth="300"
+                              GridPane.rowIndex="0"
+                              GridPane.columnIndex="3"/>
+
+                </GridPane>
+
+            </VBox>
+
+
+            <!-- GPA SUMMARY -->
+            <HBox spacing="12">
+
+                <VBox alignment="CENTER"
+                      spacing="5"
+                      prefWidth="190"
+                      style="-fx-background-color: white;
+                             -fx-padding: 14;
+                             -fx-background-radius: 8;
+                             -fx-border-color: #d1d5db;
+                             -fx-border-radius: 8;">
+
+                    <Label text="Registered Credits"
+                           style="-fx-text-fill: #6b7280;"/>
+
+                    <Label fx:id="registeredCreditsLabel"
+                           text="--"
+                           style="-fx-font-size: 20px;
+                                  -fx-font-weight: bold;"/>
+                </VBox>
+
+                <VBox alignment="CENTER"
+                      spacing="5"
+                      prefWidth="190"
+                      style="-fx-background-color: white;
+                             -fx-padding: 14;
+                             -fx-background-radius: 8;
+                             -fx-border-color: #d1d5db;
+                             -fx-border-radius: 8;">
+
+                    <Label text="Earned Credits"
+                           style="-fx-text-fill: #6b7280;"/>
+
+                    <Label fx:id="earnedCreditsLabel"
+                           text="--"
+                           style="-fx-font-size: 20px;
+                                  -fx-font-weight: bold;"/>
+                </VBox>
+
+                <VBox alignment="CENTER"
+                      spacing="5"
+                      prefWidth="190"
+                      style="-fx-background-color: white;
+                             -fx-padding: 14;
+                             -fx-background-radius: 8;
+                             -fx-border-color: #d1d5db;
+                             -fx-border-radius: 8;">
+
+                    <Label text="Quality Points"
+                           style="-fx-text-fill: #6b7280;"/>
+
+                    <Label fx:id="totalQualityPointsLabel"
+                           text="--"
+                           style="-fx-font-size: 20px;
+                                  -fx-font-weight: bold;"/>
+                </VBox>
+
+                <VBox alignment="CENTER"
+                      spacing="5"
+                      prefWidth="190"
+                      style="-fx-background-color: white;
+                             -fx-padding: 14;
+                             -fx-background-radius: 8;
+                             -fx-border-color: #d1d5db;
+                             -fx-border-radius: 8;">
+
+                    <Label text="SGPA"
+                           style="-fx-text-fill: #6b7280;"/>
+
+                    <Label fx:id="sgpaLabel"
+                           text="--"
+                           style="-fx-font-size: 24px;
+                                  -fx-font-weight: bold;
+                                  -fx-text-fill: #2563eb;"/>
+                </VBox>
+
+                <VBox alignment="CENTER"
+                      spacing="5"
+                      prefWidth="190"
+                      style="-fx-background-color: white;
+                             -fx-padding: 14;
+                             -fx-background-radius: 8;
+                             -fx-border-color: #d1d5db;
+                             -fx-border-radius: 8;">
+
+                    <Label text="CGPA"
+                           style="-fx-text-fill: #6b7280;"/>
+
+                    <Label fx:id="cgpaLabel"
+                           text="--"
+                           style="-fx-font-size: 24px;
+                                  -fx-font-weight: bold;
+                                  -fx-text-fill: #059669;"/>
+                </VBox>
+
+            </HBox>
+
+
+            <!-- TABLE -->
+            <VBox spacing="10"
+                  VBox.vgrow="ALWAYS"
+                  style="-fx-background-color: white;
+                         -fx-padding: 15;
+                         -fx-background-radius: 10;
+                         -fx-border-color: #d1d5db;
+                         -fx-border-radius: 10;">
+
+                <Label text="Course Results"
+                       style="-fx-font-size: 17px;
+                              -fx-font-weight: bold;"/>
+
+                <TableView fx:id="courseTable"
+                           VBox.vgrow="ALWAYS">
+
+                    <columns>
+
+                        <TableColumn fx:id="courseCodeColumn"
+                                     text="Course Code"
+                                     prefWidth="120"/>
+
+                        <TableColumn fx:id="courseNameColumn"
+                                     text="Course Name"
+                                     prefWidth="250"/>
+
+                        <TableColumn fx:id="creditsColumn"
+                                     text="Credits"
+                                     prefWidth="90"/>
+
+                        <TableColumn fx:id="gradeColumn"
+                                     text="Grade"
+                                     prefWidth="90"/>
+
+                        <TableColumn fx:id="gradePointColumn"
+                                     text="Grade Point"
+                                     prefWidth="110"/>
+
+                        <TableColumn fx:id="qualityPointsColumn"
+                                     text="Quality Points"
+                                     prefWidth="130"/>
+
+                        <TableColumn fx:id="statusColumn"
+                                     text="Result Status"
+                                     prefWidth="180"/>
+
+                    </columns>
+
+                </TableView>
+
+            </VBox>
+
+
+            <!-- BUTTON AREA -->
+            <HBox spacing="10"
+                  alignment="CENTER_LEFT">
+
+                <Button fx:id="calculateButton"
+                        text="Calculate GPA"
+                        onAction="#handleCalculate"
+                        prefWidth="140"
+                        style="-fx-background-color: #2563eb;
+                               -fx-text-fill: white;
+                               -fx-font-weight: bold;
+                               -fx-background-radius: 6;"/>
+
+                <Button fx:id="saveButton"
+                        text="Save / Update"
+                        onAction="#handleSave"
+                        prefWidth="140"
+                        style="-fx-background-color: #059669;
+                               -fx-text-fill: white;
+                               -fx-font-weight: bold;
+                               -fx-background-radius: 6;"/>
+
+                <Button fx:id="refreshButton"
+                        text="Refresh"
+                        onAction="#handleRefresh"
+                        prefWidth="110"
+                        style="-fx-background-color: #f59e0b;
+                               -fx-text-fill: white;
+                               -fx-font-weight: bold;
+                               -fx-background-radius: 6;"/>
+
+                <Button fx:id="clearButton"
+                        text="Clear"
+                        onAction="#handleClear"
+                        prefWidth="100"
+                        style="-fx-background-color: #6b7280;
+                               -fx-text-fill: white;
+                               -fx-font-weight: bold;
+                               -fx-background-radius: 6;"/>
+
+                <Region HBox.hgrow="ALWAYS"/>
+
+                <Label fx:id="statusLabel"
+                       text="Select a student."
+                       style="-fx-text-fill: #4b5563;
+                              -fx-font-style: italic;"/>
+
+            </HBox>
+
+        </VBox>
+
+    </center>
+
+</BorderPane>
