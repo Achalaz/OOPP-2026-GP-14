@@ -11,13 +11,18 @@ public class MainApp extends Application {
     public void start(Stage stage) throws Exception {
 
         FXMLLoader loader = new FXMLLoader(
-                MainApp.class.getResource("/fxml/reports.fxml")
+                MainApp.class.getResource("/fxml/login.fxml")
         );
 
-        Scene scene = new Scene(loader.load());
+        Scene scene = new Scene(loader.load(), 1200, 700);
 
-        stage.setTitle("FTMS - Results Reports");
+        stage.setTitle("FTMS - Login");
+
         stage.setScene(scene);
+
+        stage.setMinWidth(900);
+        stage.setMinHeight(600);
+
         stage.show();
     }
 
