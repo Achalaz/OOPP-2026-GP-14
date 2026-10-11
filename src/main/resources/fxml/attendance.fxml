@@ -34,7 +34,8 @@
             <VBox spacing="20">
 
                 <padding>
-                    <Insets top="25" right="30" bottom="25" left="30"/>
+                    <Insets top="25" right="30"
+                            bottom="25" left="30"/>
                 </padding>
 
                 <!-- Attendance Session -->
@@ -129,8 +130,7 @@
                             prefWidth="140"/>
                 </VBox>
 
-
-                <!-- Attendance Entry -->
+                <!-- Student Attendance Entry -->
                 <VBox spacing="12"
                       style="-fx-border-color: #d1d5db;
                              -fx-border-radius: 5;
@@ -196,8 +196,7 @@
                     </HBox>
                 </VBox>
 
-
-                <!-- Attendance Table -->
+                <!-- Attendance Records -->
                 <VBox spacing="10">
 
                     <Label text="Attendance Records"
@@ -208,7 +207,6 @@
                                prefHeight="250">
 
                         <columns>
-
                             <TableColumn fx:id="enrollmentColumn"
                                          text="Enrollment ID"
                                          prefWidth="250"/>
@@ -216,10 +214,72 @@
                             <TableColumn fx:id="statusColumn"
                                          text="Attendance Status"
                                          prefWidth="300"/>
-
                         </columns>
 
                     </TableView>
+                </VBox>
+
+                <!-- NEW Attendance Summary Section -->
+                <VBox spacing="10"
+                      style="-fx-border-color: #d1d5db;
+                             -fx-border-radius: 5;
+                             -fx-padding: 15;">
+
+                    <Label text="Attendance Summary - Theory / Practical / Combined"
+                           style="-fx-font-size: 17px;
+                                  -fx-font-weight: bold;"/>
+
+                    <Label text="Enter the Offering ID above, then select Load Batch Summary. Click a row to view an individual. Only PRESENT currently counts as attended."
+                           wrapText="true"/>
+
+                    <Button text="Load Batch Summary"
+                            onAction="#handleLoadSummary"
+                            prefWidth="180"/>
+
+                    <TableView fx:id="summaryTable"
+                               prefHeight="250">
+
+                        <columns>
+
+                            <TableColumn fx:id="summaryEnrollmentColumn"
+                                         text="Enrollment"
+                                         prefWidth="95"/>
+
+                            <TableColumn fx:id="summaryRegistrationColumn"
+                                         text="Registration No"
+                                         prefWidth="140"/>
+
+                            <TableColumn fx:id="summaryStudentColumn"
+                                         text="Student"
+                                         prefWidth="170"/>
+
+                            <TableColumn fx:id="summaryTheoryColumn"
+                                         text="Theory (P/T)"
+                                         prefWidth="130"/>
+
+                            <TableColumn fx:id="summaryPracticalColumn"
+                                         text="Practical (P/T)"
+                                         prefWidth="130"/>
+
+                            <TableColumn fx:id="summaryCombinedColumn"
+                                         text="Combined (P/T)"
+                                         prefWidth="135"/>
+
+                            <TableColumn fx:id="summaryMedicalColumn"
+                                         text="Medical"
+                                         prefWidth="70"/>
+
+                            <TableColumn fx:id="summaryUnmarkedColumn"
+                                         text="Unmarked"
+                                         prefWidth="85"/>
+
+                        </columns>
+                    </TableView>
+
+                    <Label fx:id="summaryDetailsLabel"
+                           text="Select a student to view individual attendance details."
+                           wrapText="true"/>
+
                 </VBox>
 
                 <Label fx:id="statusLabel"
