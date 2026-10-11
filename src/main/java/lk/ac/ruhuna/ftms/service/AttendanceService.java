@@ -1,9 +1,12 @@
+
 package lk.ac.ruhuna.ftms.service;
 
 import lk.ac.ruhuna.ftms.dao.AttendanceRecordDAO;
 import lk.ac.ruhuna.ftms.dao.AttendanceSessionDAO;
+import lk.ac.ruhuna.ftms.dao.AttendanceSummaryDAO;
 import lk.ac.ruhuna.ftms.model.AttendanceRecord;
 import lk.ac.ruhuna.ftms.model.AttendanceSession;
+import lk.ac.ruhuna.ftms.model.AttendanceSummary;
 
 import java.sql.SQLException;
 import java.util.List;
@@ -21,10 +24,12 @@ public class AttendanceService {
 
     private final AttendanceSessionDAO sessionDAO;
     private final AttendanceRecordDAO recordDAO;
+    private final AttendanceSummaryDAO summaryDAO;
 
     public AttendanceService() {
         this.sessionDAO = new AttendanceSessionDAO();
         this.recordDAO = new AttendanceRecordDAO();
+        this.summaryDAO = new AttendanceSummaryDAO();
     }
 
     public void saveSession(AttendanceSession session) {
@@ -51,7 +56,8 @@ public class AttendanceService {
         try {
             return sessionDAO.findByOfferingId(offeringId);
         } catch (SQLException e) {
-            throw new RuntimeException("Failed to load attendance sessions.", e);
+            throw new RuntimeException(
+                    "Failed to load attendance sessions.", e);
         }
     }
 
@@ -64,7 +70,8 @@ public class AttendanceService {
         try {
             sessionDAO.delete(sessionId);
         } catch (SQLException e) {
-            throw new RuntimeException("Failed to delete attendance session.", e);
+            throw new RuntimeException(
+                    "Failed to delete attendance session.", e);
         }
     }
 
@@ -75,7 +82,8 @@ public class AttendanceService {
         try {
             recordDAO.saveOrUpdate(record);
         } catch (SQLException e) {
-            throw new RuntimeException("Failed to save attendance record.", e);
+            throw new RuntimeException(
+                    "Failed to save attendance record.", e);
         }
     }
 
@@ -88,11 +96,13 @@ public class AttendanceService {
         try {
             return recordDAO.findBySessionId(sessionId);
         } catch (SQLException e) {
-            throw new RuntimeException("Failed to load attendance records.", e);
+            throw new RuntimeException(
+                    "Failed to load attendance records.", e);
         }
     }
 
-    public List<AttendanceRecord> getAttendanceByEnrollment(int enrollmentId) {
+    public List<AttendanceRecord> getAttendanceByEnrollment(
+            int enrollmentId) {
 
         if (enrollmentId <= 0) {
             throw new IllegalArgumentException("Invalid enrollment ID.");
@@ -101,10 +111,44 @@ public class AttendanceService {
         try {
             return recordDAO.findByEnrollmentId(enrollmentId);
         } catch (SQLException e) {
-            throw new RuntimeException("Failed to load student attendance.", e);
+            throw new RuntimeException(
+                    "Failed to load student attendance.", e);
         }
     }
 
+    // NEW: Get all student attendance summaries
+    public List<AttendanceSummary> getSummariesByOffering(
+            int offeringId) {
+
+        if (offeringId <= 0) {
+            throw new IllegalArgumentException("Invalid offering ID.");
+        }
+
+        try {
+            return summaryDAO.findByOfferingId(offeringId);
+        } catch (SQLException e) {
+            throw new RuntimeException(
+                    "Failed to load attendance summaries.", e);
+        }
+    }
+
+    // NEW: Get individual student attendance summary
+    public AttendanceSummary getSummaryByEnrollment(
+            int enrollmentId) {
+
+        if (enrollmentId <= 0) {
+            throw new IllegalArgumentException("Invalid enrollment ID.");
+        }
+
+        try {
+            return summaryDAO.findByEnrollmentId(enrollmentId);
+        } catch (SQLException e) {
+            throw new RuntimeException(
+                    "Failed to load student attendance summary.", e);
+        }
+    }
+
+    // Existing attendance percentage calculation
     public double calculateAttendancePercentage(int enrollmentId) {
 
         if (enrollmentId <= 0) {
@@ -172,7 +216,8 @@ public class AttendanceService {
         }
     }
 
-    private void validateAttendanceRecord(AttendanceRecord record) {
+    private void validateAttendanceRecord(
+            AttendanceRecord record) {
 
         if (record == null) {
             throw new IllegalArgumentException(
