@@ -1,4 +1,3 @@
-
 package lk.ac.ruhuna.ftms;
 
 import javafx.application.Application;
@@ -17,7 +16,7 @@ public class MainApp extends Application {
 
         Scene scene = new Scene(loader.load(), 1200, 700);
 
-        stage.setTitle("FTMS - Attendance Management");
+        stage.setTitle("FTMS - User Management");
         stage.setScene(scene);
 
         stage.setMinWidth(900);
