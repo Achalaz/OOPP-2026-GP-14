@@ -1,4 +1,3 @@
-
 package lk.ac.ruhuna.ftms;
 
 import javafx.application.Application;
@@ -12,12 +11,12 @@ public class MainApp extends Application {
     public void start(Stage stage) throws Exception {
 
         FXMLLoader loader = new FXMLLoader(
-                MainApp.class.getResource("/fxml/attendance.fxml")
+                MainApp.class.getResource("/fxml/Users.fxml")
         );
 
         Scene scene = new Scene(loader.load(), 1200, 700);
 
-        stage.setTitle("FTMS - Attendance Management");
+        stage.setTitle("FTMS - User Management");
         stage.setScene(scene);
 
         stage.setMinWidth(900);
