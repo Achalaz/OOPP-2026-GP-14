@@ -1,0 +1,61 @@
+
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns:fx="http://javafx.com/fxml"
+            fx:id="root"
+            fx:controller="lk.ac.ruhuna.ftms.controller.DashboardController"
+            prefWidth="1100"
+            prefHeight="700">
+
+    <top>
+        <HBox alignment="CENTER_LEFT"
+              spacing="20"
+              style="-fx-background-color: #102C4C;
+                     -fx-padding: 25;">
+
+            <VBox spacing="5">
+                <Label text="FTMS DASHBOARD"
+                       style="-fx-text-fill: white;
+                              -fx-font-size: 25;
+                              -fx-font-weight: bold;"/>
+
+                <Label text="Faculty Technology Management System"
+                       style="-fx-text-fill: #c5d8ea;"/>
+            </VBox>
+
+            <Region HBox.hgrow="ALWAYS"/>
+
+            <Button text="LOGOUT"
+                    onAction="#handleLogout"
+                    style="-fx-background-color: #dc3545;
+                           -fx-text-fill: white;
+                           -fx-font-weight: bold;"/>
+        </HBox>
+    </top>
+
+    <center>
+        <VBox alignment="CENTER"
+              spacing="18"
+              style="-fx-padding: 35;">
+
+            <Label text="Welcome to FTMS"
+                   style="-fx-font-size: 30;
+                          -fx-font-weight: bold;"/>
+
+            <Label fx:id="nameLabel"
+                   style="-fx-font-size: 20;"/>
+
+            <Label fx:id="roleLabel"
+                   style="-fx-font-size: 16;
+                          -fx-text-fill: #3473aa;"/>
+
+            <Label text="Login successful"
+                   style="-fx-text-fill: #238636;
+                          -fx-font-size: 15;"/>
+        </VBox>
+    </center>
+
+</BorderPane>
