@@ -1,64 +1,62 @@
+
 package lk.ac.ruhuna.ftms.controller;
 
+import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
+import javafx.scene.control.Button;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.StackPane;
 
+import lk.ac.ruhuna.ftms.model.User;
+import lk.ac.ruhuna.ftms.service.AuthService;
+import lk.ac.ruhuna.ftms.util.NavigationUtil;
+import lk.ac.ruhuna.ftms.util.SessionManager;
+
+import java.sql.SQLException;
+import java.io.IOException;
+import java.util.Arrays;
 import java.util.Objects;
+import java.util.Optional;
 
 public class LoginController {
 
-    @FXML
-    private StackPane loginRoot;
+    @FXML private StackPane loginRoot;
+    @FXML private ImageView backgroundImage;
+    @FXML private TextField usernameField;
+    @FXML private PasswordField passwordField;
+    @FXML private TextField visiblePasswordField;
+    @FXML private ImageView eyeIcon;
+    @FXML private Button loginButton;
+    @FXML private Label messageLabel;
 
-    @FXML
-    private ImageView backgroundImage;
-
-    @FXML
-    private TextField usernameField;
-
-    @FXML
-    private PasswordField passwordField;
-
-    @FXML
-    private TextField visiblePasswordField;
-
-    @FXML
-    private ImageView eyeIcon;
-
-    @FXML
-    private Label messageLabel;
-
-    private boolean passwordVisible = false;
+    private final AuthService authService =
+            new AuthService();
 
     private Image visibleIcon;
     private Image hiddenIcon;
+    private boolean passwordVisible = false;
 
     @FXML
     public void initialize() {
 
-        // Resize background
         backgroundImage.fitWidthProperty()
                 .bind(loginRoot.widthProperty());
 
         backgroundImage.fitHeightProperty()
                 .bind(loginRoot.heightProperty());
 
-        // Load custom eye images
         visibleIcon = loadImage("/images/visible.png");
         hiddenIcon = loadImage("/images/hidden.png");
 
-        // Synchronize both password fields
         visiblePasswordField.textProperty()
                 .bindBidirectional(
                         passwordField.textProperty()
                 );
 
-        // Hide password initially
         passwordField.setVisible(true);
         visiblePasswordField.setVisible(false);
 
@@ -68,12 +66,10 @@ public class LoginController {
         visiblePasswordField.managedProperty()
                 .bind(visiblePasswordField.visibleProperty());
 
-        // Show eye-open icon initially
         eyeIcon.setImage(visibleIcon);
     }
 
     private Image loadImage(String path) {
-
         return new Image(
                 Objects.requireNonNull(
                         getClass().getResource(path),
@@ -82,7 +78,6 @@ public class LoginController {
         );
     }
 
-    // Show / Hide password
     @FXML
     private void togglePasswordVisibility() {
 
@@ -91,72 +86,102 @@ public class LoginController {
         passwordField.setVisible(!passwordVisible);
         visiblePasswordField.setVisible(passwordVisible);
 
-        if (passwordVisible) {
+        eyeIcon.setImage(
+                passwordVisible ? hiddenIcon : visibleIcon
+        );
 
-            // Show password
-            eyeIcon.setImage(hiddenIcon);
+        TextField field = passwordVisible
+                ? visiblePasswordField
+                : passwordField;
 
-            visiblePasswordField.requestFocus();
-
-            visiblePasswordField.positionCaret(
-                    visiblePasswordField.getText().length()
-            );
-
-        } else {
-
-            // Hide password
-            eyeIcon.setImage(visibleIcon);
-
-            passwordField.requestFocus();
-
-            passwordField.positionCaret(
-                    passwordField.getText().length()
-            );
-        }
+        field.requestFocus();
+        field.positionCaret(field.getText().length());
     }
 
-    // Temporary GUI-only login test
     @FXML
     private void handleLogin() {
 
         String username = usernameField.getText().trim();
-        String password = passwordField.getText();
+        char[] password =
+                passwordField.getText().toCharArray();
 
-        if (username.isEmpty()) {
+        if (username.isEmpty() || password.length == 0) {
 
-            showError("Please enter your username.");
-            usernameField.requestFocus();
+            Arrays.fill(password, '\0');
+            showError("Enter username and password.");
             return;
         }
 
-        if (password.isEmpty()) {
+        // Clear visible/hidden password fields
+        passwordField.clear();
 
-            showError("Please enter your password.");
+        loginButton.setDisable(true);
+        messageLabel.setText("Checking credentials...");
 
-            if (passwordVisible) {
-                visiblePasswordField.requestFocus();
-            } else {
-                passwordField.requestFocus();
+        Task<Optional<User>> task = new Task<>() {
+
+            @Override
+            protected Optional<User> call() throws Exception {
+                try {
+                    return authService.authenticate(
+                            username,
+                            password
+                    );
+                } finally {
+                    Arrays.fill(password, '\0');
+                }
+            }
+        };
+
+        task.setOnSucceeded(event -> {
+
+            loginButton.setDisable(false);
+
+            Optional<User> result = task.getValue();
+
+            if (result.isEmpty()) {
+                showError("Invalid username or password.");
+                return;
             }
 
-            return;
-        }
+            User user = result.get();
 
-        messageLabel.setStyle(
-                "-fx-text-fill: #90EE90;"
-        );
+            SessionManager.startSession(user);
 
-        messageLabel.setText(
-                "GUI test successful. Authentication not connected."
-        );
+            try {
+                NavigationUtil.navigate(
+                        loginRoot,
+                        "/fxml/dashboard.fxml",
+                        "FTMS - Dashboard"
+                );
+
+            } catch (IOException e) {
+                SessionManager.logout();
+                showError("Cannot open dashboard.");
+                e.printStackTrace();
+            }
+        });
+
+        task.setOnFailed(event -> {
+
+            loginButton.setDisable(false);
+
+            if (task.getException() instanceof SQLException) {
+                showError("Cannot connect to the database.");
+            } else {
+                showError("Login failed.");
+            }
+
+            task.getException().printStackTrace();
+        });
+
+        Thread thread = new Thread(task, "ftms-login");
+        thread.setDaemon(true);
+        thread.start();
     }
 
     private void showError(String message) {
-
-        messageLabel.setStyle(
-                "-fx-text-fill: #ff9999;"
-        );
-
+        messageLabel.setStyle("-fx-text-fill: #ff9999;");
         messageLabel.setText(message);
     }
 }
