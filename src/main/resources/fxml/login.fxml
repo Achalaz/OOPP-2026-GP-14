@@ -2,60 +2,134 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.scene.control.*?>
+<?import javafx.scene.image.*?>
 <?import javafx.scene.layout.*?>
 
-<BorderPane xmlns:fx="http://javafx.com/fxml"
-            fx:id="root"
-            fx:controller="lk.ac.ruhuna.ftms.controller.DashboardController"
-            prefWidth="1100"
-            prefHeight="700">
+<StackPane xmlns:fx="http://javafx.com/fxml"
+           fx:id="loginRoot"
+           fx:controller="lk.ac.ruhuna.ftms.controller.LoginController"
+           prefWidth="1200"
+           prefHeight="700">
 
-    <top>
-        <HBox alignment="CENTER_LEFT"
-              spacing="20"
-              style="-fx-background-color: #102C4C;
-                     -fx-padding: 25;">
+    <!-- Faculty background image -->
+    <ImageView fx:id="backgroundImage"
+               fitWidth="1200"
+               fitHeight="700"
+               preserveRatio="false">
 
-            <VBox spacing="5">
-                <Label text="FTMS DASHBOARD"
-                       style="-fx-text-fill: white;
-                              -fx-font-size: 25;
-                              -fx-font-weight: bold;"/>
+        <image>
+            <Image url="@../images/faculty_background.png"/>
+        </image>
 
-                <Label text="Faculty Technology Management System"
-                       style="-fx-text-fill: #c5d8ea;"/>
-            </VBox>
+    </ImageView>
 
-            <Region HBox.hgrow="ALWAYS"/>
+    <!-- Login panel on right -->
+    <HBox alignment="CENTER_RIGHT"
+          style="-fx-padding: 50;">
 
-            <Button text="LOGOUT"
-                    onAction="#handleLogout"
-                    style="-fx-background-color: #dc3545;
-                           -fx-text-fill: white;
-                           -fx-font-weight: bold;"/>
-        </HBox>
-    </top>
-
-    <center>
-        <VBox alignment="CENTER"
+        <VBox alignment="CENTER_LEFT"
               spacing="18"
-              style="-fx-padding: 35;">
+              prefWidth="380"
+              maxWidth="380"
+              style="-fx-background-color: rgba(8,25,50,0.93);
+                     -fx-background-radius: 15;
+                     -fx-padding: 35;">
 
-            <Label text="Welcome to FTMS"
-                   style="-fx-font-size: 30;
+            <!-- Title -->
+            <Label text="WELCOME BACK"
+                   style="-fx-text-fill: #a8d5ff;
+                          -fx-font-size: 14;"/>
+
+            <Label text="FTMS LOGIN"
+                   style="-fx-text-fill: white;
+                          -fx-font-size: 28;
                           -fx-font-weight: bold;"/>
 
-            <Label fx:id="nameLabel"
-                   style="-fx-font-size: 20;"/>
+            <Label text="Faculty Technology Management System"
+                   wrapText="true"
+                   style="-fx-text-fill: #dddddd;
+                          -fx-font-size: 13;"/>
 
-            <Label fx:id="roleLabel"
-                   style="-fx-font-size: 16;
-                          -fx-text-fill: #3473aa;"/>
+            <!-- Username -->
+            <Label text="Username"
+                   style="-fx-text-fill: white;
+                          -fx-font-size: 14;"/>
 
-            <Label text="Login successful"
-                   style="-fx-text-fill: #238636;
-                          -fx-font-size: 15;"/>
+            <TextField fx:id="usernameField"
+                       promptText="Enter username"
+                       prefHeight="42"/>
+
+            <!-- Password -->
+            <Label text="Password"
+                   style="-fx-text-fill: white;
+                          -fx-font-size: 14;"/>
+
+            <!-- Password with eye button -->
+            <StackPane prefHeight="42">
+
+                <!-- Hidden password -->
+                <PasswordField fx:id="passwordField"
+                               promptText="Enter password"
+                               prefHeight="42"
+                               style="-fx-padding: 0 50 0 12;"/>
+
+                <!-- Visible password -->
+                <TextField fx:id="visiblePasswordField"
+                           promptText="Enter password"
+                           prefHeight="42"
+                           visible="false"
+                           managed="false"
+                           style="-fx-padding: 0 50 0 12;"/>
+
+                <!-- Custom Eye Button -->
+                <Button fx:id="eyeButton"
+                        onAction="#togglePasswordVisibility"
+                        prefWidth="44"
+                        prefHeight="42"
+                        focusTraversable="false"
+                        StackPane.alignment="CENTER_RIGHT"
+                        style="-fx-background-color: transparent;
+                               -fx-padding: 0;
+                               -fx-cursor: hand;">
+
+                    <graphic>
+                        <ImageView fx:id="eyeIcon"
+                                   fitWidth="24"
+                                   fitHeight="24"
+                                   preserveRatio="true"/>
+                    </graphic>
+
+                </Button>
+
+            </StackPane>
+
+            <!-- Validation / Error Message -->
+            <Label fx:id="messageLabel"
+                   wrapText="true"
+                   minHeight="20"
+                   style="-fx-text-fill: #ff9999;
+                          -fx-font-size: 12;"/>
+
+            <!-- Login Button -->
+            <Button fx:id="loginButton"
+                    text="LOGIN"
+                    onAction="#handleLogin"
+                    defaultButton="true"
+                    prefHeight="45"
+                    maxWidth="Infinity"
+                    style="-fx-background-color: #1683dc;
+                           -fx-text-fill: white;
+                           -fx-font-size: 15;
+                           -fx-font-weight: bold;
+                           -fx-cursor: hand;"/>
+
+            <!-- Footer -->
+            <Label text="University of Ruhuna"
+                   style="-fx-text-fill: #bbbbbb;
+                          -fx-font-size: 12;"/>
+
         </VBox>
-    </center>
 
-</BorderPane>
+    </HBox>
+
+</StackPane>
