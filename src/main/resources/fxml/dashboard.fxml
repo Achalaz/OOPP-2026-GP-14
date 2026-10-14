@@ -19,6 +19,9 @@
 
             <Region HBox.hgrow="ALWAYS"/>
 
+            <Button fx:id="profileButton" text="My Profile"
+                    onAction="#handleMyProfile"/>
+
             <Button text="LOGOUT"
                     onAction="#handleLogout"/>
         </HBox>
@@ -34,6 +37,9 @@
             <Label fx:id="nameLabel"/>
 
             <Label fx:id="roleLabel"/>
+
+            <Label fx:id="messageLabel" wrapText="true"
+                   style="-fx-text-fill: #b42318;"/>
 
         </VBox>
     </center>
