@@ -17,6 +17,9 @@ public class DashboardController {
     private Label roleLabel;
 
     @FXML
+    private Label messageLabel;
+
+    @FXML
     public void initialize() {
 
         User user = SessionManager.getCurrentUser();
@@ -37,6 +40,16 @@ public class DashboardController {
     }
 
     @FXML
+    private void handleMyProfile() {
+        try {
+            NavigationUtil.navigate(nameLabel, "/fxml/profile.fxml", "FTMS - My Profile");
+        } catch (Exception e) {
+            messageLabel.setText("Cannot open My Profile. Please retry or sign in again.");
+            e.printStackTrace();
+        }
+    }
+
+    @FXML
     private void handleLogout() {
 
         try {
@@ -49,6 +62,7 @@ public class DashboardController {
             SessionManager.logout();
 
         } catch (Exception e) {
+            messageLabel.setText("Cannot open the login screen. Please retry logging out.");
             e.printStackTrace();
         }
     }

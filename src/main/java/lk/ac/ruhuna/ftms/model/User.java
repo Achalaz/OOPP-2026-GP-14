@@ -9,6 +9,7 @@ public class User {
     private String email;
     private String role;
     private boolean active;
+    private String profilePicture;
 
     public User() {
     }
@@ -70,6 +71,15 @@ public class User {
 
     public void setActive(boolean active) {
         this.active = active;
+    }
+
+    /** A generated relative filename in the managed picture directory, or null. */
+    public String getProfilePicture() {
+        return profilePicture;
+    }
+
+    public void setProfilePicture(String profilePicture) {
+        this.profilePicture = profilePicture;
     }
 
     @Override
