@@ -8,8 +8,10 @@ import javafx.scene.control.cell.PropertyValueFactory;
 import lk.ac.ruhuna.ftms.dao.UserDAO;
 import lk.ac.ruhuna.ftms.model.User;
 import lk.ac.ruhuna.ftms.service.UserService;
+import lk.ac.ruhuna.ftms.util.PasswordUtil;
 
 import java.sql.SQLException;
+import java.util.Arrays;
 
 public class UsersController {
 
@@ -34,33 +36,53 @@ public class UsersController {
 
     @FXML
     private void initialize() {
+
         idColumn.setCellValueFactory(
                 new PropertyValueFactory<>("userId"));
+
         usernameColumn.setCellValueFactory(
                 new PropertyValueFactory<>("username"));
+
         nameColumn.setCellValueFactory(
                 new PropertyValueFactory<>("fullName"));
+
         emailColumn.setCellValueFactory(
                 new PropertyValueFactory<>("email"));
+
         roleColumn.setCellValueFactory(
                 new PropertyValueFactory<>("role"));
+
         activeColumn.setCellValueFactory(
                 new PropertyValueFactory<>("active"));
 
-        roleComboBox.setItems(FXCollections.observableArrayList(
-                "ADMIN", "LECTURER", "TECHNICAL_OFFICER", "STUDENT"
-        ));
+        roleComboBox.setItems(
+                FXCollections.observableArrayList(
+                        "ADMIN",
+                        "LECTURER",
+                        "TECHNICAL_OFFICER",
+                        "STUDENT"
+                )
+        );
 
         usersTable.getSelectionModel()
                 .selectedItemProperty()
                 .addListener((obs, oldUser, newUser) -> {
+
                     selectedUser = newUser;
 
                     if (newUser != null) {
-                        usernameField.setText(newUser.getUsername());
-                        nameField.setText(newUser.getFullName());
-                        emailField.setText(newUser.getEmail());
-                        roleComboBox.setValue(newUser.getRole());
+                        usernameField.setText(
+                                newUser.getUsername());
+
+                        nameField.setText(
+                                newUser.getFullName());
+
+                        emailField.setText(
+                                newUser.getEmail());
+
+                        roleComboBox.setValue(
+                                newUser.getRole());
+
                         passwordField.clear();
                     }
                 });
@@ -74,20 +96,28 @@ public class UsersController {
     }
 
     private void loadUsers() {
+
         try {
             usersTable.setItems(
                     FXCollections.observableArrayList(
                             userDAO.getAllUsers()
                     )
             );
+
         } catch (SQLException e) {
             showError("Cannot load users: " + e.getMessage());
         }
     }
 
+    // ADD USER WITH PASSWORD HASHING
     @FXML
     private void handleAdd() {
+
+        char[] passwordChars = null;
+
         try {
+
+            // Step 1: Validate user details
             userService.validateUser(
                     usernameField.getText(),
                     nameField.getText(),
@@ -95,26 +125,68 @@ public class UsersController {
                     roleComboBox.getValue()
             );
 
-            userService.validatePassword(passwordField.getText());
+            // Step 2: Validate password
+            userService.validatePassword(
+                    passwordField.getText()
+            );
 
-            // TODO: Replace with a secure password hash
-            // created by PasswordUtil or AuthService.
-            showError("Password hashing is not connected yet. "
-                    + "User was not created.");
+            // Step 3: Convert password to char array
+            passwordChars =
+                    passwordField.getText().toCharArray();
+
+            // Step 4: Generate secure password hash
+            String passwordHash =
+                    PasswordUtil.hashPassword(passwordChars);
+
+            // Step 5: Create User object
+            User newUser = new User(
+                    0,
+                    usernameField.getText().trim(),
+                    nameField.getText().trim(),
+                    emailField.getText().trim(),
+                    roleComboBox.getValue(),
+                    true
+            );
+
+            // Step 6: Save into MySQL
+            userDAO.addUser(newUser, passwordHash);
+
+            // Step 7: Clear and refresh
+            handleClear();
+            loadUsers();
+
+            showInfo("User added successfully.");
 
         } catch (IllegalArgumentException e) {
+
             showError(e.getMessage());
+
+        } catch (SQLException e) {
+
+            showError("Cannot add user: " + e.getMessage());
+            e.printStackTrace();
+
+        } finally {
+
+            // Remove password data from char array
+            if (passwordChars != null) {
+                Arrays.fill(passwordChars, '\0');
+            }
+
+            passwordField.clear();
         }
     }
 
     @FXML
     private void handleUpdate() {
+
         if (selectedUser == null) {
             showError("Please select a user first.");
             return;
         }
 
         try {
+
             userService.validateUser(
                     usernameField.getText(),
                     nameField.getText(),
@@ -122,13 +194,23 @@ public class UsersController {
                     roleComboBox.getValue()
             );
 
-            selectedUser.setUsername(usernameField.getText().trim());
-            selectedUser.setFullName(nameField.getText().trim());
-            selectedUser.setEmail(emailField.getText().trim());
-            selectedUser.setRole(roleComboBox.getValue());
+            selectedUser.setUsername(
+                    usernameField.getText().trim());
+
+            selectedUser.setFullName(
+                    nameField.getText().trim());
+
+            selectedUser.setEmail(
+                    emailField.getText().trim());
+
+            selectedUser.setRole(
+                    roleComboBox.getValue());
 
             userDAO.updateUser(selectedUser);
+
+            handleClear();
             loadUsers();
+
             showInfo("User updated successfully.");
 
         } catch (SQLException | IllegalArgumentException e) {
@@ -138,6 +220,7 @@ public class UsersController {
 
     @FXML
     private void handleDeactivate() {
+
         if (selectedUser == null) {
             showError("Please select a user first.");
             return;
@@ -156,10 +239,16 @@ public class UsersController {
         }
 
         try {
-            userDAO.deactivateUser(selectedUser.getUserId());
+
+            userDAO.deactivateUser(
+                    selectedUser.getUserId()
+            );
+
             handleClear();
             loadUsers();
+
             showInfo("User deactivated successfully.");
+
         } catch (SQLException e) {
             showError(e.getMessage());
         }
@@ -167,20 +256,32 @@ public class UsersController {
 
     @FXML
     private void handleClear() {
+
         usersTable.getSelectionModel().clearSelection();
+
         selectedUser = null;
+
         usernameField.clear();
         nameField.clear();
         emailField.clear();
         passwordField.clear();
+
         roleComboBox.setValue(null);
     }
 
     private void showError(String message) {
-        new Alert(Alert.AlertType.ERROR, message).showAndWait();
+
+        new Alert(
+                Alert.AlertType.ERROR,
+                message
+        ).showAndWait();
     }
 
     private void showInfo(String message) {
-        new Alert(Alert.AlertType.INFORMATION, message).showAndWait();
+
+        new Alert(
+                Alert.AlertType.INFORMATION,
+                message
+        ).showAndWait();
     }
 }
