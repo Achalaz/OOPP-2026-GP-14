@@ -1,0 +1,47 @@
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns:fx="http://javafx.com/fxml"
+            fx:controller="lk.ac.ruhuna.ftms.controller.DashboardController"
+            prefWidth="1100"
+            prefHeight="700">
+
+    <top>
+        <HBox alignment="CENTER_LEFT"
+              spacing="20"
+              style="-fx-background-color: #102C4C;
+                     -fx-padding: 25;">
+
+            <Label text="FTMS DASHBOARD"
+                   style="-fx-text-fill: white;
+                          -fx-font-size: 25;
+                          -fx-font-weight: bold;"/>
+
+            <Region HBox.hgrow="ALWAYS"/>
+
+            <Button fx:id="profileButton" text="My Profile"
+                    onAction="#handleMyProfile"/>
+
+            <Button text="LOGOUT"
+                    onAction="#handleLogout"/>
+        </HBox>
+    </top>
+
+    <center>
+        <VBox alignment="CENTER"
+              spacing="20">
+
+            <Label text="Welcome to FTMS"
+                   style="-fx-font-size: 28;"/>
+
+            <Label fx:id="nameLabel"/>
+
+            <Label fx:id="roleLabel"/>
+
+            <Label fx:id="messageLabel" wrapText="true"
+                   style="-fx-text-fill: #b42318;"/>
+
+        </VBox>
+    </center>
+
+</BorderPane>
