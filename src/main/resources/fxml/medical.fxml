@@ -1,25 +1,22 @@
 
-<?xml version="1.0" encoding="UTF-8"?>
-
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
 <BorderPane xmlns:fx="http://javafx.com/fxml"
-            fx:controller="lk.ac.ruhuna.ftms.controller.MedicalController"
             fx:id="medicalRoot"
+            fx:controller="lk.ac.ruhuna.ftms.controller.MedicalController"
             prefWidth="1100"
             prefHeight="760">
 
+    <!-- Header -->
     <top>
         <VBox spacing="5"
               style="-fx-background-color: #1f2937;">
 
             <padding>
-                <Insets top="20"
-                        right="25"
-                        bottom="20"
-                        left="25"/>
+                <Insets top="20" right="25"
+                        bottom="20" left="25"/>
             </padding>
 
             <Label text="Medical Management"
@@ -27,12 +24,13 @@
                           -fx-font-weight: bold;
                           -fx-text-fill: white;"/>
 
-            <Label text="FTMS - Submit, review and manage student medical requests"
+            <Label text="FTMS - Student Medical Management"
                    style="-fx-font-size: 13px;
                           -fx-text-fill: #d1d5db;"/>
         </VBox>
     </top>
 
+    <!-- Main Content -->
     <center>
         <ScrollPane fitToWidth="true"
                     hbarPolicy="AS_NEEDED">
@@ -41,14 +39,11 @@
                 <VBox spacing="20">
 
                     <padding>
-                        <Insets top="20"
-                                right="25"
-                                bottom="25"
-                                left="25"/>
+                        <Insets top="20" right="25"
+                                bottom="25" left="25"/>
                     </padding>
 
-                    <!-- Medical Request Section -->
-
+                    <!-- Medical Request Details -->
                     <VBox spacing="12"
                           style="-fx-border-color: #d1d5db;
                                  -fx-border-radius: 6;
@@ -69,15 +64,17 @@
                                                    hgrow="ALWAYS"/>
                             </columnConstraints>
 
+                            <!-- Medical ID -->
                             <Label text="Medical ID"
                                    GridPane.columnIndex="0"
                                    GridPane.rowIndex="0"/>
 
                             <TextField fx:id="medicalIdField"
-                                       promptText="For search, update or review"
+                                       promptText="Medical ID"
                                        GridPane.columnIndex="1"
                                        GridPane.rowIndex="0"/>
 
+                            <!-- Student ID -->
                             <Label text="Student ID *"
                                    GridPane.columnIndex="2"
                                    GridPane.rowIndex="0"/>
@@ -87,6 +84,7 @@
                                        GridPane.columnIndex="3"
                                        GridPane.rowIndex="0"/>
 
+                            <!-- Offering ID -->
                             <Label text="Offering ID"
                                    GridPane.columnIndex="0"
                                    GridPane.rowIndex="1"/>
@@ -96,6 +94,7 @@
                                        GridPane.columnIndex="1"
                                        GridPane.rowIndex="1"/>
 
+                            <!-- From Date -->
                             <Label text="From Date *"
                                    GridPane.columnIndex="2"
                                    GridPane.rowIndex="1"/>
@@ -105,6 +104,7 @@
                                         GridPane.columnIndex="3"
                                         GridPane.rowIndex="1"/>
 
+                            <!-- To Date -->
                             <Label text="To Date *"
                                    GridPane.columnIndex="0"
                                    GridPane.rowIndex="2"/>
@@ -114,24 +114,26 @@
                                         GridPane.columnIndex="1"
                                         GridPane.rowIndex="2"/>
 
+                            <!-- Reason -->
                             <Label text="Reason"
                                    GridPane.columnIndex="0"
                                    GridPane.rowIndex="3"/>
 
                             <TextArea fx:id="reasonArea"
-                                      promptText="Optional medical reason (max 500 characters)"
+                                      promptText="Enter medical reason"
                                       prefRowCount="3"
                                       wrapText="true"
                                       GridPane.columnIndex="1"
                                       GridPane.rowIndex="3"
                                       GridPane.columnSpan="3"/>
 
+                            <!-- Document -->
                             <Label text="Document Path"
                                    GridPane.columnIndex="0"
                                    GridPane.rowIndex="4"/>
 
                             <TextField fx:id="documentPathField"
-                                       promptText="Select a PDF or image"
+                                       promptText="Select medical document"
                                        GridPane.columnIndex="1"
                                        GridPane.rowIndex="4"
                                        GridPane.columnSpan="2"/>
@@ -143,8 +145,7 @@
 
                         </GridPane>
 
-                        <!-- Medical Action Buttons -->
-
+                        <!-- Medical Buttons -->
                         <FlowPane hgap="10" vgap="10">
 
                             <Button text="Submit Medical"
@@ -172,8 +173,7 @@
 
                     </VBox>
 
-                    <!-- Medical Review Section -->
-
+                    <!-- Medical Review -->
                     <VBox spacing="12"
                           style="-fx-border-color: #d1d5db;
                                  -fx-border-radius: 6;
@@ -183,41 +183,42 @@
                                style="-fx-font-size: 18px;
                                       -fx-font-weight: bold;"/>
 
-                        <Label text="For testing, enter a valid staff user ID. Final version must use authenticated staff access."
+                        <Label text="Enter a valid reviewer ID for testing."
                                wrapText="true"/>
 
                         <GridPane hgap="14" vgap="12">
 
                             <columnConstraints>
                                 <ColumnConstraints minWidth="125"/>
-                                <ColumnConstraints minWidth="190"
+                                <ColumnConstraints minWidth="300"
                                                    hgrow="ALWAYS"/>
                             </columnConstraints>
 
+                            <!-- Reviewer ID -->
                             <Label text="Reviewer ID *"
                                    GridPane.columnIndex="0"
                                    GridPane.rowIndex="0"/>
 
                             <TextField fx:id="reviewerIdField"
-                                       promptText="Authorized staff user ID"
+                                       promptText="Enter staff user ID"
                                        GridPane.columnIndex="1"
                                        GridPane.rowIndex="0"/>
 
+                            <!-- Review Note -->
                             <Label text="Review Note"
                                    GridPane.columnIndex="0"
                                    GridPane.rowIndex="1"/>
 
                             <TextArea fx:id="reviewNoteArea"
+                                      promptText="Enter review note"
                                       prefRowCount="2"
                                       wrapText="true"
-                                      promptText="Optional review note (max 500 characters)"
                                       GridPane.columnIndex="1"
                                       GridPane.rowIndex="1"/>
 
                         </GridPane>
 
-                        <!-- Review Buttons -->
-
+                        <!-- Approve / Reject -->
                         <HBox spacing="10">
 
                             <Button text="Approve Medical"
@@ -231,14 +232,13 @@
                     </VBox>
 
                     <!-- Medical Records Table -->
-
                     <VBox spacing="10">
 
                         <Label text="Medical Records"
                                style="-fx-font-size: 18px;
                                       -fx-font-weight: bold;"/>
 
-                        <Label text="Select a row to fill the medical form. Only pending records can be updated or deleted."
+                        <Label text="Select a record to view its details."
                                wrapText="true"/>
 
                         <TableView fx:id="medicalTable"
@@ -274,12 +274,10 @@
 
                 </VBox>
             </content>
-
         </ScrollPane>
     </center>
 
-    <!-- Status Message -->
-
+    <!-- Status Bar -->
     <bottom>
         <HBox style="-fx-background-color: #f3f4f6;
                      -fx-padding: 12;">
