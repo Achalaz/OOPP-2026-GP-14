@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns:fx="http://javafx.com/fxml"
+            fx:controller="lk.ac.ruhuna.ftms.controller.AdminDashboardController"
+            stylesheets="@../css/admin_dashboard.css"
+            prefWidth="1200"
+            prefHeight="750">
+
+    <left>
+        <VBox prefWidth="245" styleClass="sidebar">
+
+            <Label text="FTMS" styleClass="brand-title"/>
+            <Label text="FACULTY ADMINISTRATION"
+                   styleClass="brand-subtitle"/>
+
+            <Separator/>
+
+            <Button text="⌂  Dashboard"
+                    maxWidth="Infinity"
+                    styleClass="nav-button,nav-active"
+                    onAction="#handleDashboard"/>
+
+            <Button text="☷  User Profiles"
+                    maxWidth="Infinity"
+                    styleClass="nav-button"
+                    onAction="#handleUsers"/>
+
+            <Button text="▣  Courses"
+                    maxWidth="Infinity"
+                    styleClass="nav-button"
+                    onAction="#handleCourses"/>
+
+            <Button text="✉  Notices"
+                    maxWidth="Infinity"
+                    styleClass="nav-button"
+                    onAction="#handleNotices"/>
+
+            <Button text="▦  Timetables"
+                    maxWidth="Infinity"
+                    styleClass="nav-button"
+                    onAction="#handleTimetables"/>
+
+            <Region VBox.vgrow="ALWAYS"/>
+
+            <Button text="My Profile"
+                    maxWidth="Infinity"
+                    styleClass="nav-button"
+                    onAction="#handleProfile"/>
+
+            <Button text="Logout"
+                    maxWidth="Infinity"
+                    styleClass="logout-button"
+                    onAction="#handleLogout"/>
+        </VBox>
+    </left>
+
+    <center>
+        <ScrollPane fitToWidth="true"
+                    hbarPolicy="NEVER"
+                    style="-fx-background-color: transparent;">
+            <content>
+                <VBox styleClass="main-content">
+
+                    <Label text="ADMIN / OVERVIEW"
+                           styleClass="subtitle"/>
+
+                    <Label text="Admin Dashboard"
+                           styleClass="page-title"/>
+
+                    <Label text="Welcome back, Administrator!"
+                           styleClass="subtitle"/>
+
+                    <GridPane hgap="20" vgap="20">
+
+                        <columnConstraints>
+                            <ColumnConstraints percentWidth="50"/>
+                            <ColumnConstraints percentWidth="50"/>
+                        </columnConstraints>
+
+                        <VBox styleClass="dashboard-card"
+                              GridPane.columnIndex="0"
+                              GridPane.rowIndex="0">
+
+                            <Label text="👥" style="-fx-font-size: 32px;"/>
+                            <Label text="User Profiles"
+                                   styleClass="card-title"/>
+
+                            <Label text="Create and maintain user accounts"
+                                   styleClass="card-description"
+                                   wrapText="true"/>
+
+                            <Button text="Manage Users →"
+                                    styleClass="card-button"
+                                    onAction="#handleUsers"/>
+                        </VBox>
+
+                        <VBox styleClass="dashboard-card"
+                              GridPane.columnIndex="1"
+                              GridPane.rowIndex="0">
+
+                            <Label text="📚" style="-fx-font-size: 32px;"/>
+                            <Label text="Courses"
+                                   styleClass="card-title"/>
+
+                            <Label text="Create and maintain faculty courses"
+                                   styleClass="card-description"
+                                   wrapText="true"/>
+
+                            <Button text="Manage Courses →"
+                                    styleClass="card-button"
+                                    onAction="#handleCourses"/>
+                        </VBox>
+
+                        <VBox styleClass="dashboard-card"
+                              GridPane.columnIndex="0"
+                              GridPane.rowIndex="1">
+
+                            <Label text="📢" style="-fx-font-size: 32px;"/>
+                            <Label text="Notices"
+                                   styleClass="card-title"/>
+
+                            <Label text="Create and maintain announcements"
+                                   styleClass="card-description"
+                                   wrapText="true"/>
+
+                            <Button text="Manage Notices →"
+                                    styleClass="card-button"
+                                    onAction="#handleNotices"/>
+                        </VBox>
+
+                        <VBox styleClass="dashboard-card"
+                              GridPane.columnIndex="1"
+                              GridPane.rowIndex="1">
+
+                            <Label text="📅" style="-fx-font-size: 32px;"/>
+                            <Label text="Timetables"
+                                   styleClass="card-title"/>
+
+                            <Label text="Manage teaching schedules"
+                                   styleClass="card-description"
+                                   wrapText="true"/>
+
+                            <Button text="Manage Timetables →"
+                                    styleClass="card-button"
+                                    onAction="#handleTimetables"/>
+                        </VBox>
+
+                    </GridPane>
+
+                </VBox>
+            </content>
+        </ScrollPane>
+    </center>
+
+</BorderPane>
