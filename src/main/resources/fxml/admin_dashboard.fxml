@@ -1,14 +1,164 @@
 <?xml version="1.0" encoding="UTF-8"?>
-
-<?import java.lang.*?>
-<?import java.util.*?>
-<?import javafx.scene.*?>
+<?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
-<AnchorPane xmlns="http://javafx.com/javafx"
-            xmlns:fx="http://javafx.com/fxml"
-            fx:controller="CONTROLLER_NAME"
-            prefHeight="400.0" prefWidth="600.0">
+<BorderPane xmlns:fx="http://javafx.com/fxml"
+            fx:controller="lk.ac.ruhuna.ftms.controller.AdminDashboardController"
+            prefWidth="1100"
+            prefHeight="700"
+            style="-fx-background-color: #f3f6fb;">
 
-</AnchorPane>
+    <!-- Sidebar -->
+    <left>
+        <VBox prefWidth="245"
+              spacing="12"
+              style="-fx-background-color: #17365d;">
+
+            <padding>
+                <Insets top="30" right="15" bottom="20" left="15"/>
+            </padding>
+
+            <Label text="FTMS"
+                   style="-fx-font-size: 29px;
+                          -fx-font-weight: bold;
+                          -fx-text-fill: white;"/>
+
+            <Label text="ADMIN PANEL"
+                   style="-fx-font-size: 13px;
+                          -fx-text-fill: #c9daea;"/>
+
+            <Separator/>
+
+            <Button text="Dashboard"
+                    maxWidth="Infinity"
+                    onAction="#handleDashboard"/>
+
+            <Button text="User Profiles"
+                    maxWidth="Infinity"
+                    onAction="#handleUsers"/>
+
+            <Button text="Courses"
+                    maxWidth="Infinity"
+                    onAction="#handleCourses"/>
+
+            <Button text="Notices"
+                    maxWidth="Infinity"
+                    onAction="#handleNotices"/>
+
+            <Button text="Timetables"
+                    maxWidth="Infinity"
+                    onAction="#handleTimetables"/>
+
+            <Region VBox.vgrow="ALWAYS"/>
+
+            <Button text="My Profile"
+                    maxWidth="Infinity"
+                    onAction="#handleProfile"/>
+
+            <Button text="Logout"
+                    maxWidth="Infinity"
+                    onAction="#handleLogout"/>
+
+        </VBox>
+    </left>
+
+    <!-- Main Content -->
+    <center>
+        <VBox spacing="22">
+
+            <padding>
+                <Insets top="35" right="35" bottom="35" left="35"/>
+            </padding>
+
+            <Label text="Admin Dashboard"
+                   style="-fx-font-size: 28px;
+                          -fx-font-weight: bold;
+                          -fx-text-fill: #17365d;"/>
+
+            <Label text="Faculty Technology Management System"
+                   style="-fx-font-size: 15px;
+                          -fx-text-fill: #65758b;"/>
+
+            <Label text="Welcome, Administrator"
+                   style="-fx-font-size: 18px;
+                          -fx-font-weight: bold;"/>
+
+            <GridPane hgap="20" vgap="20">
+
+                <VBox spacing="10"
+                      prefWidth="300"
+                      prefHeight="140"
+                      style="-fx-background-color: white;
+                             -fx-padding: 25;
+                             -fx-background-radius: 12;"
+                      GridPane.columnIndex="0"
+                      GridPane.rowIndex="0">
+
+                    <Label text="USER PROFILES"
+                           style="-fx-font-weight: bold;"/>
+
+                    <Label text="Create and manage all users"/>
+
+                    <Button text="Manage Users"
+                            onAction="#handleUsers"/>
+                </VBox>
+
+                <VBox spacing="10"
+                      prefWidth="300"
+                      prefHeight="140"
+                      style="-fx-background-color: white;
+                             -fx-padding: 25;
+                             -fx-background-radius: 12;"
+                      GridPane.columnIndex="1"
+                      GridPane.rowIndex="0">
+
+                    <Label text="COURSES"
+                           style="-fx-font-weight: bold;"/>
+
+                    <Label text="Create and manage courses"/>
+
+                    <Button text="Manage Courses"
+                            onAction="#handleCourses"/>
+                </VBox>
+
+                <VBox spacing="10"
+                      prefWidth="300"
+                      prefHeight="140"
+                      style="-fx-background-color: white;
+                             -fx-padding: 25;
+                             -fx-background-radius: 12;"
+                      GridPane.columnIndex="0"
+                      GridPane.rowIndex="1">
+
+                    <Label text="NOTICES"
+                           style="-fx-font-weight: bold;"/>
+
+                    <Label text="Create and manage notices"/>
+
+                    <Button text="Manage Notices"
+                            onAction="#handleNotices"/>
+                </VBox>
+
+                <VBox spacing="10"
+                      prefWidth="300"
+                      prefHeight="140"
+                      style="-fx-background-color: white;
+                             -fx-padding: 25;
+                             -fx-background-radius: 12;"
+                      GridPane.columnIndex="1"
+                      GridPane.rowIndex="1">
+
+                    <Label text="TIMETABLES"
+                           style="-fx-font-weight: bold;"/>
+
+                    <Label text="Create and manage timetables"/>
+
+                    <Button text="Manage Timetables"
+                            onAction="#handleTimetables"/>
+                </VBox>
+
+            </GridPane>
+        </VBox>
+    </center>
+</BorderPane>
