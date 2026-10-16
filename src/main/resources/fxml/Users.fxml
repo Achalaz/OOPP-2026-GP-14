@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns:fx="http://javafx.com/fxml"
+            fx:controller="lk.ac.ruhuna.ftms.controller.UsersController"
+            prefWidth="1050"
+            prefHeight="650">
+
+    <top>
+        <VBox spacing="8" style="-fx-background-color: #16324f;">
+            <padding>
+                <Insets top="18" right="20" bottom="18" left="20"/>
+            </padding>
+            <Label text="FTMS - User Management"
+                   style="-fx-font-size: 24px;
+                          -fx-font-weight: bold;
+                          -fx-text-fill: white;"/>
+        </VBox>
+    </top>
+
+    <center>
+        <VBox spacing="15">
+            <padding>
+                <Insets top="20" right="20" bottom="20" left="20"/>
+            </padding>
+
+            <GridPane hgap="12" vgap="12">
+                <Label text="Username" GridPane.rowIndex="0"
+                       GridPane.columnIndex="0"/>
+                <TextField fx:id="usernameField"
+                           GridPane.rowIndex="0"
+                           GridPane.columnIndex="1"/>
+
+                <Label text="Full Name" GridPane.rowIndex="1"
+                       GridPane.columnIndex="0"/>
+                <TextField fx:id="nameField"
+                           GridPane.rowIndex="1"
+                           GridPane.columnIndex="1"/>
+
+                <Label text="Email" GridPane.rowIndex="2"
+                       GridPane.columnIndex="0"/>
+                <TextField fx:id="emailField"
+                           GridPane.rowIndex="2"
+                           GridPane.columnIndex="1"/>
+
+                <Label text="Password" GridPane.rowIndex="3"
+                       GridPane.columnIndex="0"/>
+                <PasswordField fx:id="passwordField"
+                               GridPane.rowIndex="3"
+                               GridPane.columnIndex="1"/>
+
+                <Label text="Role" GridPane.rowIndex="4"
+                       GridPane.columnIndex="0"/>
+                <ComboBox fx:id="roleComboBox"
+                          prefWidth="220"
+                          GridPane.rowIndex="4"
+                          GridPane.columnIndex="1"/>
+            </GridPane>
+
+            <HBox spacing="10">
+                <Button text="Add User" onAction="#handleAdd"/>
+                <Button text="Update User" onAction="#handleUpdate"/>
+                <Button text="Deactivate"
+                        onAction="#handleDeactivate"/>
+                <Button text="Clear" onAction="#handleClear"/>
+                <Button text="Refresh" onAction="#handleRefresh"/>
+            </HBox>
+
+            <TableView fx:id="usersTable" VBox.vgrow="ALWAYS">
+                <columns>
+                    <TableColumn fx:id="idColumn"
+                                 text="ID" prefWidth="60"/>
+                    <TableColumn fx:id="usernameColumn"
+                                 text="Username" prefWidth="140"/>
+                    <TableColumn fx:id="nameColumn"
+                                 text="Full Name" prefWidth="190"/>
+                    <TableColumn fx:id="emailColumn"
+                                 text="Email" prefWidth="230"/>
+                    <TableColumn fx:id="roleColumn"
+                                 text="Role" prefWidth="170"/>
+                    <TableColumn fx:id="activeColumn"
+                                 text="Active" prefWidth="100"/>
+                </columns>
+            </TableView>
+        </VBox>
+    </center>
+</BorderPane>
