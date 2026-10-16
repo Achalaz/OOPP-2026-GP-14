@@ -2,50 +2,41 @@
 package lk.ac.ruhuna.ftms.model;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 public class Medical {
 
     private int medicalId;
     private int studentId;
-    private LocalDate medicalDate;
-    private String supportingDocumentPath;
+    private Integer offeringId;
+    private LocalDate fromDate;
+    private LocalDate toDate;
+    private String reason;
+    private String documentPath;
     private String status;
-    private Integer recordedBy;
+    private LocalDateTime submittedAt;
+    private Integer reviewedBy;
+    private LocalDateTime reviewedAt;
+    private String reviewNote;
 
     public Medical() {
     }
 
     public Medical(
             int studentId,
-            LocalDate medicalDate,
-            String supportingDocumentPath,
-            String status,
-            Integer recordedBy) {
+            Integer offeringId,
+            LocalDate fromDate,
+            LocalDate toDate,
+            String reason,
+            String documentPath) {
 
         this.studentId = studentId;
-        this.medicalDate = medicalDate;
-        this.supportingDocumentPath = supportingDocumentPath;
-        this.status = status;
-        this.recordedBy = recordedBy;
-    }
-
-    public Medical(
-            int medicalId,
-            int studentId,
-            LocalDate medicalDate,
-            String supportingDocumentPath,
-            String status,
-            Integer recordedBy) {
-
-        this(
-                studentId,
-                medicalDate,
-                supportingDocumentPath,
-                status,
-                recordedBy
-        );
-
-        this.medicalId = medicalId;
+        this.offeringId = offeringId;
+        this.fromDate = fromDate;
+        this.toDate = toDate;
+        this.reason = reason;
+        this.documentPath = documentPath;
+        this.status = "PENDING";
     }
 
     public int getMedicalId() {
@@ -64,22 +55,44 @@ public class Medical {
         this.studentId = studentId;
     }
 
-    public LocalDate getMedicalDate() {
-        return medicalDate;
+    public Integer getOfferingId() {
+        return offeringId;
     }
 
-    public void setMedicalDate(LocalDate medicalDate) {
-        this.medicalDate = medicalDate;
+    public void setOfferingId(Integer offeringId) {
+        this.offeringId = offeringId;
     }
 
-    public String getSupportingDocumentPath() {
-        return supportingDocumentPath;
+    public LocalDate getFromDate() {
+        return fromDate;
     }
 
-    public void setSupportingDocumentPath(
-            String supportingDocumentPath) {
+    public void setFromDate(LocalDate fromDate) {
+        this.fromDate = fromDate;
+    }
 
-        this.supportingDocumentPath = supportingDocumentPath;
+    public LocalDate getToDate() {
+        return toDate;
+    }
+
+    public void setToDate(LocalDate toDate) {
+        this.toDate = toDate;
+    }
+
+    public String getReason() {
+        return reason;
+    }
+
+    public void setReason(String reason) {
+        this.reason = reason;
+    }
+
+    public String getDocumentPath() {
+        return documentPath;
+    }
+
+    public void setDocumentPath(String documentPath) {
+        this.documentPath = documentPath;
     }
 
     public String getStatus() {
@@ -90,11 +103,35 @@ public class Medical {
         this.status = status;
     }
 
-    public Integer getRecordedBy() {
-        return recordedBy;
+    public LocalDateTime getSubmittedAt() {
+        return submittedAt;
     }
 
-    public void setRecordedBy(Integer recordedBy) {
-        this.recordedBy = recordedBy;
+    public void setSubmittedAt(LocalDateTime submittedAt) {
+        this.submittedAt = submittedAt;
+    }
+
+    public Integer getReviewedBy() {
+        return reviewedBy;
+    }
+
+    public void setReviewedBy(Integer reviewedBy) {
+        this.reviewedBy = reviewedBy;
+    }
+
+    public LocalDateTime getReviewedAt() {
+        return reviewedAt;
+    }
+
+    public void setReviewedAt(LocalDateTime reviewedAt) {
+        this.reviewedAt = reviewedAt;
+    }
+
+    public String getReviewNote() {
+        return reviewNote;
+    }
+
+    public void setReviewNote(String reviewNote) {
+        this.reviewNote = reviewNote;
     }
 }
