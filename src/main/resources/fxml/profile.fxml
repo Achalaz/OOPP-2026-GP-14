@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.shape.SVGPath?>
+
+<BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1"
+            fx:id="profileRoot" fx:controller="lk.ac.ruhuna.ftms.controller.ProfileController"
+            prefWidth="1200" prefHeight="760" stylesheets="@../css/profile.css" styleClass="profile-root">
+    <top>
+        <HBox alignment="CENTER_LEFT" spacing="16" styleClass="profile-header">
+            <Label text="FTMS" styleClass="brand"/>
+            <Separator orientation="VERTICAL" prefHeight="28"/>
+            <VBox spacing="2">
+                <Label text="Faculty of Technology" styleClass="header-title"/>
+                <Label text="University of Ruhuna" styleClass="muted"/>
+            </VBox>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Label text="MY ACCOUNT" styleClass="header-caption"/>
+        </HBox>
+    </top>
+    <left>
+        <VBox spacing="12" prefWidth="204" minWidth="180" styleClass="profile-sidebar">
+            <Label text="WORKSPACE" styleClass="sidebar-caption"/>
+            <Button fx:id="dashboardButton" text="Dashboard" onAction="#handleDashboard"
+                    maxWidth="Infinity" styleClass="nav-button"/>
+            <Label text="My Profile" maxWidth="Infinity" styleClass="nav-current"/>
+            <Region VBox.vgrow="ALWAYS"/>
+            <Label text="Your faculty.&#10;Your workspace." wrapText="true" styleClass="sidebar-note"/>
+            <Separator/>
+            <Button fx:id="logoutButton" text="Log out" onAction="#handleLogout"
+                    maxWidth="Infinity" styleClass="nav-button"/>
+        </VBox>
+    </left>
+    <center>
+        <BorderPane>
+            <top>
+                <HBox alignment="CENTER_LEFT" spacing="12" styleClass="page-heading">
+                    <VBox spacing="6" HBox.hgrow="ALWAYS">
+                        <Label text="My Profile" styleClass="page-title"/>
+                        <Label text="View your account and keep your personal details up to date."
+                               wrapText="true" styleClass="muted"/>
+                    </VBox>
+                    <Button fx:id="refreshButton" text="Refresh" onAction="#handleRefresh"
+                            styleClass="secondary-button"/>
+                </HBox>
+            </top>
+            <center>
+                <ScrollPane fx:id="contentScroll" fitToWidth="true" hbarPolicy="NEVER"
+                            styleClass="profile-scroll">
+                    <content>
+                        <GridPane fx:id="profileGrid" hgap="24" vgap="24" styleClass="profile-content">
+                            <columnConstraints>
+                                <ColumnConstraints percentWidth="32" minWidth="0" hgrow="ALWAYS"/>
+                                <ColumnConstraints percentWidth="68" minWidth="0" hgrow="ALWAYS"/>
+                            </columnConstraints>
+                            <VBox fx:id="summaryCard" spacing="16" alignment="TOP_CENTER" minWidth="0"
+                                  GridPane.valignment="TOP" styleClass="profile-card,summary-card">
+                                <StackPane minWidth="80" maxWidth="80" minHeight="80" maxHeight="80"
+                                           styleClass="initials-circle">
+                                    <StackPane fx:id="defaultAvatar" accessibleText="Default profile avatar">
+                                        <SVGPath content="M12,12 a4,4 0 1,0 0,-8 a4,4 0 1,0 0,8 M4,21 v-2 c0,-4 16,-4 16,0 v2 z"
+                                                 scaleX="2.5" scaleY="2.5" fill="#234f80"/>
+                                    </StackPane>
+                                    <ImageView fx:id="profileImage" fitWidth="80" fitHeight="80"
+                                               preserveRatio="true" smooth="true" visible="false"
+                                               accessibleText="Your profile picture"/>
+                                </StackPane>
+                                <FlowPane alignment="CENTER" hgap="8" vgap="8">
+                                    <Button fx:id="changePictureButton" text="Change photo" onAction="#handleChangePicture"
+                                            styleClass="secondary-button,picture-button"/>
+                                    <Button fx:id="removePictureButton" text="Remove" onAction="#handleRemovePicture"
+                                            styleClass="secondary-button,picture-button"/>
+                                </FlowPane>
+                                <Label fx:id="pictureHintLabel" text="JPG or PNG. Maximum 2 MB." wrapText="true"
+                                       textAlignment="CENTER" maxWidth="Infinity" alignment="CENTER" styleClass="field-hint"/>
+                                <Label fx:id="summaryNameLabel" text="Your profile" wrapText="true"
+                                       alignment="CENTER" textAlignment="CENTER" maxWidth="Infinity"
+                                       styleClass="summary-name"/>
+                                <Label fx:id="summaryRoleLabel" text="ACCOUNT" wrapText="true"
+                                       styleClass="role-badge"/>
+                                <Separator maxWidth="Infinity"/>
+                                <Label text="EMAIL ADDRESS" styleClass="eyebrow"/>
+                                <Label fx:id="summaryEmailLabel" text="Loading..." wrapText="true"
+                                       textAlignment="CENTER" alignment="CENTER" maxWidth="Infinity"
+                                       styleClass="muted"/>
+                            </VBox>
+                            <VBox fx:id="detailsCard" spacing="18" minWidth="0" GridPane.columnIndex="1"
+                                  GridPane.valignment="TOP" styleClass="profile-card">
+                                <VBox spacing="6">
+                                    <Label text="Personal details" styleClass="section-title"/>
+                                    <Label text="Update your full name and email address."
+                                           wrapText="true" styleClass="muted"/>
+                                </VBox>
+                                <Separator/>
+                                <GridPane hgap="16" vgap="8">
+                                    <columnConstraints>
+                                        <ColumnConstraints percentWidth="50" minWidth="0"/>
+                                        <ColumnConstraints percentWidth="50" minWidth="0"/>
+                                    </columnConstraints>
+                                    <Label text="Username" labelFor="$usernameField" styleClass="field-label"/>
+                                    <Label text="Role" labelFor="$roleField" GridPane.columnIndex="1"
+                                           styleClass="field-label"/>
+                                    <TextField fx:id="usernameField" editable="false" minWidth="0"
+                                               GridPane.rowIndex="1" styleClass="readonly-field"/>
+                                    <TextField fx:id="roleField" editable="false" minWidth="0"
+                                               GridPane.columnIndex="1" GridPane.rowIndex="1"
+                                               styleClass="readonly-field"/>
+                                </GridPane>
+                                <Label text="Username and role are managed by your administrator."
+                                       wrapText="true" styleClass="field-hint"/>
+                                <VBox spacing="8">
+                                    <Label text="Full name *" labelFor="$fullNameField" styleClass="field-label"/>
+                                    <TextField fx:id="fullNameField" promptText="Enter your full name"/>
+                                    <Label text="First name and remaining names: up to 80 characters each."
+                                           wrapText="true" styleClass="field-hint"/>
+                                </VBox>
+                                <VBox spacing="8">
+                                    <Label text="Email address *" labelFor="$emailField" styleClass="field-label"/>
+                                    <TextField fx:id="emailField" promptText="name@example.com"/>
+                                    <Label text="Use an email address you can be reached at."
+                                           wrapText="true" styleClass="field-hint"/>
+                                </VBox>
+                                <Separator/>
+                                <FlowPane hgap="12" vgap="12" alignment="CENTER_RIGHT">
+                                    <Button fx:id="resetButton" text="Reset changes" onAction="#handleReset"
+                                            styleClass="secondary-button"/>
+                                    <Button fx:id="saveButton" text="Save changes" onAction="#handleSave"
+                                            defaultButton="true" styleClass="primary-button"/>
+                                </FlowPane>
+                            </VBox>
+                        </GridPane>
+                    </content>
+                </ScrollPane>
+            </center>
+            <bottom>
+                <HBox alignment="CENTER_LEFT" spacing="12" styleClass="profile-status">
+                    <ProgressIndicator fx:id="progressIndicator" prefWidth="20" prefHeight="20"
+                                       maxWidth="20" maxHeight="20"/>
+                    <Label fx:id="statusLabel" wrapText="true" HBox.hgrow="ALWAYS" styleClass="status-info"/>
+                </HBox>
+            </bottom>
+        </BorderPane>
+    </center>
+</BorderPane>

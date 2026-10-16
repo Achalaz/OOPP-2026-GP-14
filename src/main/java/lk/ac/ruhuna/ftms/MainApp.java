@@ -6,32 +6,25 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 
-import lk.ac.ruhuna.ftms.util.SessionManager;
-
 public class MainApp extends Application {
 
     @Override
     public void start(Stage stage) throws Exception {
 
-        // Load Login Screen
         FXMLLoader loader = new FXMLLoader(
-                MainApp.class.getResource("/fxml/login.fxml")
+                MainApp.class.getResource("/fxml/medical.fxml")
         );
 
-        Scene scene = new Scene(loader.load(), 1200, 700);
+        Scene scene = new Scene(loader.load(), 1200, 750);
 
-        stage.setTitle("FTMS - Login");
+        stage.setTitle("FTMS - Medical Management");
+
         stage.setScene(scene);
 
-        stage.setMinWidth(900);
-        stage.setMinHeight(600);
+        stage.setMinWidth(950);
+        stage.setMinHeight(650);
 
         stage.show();
-    }
-
-    @Override
-    public void stop() {
-        SessionManager.logout();
     }
 
     public static void main(String[] args) {
