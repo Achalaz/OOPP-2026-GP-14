@@ -1,0 +1,332 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane
+        xmlns:fx="http://javafx.com/fxml"
+        fx:controller="lk.ac.ruhuna.ftms.controller.LecturerDashboardController"
+        fx:id="lecturerRoot"
+        stylesheets="@../css/lecturer_dashboard.css"
+        prefWidth="1250"
+        prefHeight="800">
+
+    <!-- LEFT SIDEBAR -->
+    <left>
+        <VBox prefWidth="255" styleClass="sidebar" spacing="12">
+
+            <HBox spacing="10" alignment="CENTER_LEFT">
+                <Label text="F" styleClass="brand-icon"/>
+
+                <VBox spacing="3">
+                    <Label text="FTMS" styleClass="brand-title"/>
+                    <Label text="LECTURER PORTAL"
+                           styleClass="brand-subtitle"/>
+                </VBox>
+            </HBox>
+
+            <Separator/>
+
+            <Label text="WORKSPACE" styleClass="sidebar-heading"/>
+
+            <Button text="  Dashboard"
+                    styleClass="nav-button,nav-active"
+                    maxWidth="Infinity"
+                    onAction="#handleDashboard"/>
+
+            <Button text="  My Profile"
+                    styleClass="nav-button"
+                    maxWidth="Infinity"
+                    onAction="#handleProfile"/>
+
+            <Button text="  Course Materials"
+                    styleClass="nav-button"
+                    maxWidth="Infinity"
+                    onAction="#handleCourseMaterials"/>
+
+            <Button text="  Upload Exam Marks"
+                    styleClass="nav-button"
+                    maxWidth="Infinity"
+                    onAction="#handleUploadMarks"/>
+
+            <Button text="  Undergraduates"
+                    styleClass="nav-button"
+                    maxWidth="Infinity"
+                    onAction="#handleStudentDetails"/>
+
+            <Button text="  Student Eligibility"
+                    styleClass="nav-button"
+                    maxWidth="Infinity"
+                    onAction="#handleEligibility"/>
+
+            <Button text="  Marks and Grades"
+                    styleClass="nav-button"
+                    maxWidth="Infinity"
+                    onAction="#handleAcademicReports"/>
+
+            <Button text="  Attendance Records"
+                    styleClass="nav-button"
+                    maxWidth="Infinity"
+                    onAction="#handleAttendance"/>
+
+            <Button text="  Notices"
+                    styleClass="nav-button"
+                    maxWidth="Infinity"
+                    onAction="#handleNotices"/>
+
+            <Region VBox.vgrow="ALWAYS"/>
+
+            <Separator/>
+
+            <Label fx:id="usernameLabel"
+                   text="Lecturer"
+                   wrapText="true"
+                   styleClass="sidebar-user"/>
+
+            <Button text="Log Out"
+                    styleClass="logout-button"
+                    maxWidth="Infinity"
+                    onAction="#handleLogout"/>
+
+        </VBox>
+    </left>
+
+    <!-- MAIN CONTENT -->
+    <center>
+        <ScrollPane fitToWidth="true"
+                    hbarPolicy="NEVER"
+                    styleClass="page-scroll">
+
+            <content>
+                <VBox spacing="22" styleClass="main-content">
+
+                    <!-- HEADER -->
+                    <HBox alignment="CENTER_LEFT" spacing="15">
+                        <VBox spacing="5">
+                            <Label text="LECTURER / OVERVIEW"
+                                   styleClass="eyebrow"/>
+
+                            <Label text="Lecturer Dashboard"
+                                   styleClass="page-title"/>
+
+                            <Label text="Faculty Technology Management System"
+                                   styleClass="page-subtitle"/>
+                        </VBox>
+
+                        <Region HBox.hgrow="ALWAYS"/>
+
+                        <Label fx:id="dateLabel"
+                               styleClass="date-label"/>
+                    </HBox>
+
+                    <!-- WELCOME BANNER -->
+                    <VBox spacing="10" styleClass="welcome-banner">
+
+                        <Label text="ACADEMIC WORKSPACE"
+                               styleClass="welcome-tag"/>
+
+                        <Label fx:id="welcomeLabel"
+                               text="Welcome back, Lecturer!"
+                               wrapText="true"
+                               styleClass="welcome-title"/>
+
+                        <Label
+                                text="Manage teaching activities and access student academic information from one place."
+                                wrapText="true"
+                                styleClass="welcome-description"/>
+
+                    </VBox>
+
+                    <HBox alignment="CENTER_LEFT" spacing="10">
+                        <VBox spacing="5">
+                            <Label text="Your Workspace"
+                                   styleClass="section-title"/>
+
+                            <Label
+                                    text="Quick access to lecturer services and academic records"
+                                    styleClass="section-subtitle"/>
+                        </VBox>
+                    </HBox>
+
+                    <!-- FEATURE CARDS -->
+                    <TilePane hgap="18"
+                              vgap="18"
+                              prefTileWidth="335"
+                              prefTileHeight="200">
+
+                        <!-- CARD 1 -->
+                        <VBox styleClass="feature-card" spacing="10">
+                            <Label text="PR" styleClass="feature-icon"/>
+
+                            <Label text="My Profile"
+                                   styleClass="card-title"/>
+
+                            <Label
+                                    text="Update your name, email and profile picture."
+                                    wrapText="true"
+                                    styleClass="card-description"/>
+
+                            <Region VBox.vgrow="ALWAYS"/>
+
+                            <Button text="Edit Profile"
+                                    styleClass="primary-action"
+                                    onAction="#handleProfile"/>
+                        </VBox>
+
+                        <!-- CARD 2 -->
+                        <VBox styleClass="feature-card" spacing="10">
+                            <Label text="CM" styleClass="feature-icon"/>
+
+                            <Label text="Course Materials"
+                                   styleClass="card-title"/>
+
+                            <Label
+                                    text="Add, modify and manage learning materials."
+                                    wrapText="true"
+                                    styleClass="card-description"/>
+
+                            <Region VBox.vgrow="ALWAYS"/>
+
+                            <Button text="Manage Materials"
+                                    styleClass="primary-action"
+                                    onAction="#handleCourseMaterials"/>
+                        </VBox>
+
+                        <!-- CARD 3 -->
+                        <VBox styleClass="feature-card" spacing="10">
+                            <Label text="MK" styleClass="feature-icon"/>
+
+                            <Label text="Exam Marks"
+                                   styleClass="card-title"/>
+
+                            <Label
+                                    text="Enter and update assessment and exam marks."
+                                    wrapText="true"
+                                    styleClass="card-description"/>
+
+                            <Region VBox.vgrow="ALWAYS"/>
+
+                            <Button text="Upload Marks"
+                                    styleClass="primary-action"
+                                    onAction="#handleUploadMarks"/>
+                        </VBox>
+
+                        <!-- CARD 4 -->
+                        <VBox styleClass="feature-card" spacing="10">
+                            <Label text="ST" styleClass="feature-icon"/>
+
+                            <Label text="Undergraduates"
+                                   styleClass="card-title"/>
+
+                            <Label
+                                    text="View undergraduate details and student profiles."
+                                    wrapText="true"
+                                    styleClass="card-description"/>
+
+                            <Region VBox.vgrow="ALWAYS"/>
+
+                            <Button text="View Students"
+                                    styleClass="primary-action"
+                                    onAction="#handleStudentDetails"/>
+                        </VBox>
+
+                        <!-- CARD 5 -->
+                        <VBox styleClass="feature-card" spacing="10">
+                            <Label text="EL" styleClass="feature-icon"/>
+
+                            <Label text="Student Eligibility"
+                                   styleClass="card-title"/>
+
+                            <Label
+                                    text="Review students' academic and examination eligibility."
+                                    wrapText="true"
+                                    styleClass="card-description"/>
+
+                            <Region VBox.vgrow="ALWAYS"/>
+
+                            <Button text="View Eligibility"
+                                    styleClass="primary-action"
+                                    onAction="#handleEligibility"/>
+                        </VBox>
+
+                        <!-- CARD 6 -->
+                        <VBox styleClass="feature-card" spacing="10">
+                            <Label text="RG" styleClass="feature-icon"/>
+
+                            <Label text="Results and GPA"
+                                   styleClass="card-title"/>
+
+                            <Label
+                                    text="View student marks, grades, SGPA and CGPA."
+                                    wrapText="true"
+                                    styleClass="card-description"/>
+
+                            <Region VBox.vgrow="ALWAYS"/>
+
+                            <HBox spacing="9">
+                                <Button text="Reports"
+                                        styleClass="primary-action"
+                                        onAction="#handleAcademicReports"/>
+
+                                <Button text="GPA"
+                                        styleClass="secondary-action"
+                                        onAction="#handleGPA"/>
+                            </HBox>
+                        </VBox>
+
+                        <!-- CARD 7 -->
+                        <VBox styleClass="feature-card" spacing="10">
+                            <Label text="AM" styleClass="feature-icon"/>
+
+                            <Label text="Attendance and Medical"
+                                   styleClass="card-title"/>
+
+                            <Label
+                                    text="Review undergraduate attendance and medical records."
+                                    wrapText="true"
+                                    styleClass="card-description"/>
+
+                            <Region VBox.vgrow="ALWAYS"/>
+
+                            <HBox spacing="9">
+                                <Button text="Attendance"
+                                        styleClass="primary-action"
+                                        onAction="#handleAttendance"/>
+
+                                <Button text="Medical"
+                                        styleClass="secondary-action"
+                                        onAction="#handleMedical"/>
+                            </HBox>
+                        </VBox>
+
+                        <!-- CARD 8 -->
+                        <VBox styleClass="feature-card" spacing="10">
+                            <Label text="NT" styleClass="feature-icon"/>
+
+                            <Label text="Notices"
+                                   styleClass="card-title"/>
+
+                            <Label
+                                    text="Notices will be available in a later release."
+                                    wrapText="true"
+                                    styleClass="card-description"/>
+
+                            <Region VBox.vgrow="ALWAYS"/>
+
+                            <Button text="Coming Soon"
+                                    styleClass="primary-action"
+                                    onAction="#handleNotices"/>
+                        </VBox>
+
+                    </TilePane>
+
+                    <Label
+                            text="FTMS | Faculty Technology Management System"
+                            styleClass="footer-label"/>
+
+                </VBox>
+            </content>
+        </ScrollPane>
+    </center>
+
+</BorderPane>

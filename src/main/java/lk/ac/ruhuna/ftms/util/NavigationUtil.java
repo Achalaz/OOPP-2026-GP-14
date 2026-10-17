@@ -14,7 +14,24 @@ public final class NavigationUtil {
     private NavigationUtil() {
     }
 
+    public static String dashboardResource() {
+        var user = SessionManager.getCurrentUser();
+        if (user == null || !user.isActive()) throw new SecurityException("Please sign in.");
+        return switch (user.getRole()) {
+            case "LECTURER" -> "/fxml/lecturer_dashboard.fxml";
+            case "ADMIN" -> "/fxml/admin_dashboard.fxml";
+            default -> "/fxml/dashboard.fxml";
+        };
+    }
+
     public static void navigate(Node source, String resource, String title) throws IOException {
+        if ("/fxml/dashboard.fxml".equals(resource)) resource = dashboardResource();
+        var user = SessionManager.getCurrentUser();
+        if (user != null && "LECTURER".equals(user.getRole())
+                && !java.util.Set.of("/fxml/lecturer_dashboard.fxml", "/fxml/lecturer_workspace.fxml",
+                    "/fxml/marks_entry.fxml", "/fxml/profile.fxml", "/fxml/login.fxml").contains(resource)) {
+            throw new SecurityException("Use the lecturer workspace for authorized course records.");
+        }
         URL location = NavigationUtil.class.getResource(resource);
         if (location == null) {
             throw new IOException("Screen not found: " + resource);

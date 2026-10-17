@@ -11,6 +11,15 @@ import java.util.List;
 
 public class GPAService {
 
+    /** Read stored values only; preserves the existing GPA/repeat calculation rules. */
+    public lk.ac.ruhuna.ftms.model.LecturerTable getLecturerGpa(int offeringId) throws SQLException {
+        var access = new LecturerAccessService();
+        access.requireOffering(offeringId);
+        var rows = new lk.ac.ruhuna.ftms.dao.LecturerViewDAO().gpa(offeringId);
+        access.requireOffering(offeringId);
+        return rows;
+    }
+
     private final SemesterResultDAO semesterResultDAO;
 
     public GPAService() {
@@ -22,6 +31,7 @@ public class GPAService {
             int studentId,
             int semesterId
     ) throws SQLException {
+        LecturerAccessService.rejectUnscopedLecturerOperation();
 
         validateIds(studentId, semesterId);
 
@@ -119,6 +129,7 @@ public class GPAService {
             int studentId,
             int selectedSemesterId
     ) throws SQLException {
+        LecturerAccessService.rejectUnscopedLecturerOperation();
 
         validateIds(
                 studentId,
@@ -197,6 +208,7 @@ public class GPAService {
     public void saveSemesterResult(
             SemesterResult result
     ) throws SQLException {
+        LecturerAccessService.rejectUnscopedLecturerOperation();
 
         if (result == null) {
             throw new IllegalArgumentException(
@@ -220,6 +232,7 @@ public class GPAService {
             int studentId,
             int semesterId
     ) throws SQLException {
+        LecturerAccessService.rejectUnscopedLecturerOperation();
 
         validateIds(
                 studentId,
@@ -238,6 +251,7 @@ public class GPAService {
             int studentId,
             int semesterId
     ) throws SQLException {
+        LecturerAccessService.rejectUnscopedLecturerOperation();
 
         validateIds(
                 studentId,
@@ -256,6 +270,7 @@ public class GPAService {
     getSemesterResultsByStudent(
             int studentId
     ) throws SQLException {
+        LecturerAccessService.rejectUnscopedLecturerOperation();
 
         if (studentId <= 0) {
             throw new IllegalArgumentException(
@@ -272,6 +287,7 @@ public class GPAService {
     // Load students for GPA GUI
     public List<StudentOption> getStudents()
             throws SQLException {
+        LecturerAccessService.rejectUnscopedLecturerOperation();
 
         return semesterResultDAO
                 .getStudents();
@@ -281,6 +297,7 @@ public class GPAService {
     public List<SemesterOption> getSemestersForStudent(
             int studentId
     ) throws SQLException {
+        LecturerAccessService.rejectUnscopedLecturerOperation();
 
         if (studentId <= 0) {
             throw new IllegalArgumentException(

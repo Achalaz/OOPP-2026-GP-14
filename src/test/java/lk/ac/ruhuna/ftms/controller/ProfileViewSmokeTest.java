@@ -165,10 +165,12 @@ public final class ProfileViewSmokeTest {
                 onFx(() -> {
                     button("dashboardButton").fire();
                     root = scene.getRoot();
-                    check(label("nameLabel").getText().contains("Updated Person"), "return to dashboard uses new name");
-                    check(root.lookup("#profileButton") instanceof Button, "dashboard exposes My Profile");
+                    root.applyCss();
+                    root.layout();
+                    check(label(role.equals("LECTURER") ? "welcomeLabel" : "nameLabel").getText().contains("Updated Person"), "return to dashboard uses new name");
+                    check(root.lookupAll(".button").stream().filter(Button.class::isInstance).map(Button.class::cast).anyMatch(b -> b.getText().contains("Profile")), "dashboard exposes My Profile");
                     Button logout = root.lookupAll(".button").stream().filter(Button.class::isInstance)
-                            .map(Button.class::cast).filter(button -> button.getText().equals("LOGOUT")).findFirst().orElseThrow();
+                            .map(Button.class::cast).filter(button -> button.getText().replace(" ", "").equalsIgnoreCase("LOGOUT")).findFirst().orElseThrow();
                     logout.fire();
                     root = scene.getRoot();
                     check(root.lookup("#loginButton") != null, "dashboard logout opens login FXML");
