@@ -114,81 +114,49 @@ public class LecturerDashboardController {
 
     @FXML
     private void handleCourseMaterials() {
-        showPending(
-                "Course Materials",
-                "We will add upload, edit, download and " +
-                        "remove features for courses assigned " +
-                        "to the lecturer."
-        );
+        openWorkspace("materials", "Course Materials");
     }
 
     @FXML
     private void handleUploadMarks() {
-        openScreen(
-                "/fxml/marks_entry.fxml",
-                "FTMS - Marks Entry"
-        );
+        openWorkspace("marks", "Exam Marks");
     }
 
     @FXML
     private void handleStudentDetails() {
-        showPending(
-                "Undergraduate Details",
-                "A read-only student list and " +
-                        "student details screen will be added."
-        );
+        openWorkspace("students", "Undergraduate Details");
     }
 
     @FXML
     private void handleEligibility() {
-        showPending(
-                "Student Eligibility",
-                "A lecturer read-only eligibility " +
-                        "screen will be connected here."
-        );
+        openWorkspace("eligibility", "Undergraduate Eligibility");
     }
 
     @FXML
     private void handleAcademicReports() {
-        openScreen(
-                "/fxml/reports.fxml",
-                "FTMS - Student Result Reports"
-        );
+        openWorkspace("results", "Published Marks and Grades");
     }
 
     @FXML
     private void handleGPA() {
-        showPending(
-                "Student GPA",
-                "A read-only SGPA / CGPA view " +
-                        "will be connected here."
-        );
+        openWorkspace("gpa", "Saved SGPA and CGPA");
     }
 
     @FXML
     private void handleAttendance() {
-        showPending(
-                "Attendance Records",
-                "A read-only attendance records " +
-                        "screen will be added for lecturers."
-        );
+        openWorkspace("attendance", "Attendance Summaries");
     }
 
     @FXML
     private void handleMedical() {
-        showPending(
-                "Medical Records",
-                "A read-only medical records " +
-                        "screen will be added for lecturers."
-        );
+        openWorkspace("medical", "Medical Statuses");
     }
 
     @FXML
     private void handleNotices() {
         showPending(
                 "Notices",
-                "Lecturers will be able to view " +
-                        "published notices here."
+                "Coming Soon"
         );
     }
 
@@ -196,7 +164,7 @@ public class LecturerDashboardController {
     private void handleLogout() {
 
         try {
-            verifyLecturer();
+            SessionManager.logout();
 
             NavigationUtil.navigate(
                     lecturerRoot,
@@ -209,6 +177,17 @@ public class LecturerDashboardController {
         } catch (IOException | SecurityException e) {
             showError("Logout failed: " + e.getMessage());
         }
+    }
+
+    private void openWorkspace(String mode, String title) {
+        try {
+            verifyLecturer();
+            var loader=new javafx.fxml.FXMLLoader(getClass().getResource("/fxml/lecturer_workspace.fxml"));
+            javafx.scene.Parent root=loader.load();
+            LecturerWorkspaceController controller=loader.getController();
+            lecturerRoot.getScene().setRoot(root);
+            controller.configure(mode,title);
+        } catch(IOException | SecurityException error) {showError("Cannot open lecturer workspace.");}
     }
 
     private void showPending(String title, String message) {

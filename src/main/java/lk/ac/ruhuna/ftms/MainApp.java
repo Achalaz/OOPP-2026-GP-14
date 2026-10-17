@@ -3,68 +3,54 @@ package lk.ac.ruhuna.ftms;
 
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
+import javafx.geometry.Rectangle2D;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
-
-import java.io.ByteArrayInputStream;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
+import lk.ac.ruhuna.ftms.util.SessionManager;
 
 public class MainApp extends Application {
 
     @Override
     public void start(Stage stage) throws Exception {
 
-        URL fxmlUrl = MainApp.class.getResource(
-                "/fxml/lecturer_dashboard.fxml"
+        // Clear previous login session
+        SessionManager.logout();
+
+        // Load login screen
+        FXMLLoader loader = new FXMLLoader(
+                MainApp.class.getResource("/fxml/login.fxml")
         );
 
-        if (fxmlUrl == null) {
-            throw new IllegalStateException(
-                    "lecturer_dashboard.fxml not found!"
-            );
-        }
+        Parent root = loader.load();
 
-        // Load FXML text for visual preview only
-        String fxml;
+        // Get available screen size
+        Rectangle2D screen =
+                Screen.getPrimary().getVisualBounds();
 
-        try (var input = fxmlUrl.openStream()) {
-            fxml = new String(
-                    input.readAllBytes(),
-                    StandardCharsets.UTF_8
-            );
-        }
+        // Keep window within available screen
+        double width = Math.min(1100, screen.getWidth() - 40);
+        double height = Math.min(720, screen.getHeight() - 70);
 
-        // Disable controller and button actions in preview
-        fxml = fxml.replaceAll(
-                "\\s+fx:controller=\"[^\"]*\"",
-                ""
-        );
+        Scene scene = new Scene(root, width, height);
 
-        fxml = fxml.replaceAll(
-                "\\s+onAction=\"#[^\"]*\"",
-                ""
-        );
-
-        FXMLLoader loader = new FXMLLoader();
-        loader.setLocation(fxmlUrl);
-
-        Parent root = loader.load(
-                new ByteArrayInputStream(
-                        fxml.getBytes(StandardCharsets.UTF_8)
-                )
-        );
-
-        Scene scene = new Scene(root, 1250, 800);
-
-        stage.setTitle("FTMS - Lecturer Dashboard Preview");
+        stage.setTitle("FTMS - Login");
         stage.setScene(scene);
 
-        stage.setMinWidth(1000);
-        stage.setMinHeight(700);
+        // Normal resizable window
+        stage.setResizable(true);
+        stage.setFullScreen(false);
+
+        // Logout when application closes
+        stage.setOnCloseRequest(event ->
+                SessionManager.logout()
+        );
 
         stage.show();
+
+        // Position window at screen center
+        stage.centerOnScreen();
     }
 
     public static void main(String[] args) {

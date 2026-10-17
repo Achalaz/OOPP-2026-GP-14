@@ -307,13 +307,13 @@
                                    styleClass="card-title"/>
 
                             <Label
-                                    text="Read faculty announcements and notices."
+                                    text="Notices will be available in a later release."
                                     wrapText="true"
                                     styleClass="card-description"/>
 
                             <Region VBox.vgrow="ALWAYS"/>
 
-                            <Button text="View Notices"
+                            <Button text="Coming Soon"
                                     styleClass="primary-action"
                                     onAction="#handleNotices"/>
                         </VBox>
