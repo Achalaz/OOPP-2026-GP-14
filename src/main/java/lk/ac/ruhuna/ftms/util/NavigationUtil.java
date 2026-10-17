@@ -29,7 +29,7 @@ public final class NavigationUtil {
         var user = SessionManager.getCurrentUser();
         if (user != null && "LECTURER".equals(user.getRole())
                 && !java.util.Set.of("/fxml/lecturer_dashboard.fxml", "/fxml/lecturer_workspace.fxml",
-                    "/fxml/profile.fxml", "/fxml/login.fxml").contains(resource)) {
+                    "/fxml/marks_entry.fxml", "/fxml/profile.fxml", "/fxml/login.fxml").contains(resource)) {
             throw new SecurityException("Use the lecturer workspace for authorized course records.");
         }
         URL location = NavigationUtil.class.getResource(resource);

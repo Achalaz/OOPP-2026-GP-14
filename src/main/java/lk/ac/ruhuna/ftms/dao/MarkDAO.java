@@ -10,6 +10,34 @@ import java.util.List;
 
 public class MarkDAO {
 
+    /** Only marks whose enrollment and assessment belong to this lecturer's assigned offerings. */
+    public List<Mark> findByLecturer(int lecturerId) throws SQLException {
+        String sql = """
+                SELECT m.mark_id, m.enrollment_id, m.assessment_id, m.marks_obtained, e.attempt_no
+                FROM marks m
+                JOIN enrollments e ON e.enrollment_id=m.enrollment_id
+                JOIN assessments a ON a.assessment_id=m.assessment_id AND a.offering_id=e.offering_id
+                JOIN lecturer_course_assignments l ON l.offering_id=e.offering_id
+                JOIN users u ON u.user_id=l.lecturer_id
+                WHERE l.lecturer_id=? AND u.role='LECTURER' AND u.is_active=TRUE
+                  AND e.status<>'WITHDRAWN'
+                ORDER BY m.mark_id
+                """;
+        List<Mark> marks = new ArrayList<>();
+        try (Connection con = DBConnection.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, lecturerId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    marks.add(new Mark(rs.getInt("mark_id"), rs.getInt("enrollment_id"),
+                            rs.getInt("assessment_id"), rs.getObject("marks_obtained") == null
+                                    ? null : rs.getDouble("marks_obtained"), rs.getInt("attempt_no")));
+                }
+            }
+        }
+        return marks;
+    }
+
     /** Lock the authorization and assessment rows with the write to prevent stale assignment/maxima checks. */
     public void saveLecturerMark(Mark mark, lk.ac.ruhuna.ftms.util.SessionManager.SessionIdentity identity)
             throws SQLException {

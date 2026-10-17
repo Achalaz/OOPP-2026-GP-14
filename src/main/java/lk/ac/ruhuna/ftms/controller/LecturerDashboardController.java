@@ -119,7 +119,10 @@ public class LecturerDashboardController {
 
     @FXML
     private void handleUploadMarks() {
-        openWorkspace("marks", "Exam Marks");
+        openScreen(
+                "/fxml/marks_entry.fxml",
+                "FTMS - Marks Entry"
+        );
     }
 
     @FXML

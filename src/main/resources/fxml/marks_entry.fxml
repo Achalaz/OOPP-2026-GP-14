@@ -89,11 +89,13 @@
 
             <HBox spacing="10">
 
-                <Button text="Save / Update"
+                <Button fx:id="saveButton"
+                        text="Save / Update"
                         onAction="#handleSave"
                         prefWidth="130"/>
 
-                <Button text="Delete"
+                <Button fx:id="deleteButton"
+                        text="Delete"
                         onAction="#handleDelete"
                         prefWidth="100"/>
 
@@ -108,6 +110,10 @@
                 <Button text="Results &amp; Grades"
                         onAction="#handleResults"
                         prefWidth="145"/>
+
+                <Button text="Dashboard"
+                        onAction="#handleDashboard"
+                        prefWidth="110"/>
 
             </HBox>
 
