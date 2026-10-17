@@ -121,7 +121,11 @@ public class ProfileDAO {
                 UPDATE users SET profile_picture = ?
                 WHERE user_id = ? AND is_active = TRUE AND profile_picture <=> ?
                 """;
-        try (Connection con = openConnection(); PreparedStatement ps = con.prepareStatement(sql)) {
+        try (Connection con = openConnection()) {
+            if (!hasPictureColumn(con)) {
+                throw new SQLException("Profile pictures require the reviewed add_user_profile_picture.sql migration.", "42S22", 1054);
+            }
+            try (PreparedStatement ps = con.prepareStatement(sql)) {
             if (filename == null) { ps.setNull(1, Types.VARCHAR); }
             else { ps.setString(1, filename); }
             ps.setInt(2, identity.userId());
@@ -130,6 +134,7 @@ public class ProfileDAO {
             ps.setQueryTimeout(15);
             SessionManager.requireSession(identity);
             return ps.executeUpdate() == 1;
+            }
         }
     }
 

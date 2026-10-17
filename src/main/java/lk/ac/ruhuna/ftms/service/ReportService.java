@@ -22,6 +22,7 @@ public class ReportService {
 
     public List<StudentOption> getStudents()
             throws SQLException {
+        LecturerAccessService.rejectUnscopedLecturerOperation();
 
         return reportDAO.getStudents();
     }
@@ -32,6 +33,7 @@ public class ReportService {
 
     public List<OfferingOption> getCourseOfferings()
             throws SQLException {
+        LecturerAccessService.rejectUnscopedLecturerOperation();
 
         return reportDAO.getCourseOfferings();
     }
@@ -43,6 +45,7 @@ public class ReportService {
     public List<ResultReportRow> getStudentReport(
             int studentId
     ) throws SQLException {
+        LecturerAccessService.rejectUnscopedLecturerOperation();
 
         if (studentId <= 0) {
 
@@ -73,6 +76,7 @@ public class ReportService {
     public List<ResultReportRow> getOfferingReport(
             int offeringId
     ) throws SQLException {
+        LecturerAccessService.rejectUnscopedLecturerOperation();
 
         if (offeringId <= 0) {
 
