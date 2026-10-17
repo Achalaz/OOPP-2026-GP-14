@@ -62,7 +62,12 @@ public final class LecturerAccessSmokeTest {
             denied(() -> service.load("students",Integer.MAX_VALUE));
             denied(() -> materials.list(Integer.MAX_VALUE));
             denied(() -> new MarkService().deleteMark(1));
-            denied(() -> new MarkService().getAllMarks());
+            for (var mark : new MarkService().getAllMarks()) {
+                int offering = new LecturerCourseAssignmentDAO().enrollmentOffering(
+                        mark.getEnrollmentId(), mark.getAssessmentId(), mark.getAttemptNo());
+                check(new LecturerCourseAssignmentDAO().isAssigned(user.getUserId(), offering),
+                        "original marks screen only loads assigned courses");
+            }
             // Re-login as the same user must invalidate services created in the earlier session.
             SessionManager.startSession(user);
             denied(service::offerings);

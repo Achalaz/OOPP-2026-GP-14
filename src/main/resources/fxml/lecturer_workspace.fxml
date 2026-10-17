@@ -2,8 +2,11 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 <VBox xmlns:fx="http://javafx.com/fxml" fx:controller="lk.ac.ruhuna.ftms.controller.LecturerWorkspaceController"
-      fx:id="workspaceRoot" prefWidth="1200" prefHeight="800" spacing="18" styleClass="main-content" stylesheets="@../css/lecturer_dashboard.css">
- <HBox spacing="12"><Button text="Dashboard" onAction="#dashboard" styleClass="secondary-action"/><Region HBox.hgrow="ALWAYS"/><Button text="Log Out" onAction="#logout" styleClass="logout-button"/></HBox>
+      fx:id="workspaceRoot" prefWidth="1200" prefHeight="800" minWidth="0" minHeight="0" spacing="18" styleClass="main-content" stylesheets="@../css/lecturer_dashboard.css">
+ <FlowPane hgap="12" vgap="8" minHeight="-Infinity">
+   <Button fx:id="dashboardButton" text="&#8592; Back to Dashboard" onAction="#dashboard" styleClass="secondary-action" minWidth="-Infinity"/>
+   <Button text="Log Out" onAction="#logout" styleClass="logout-button" minWidth="-Infinity"/>
+ </FlowPane>
  <Label fx:id="heading" styleClass="page-title"/>
  <HBox spacing="12"><ComboBox fx:id="offering" promptText="Choose assigned course" prefWidth="620"/><Button fx:id="refresh" text="Refresh" onAction="#reload"/><TextField fx:id="search" promptText="Search displayed records" HBox.hgrow="ALWAYS"/></HBox>
  <Label fx:id="message" wrapText="true"/>

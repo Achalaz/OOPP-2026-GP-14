@@ -1,9 +1,11 @@
 package lk.ac.ruhuna.ftms.service;
 
 import lk.ac.ruhuna.ftms.dao.AssessmentDAO;
+import lk.ac.ruhuna.ftms.dao.LecturerCourseAssignmentDAO;
 import lk.ac.ruhuna.ftms.dao.MarkDAO;
 import lk.ac.ruhuna.ftms.exception.InvalidMarkException;
 import lk.ac.ruhuna.ftms.model.Mark;
+import lk.ac.ruhuna.ftms.util.SessionManager;
 
 import java.sql.SQLException;
 import java.util.List;
@@ -12,6 +14,7 @@ public class MarkService {
 
     private final MarkDAO markDAO;
     private final AssessmentDAO assessmentDAO;
+    private final SessionManager.SessionIdentity identity = SessionManager.requireSession();
 
     public MarkService() {
         markDAO = new MarkDAO();
@@ -21,22 +24,19 @@ public class MarkService {
     public void saveMark(Mark mark) {
 
         requireStaff();
-        var identity = lk.ac.ruhuna.ftms.util.SessionManager.requireSession();
-        boolean lecturer = "LECTURER".equals(lk.ac.ruhuna.ftms.util.SessionManager.getCurrentUser().getRole());
+        if (!"LECTURER".equals(SessionManager.getCurrentUser().getRole()))
+            throw new SecurityException("Only active lecturers assigned to the course can enter or update marks.");
         if (mark == null) throw new InvalidMarkException("Mark is required.");
-        if ("LECTURER".equals(lk.ac.ruhuna.ftms.util.SessionManager.getCurrentUser().getRole())) {
-            try {
-                int offering = new lk.ac.ruhuna.ftms.dao.LecturerCourseAssignmentDAO()
-                        .enrollmentOffering(mark.getEnrollmentId(), mark.getAssessmentId(), mark.getAttemptNo());
-                new LecturerAccessService().requireOffering(offering);
-            } catch (SQLException e) { throw new IllegalStateException("Cannot verify course assignment.", e); }
-        }
+        try {
+            int offering = new LecturerCourseAssignmentDAO()
+                    .enrollmentOffering(mark.getEnrollmentId(), mark.getAssessmentId(), mark.getAttemptNo());
+            new LecturerAccessService().requireOffering(offering);
+        } catch (SQLException e) { throw new IllegalStateException("Cannot verify course assignment.", e); }
         validate(mark);
 
         try {
-            lk.ac.ruhuna.ftms.util.SessionManager.requireSession(identity);
-            if (lecturer) markDAO.saveLecturerMark(mark, identity);
-            else markDAO.saveOrUpdate(mark);
+            SessionManager.requireSession(identity);
+            markDAO.saveLecturerMark(mark, identity);
 
         } catch (SQLException e) {
 
@@ -49,11 +49,17 @@ public class MarkService {
 
     public List<Mark> getAllMarks() {
         requireStaff();
-        if ("LECTURER".equals(lk.ac.ruhuna.ftms.util.SessionManager.getCurrentUser().getRole()))
-            throw new SecurityException("Use the assigned-course marks view.");
 
         try {
-            return markDAO.findAll();
+            List<Mark> marks;
+            if ("LECTURER".equals(SessionManager.getCurrentUser().getRole())) {
+                int lecturerId = new LecturerAccessService().requireLecturer();
+                marks = markDAO.findByLecturer(lecturerId);
+            } else {
+                marks = markDAO.findAll();
+            }
+            SessionManager.requireSession(identity);
+            return marks;
 
         } catch (SQLException e) {
 
@@ -66,7 +72,7 @@ public class MarkService {
 
     public void deleteMark(int markId) {
         requireStaff();
-        if (!"ADMIN".equals(lk.ac.ruhuna.ftms.util.SessionManager.getCurrentUser().getRole()))
+        if (!"ADMIN".equals(SessionManager.getCurrentUser().getRole()))
             throw new SecurityException("Lecturers may update marks, but cannot delete them.");
 
         try {
@@ -82,7 +88,8 @@ public class MarkService {
     }
 
     private void requireStaff() {
-        var user = lk.ac.ruhuna.ftms.util.SessionManager.getCurrentUser();
+        SessionManager.requireSession(identity);
+        var user = SessionManager.getCurrentUser();
         if (user == null || !user.isActive() || !("ADMIN".equals(user.getRole()) || "LECTURER".equals(user.getRole())))
             throw new SecurityException("Authenticated teaching staff required.");
     }
