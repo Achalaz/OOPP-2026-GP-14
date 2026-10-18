@@ -2,6 +2,8 @@ package lk.ac.ruhuna.ftms.controller;
 
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 
@@ -9,6 +11,7 @@ import lk.ac.ruhuna.ftms.exception.InvalidMarkException;
 import lk.ac.ruhuna.ftms.model.Mark;
 import lk.ac.ruhuna.ftms.service.MarkService;
 import lk.ac.ruhuna.ftms.util.NavigationUtil;
+import lk.ac.ruhuna.ftms.util.SessionManager;
 
 import java.io.IOException;
 
@@ -44,6 +47,14 @@ public class MarksController {
     @FXML
     private TableColumn<Mark, Integer> attemptColumn;
 
+    @FXML
+    private Button saveButton;
+
+    @FXML
+    private Button deleteButton;
+
+    private final SessionManager.SessionIdentity identity = SessionManager.requireSession();
+
     private final MarkService markService =
             new MarkService();
 
@@ -71,6 +82,12 @@ public class MarksController {
         );
 
         loadMarks();
+
+        boolean lecturer = "LECTURER".equals(SessionManager.getCurrentUser().getRole());
+        saveButton.setDisable(!lecturer);
+        deleteButton.setVisible(!lecturer);
+        deleteButton.setManaged(!lecturer);
+        if (lecturer) marksTable.setPlaceholder(new Label("No marks in your assigned courses."));
 
         marksTable.getSelectionModel()
                 .selectedItemProperty()
@@ -111,6 +128,8 @@ public class MarksController {
 
         try {
 
+            SessionManager.requireSession(identity);
+
             int enrollmentId =
                     Integer.parseInt(
                             enrollmentIdField.getText().trim()
@@ -148,6 +167,12 @@ public class MarksController {
 
             clearFields();
             loadMarks();
+
+        } catch (SecurityException e) {
+
+            marksTable.getItems().clear();
+            clearFields();
+            showAlert(Alert.AlertType.ERROR, "Access Denied", e.getMessage());
 
         } catch (NumberFormatException e) {
 
@@ -221,21 +246,40 @@ public class MarksController {
 
     @FXML
     private void handleEligibility() {
+        openAcademicScreen("eligibility", "/fxml/eligibility.fxml", "FTMS - Eligibility");
+    }
+
+    @FXML
+    private void handleResults() {
+        openAcademicScreen("results", "/fxml/results.fxml", "FTMS - Results & Grades");
+    }
+
+    private void openAcademicScreen(String mode, String resource, String title) {
         try {
-            NavigationUtil.navigate(marksTable, "/fxml/eligibility.fxml", "FTMS - Eligibility");
-        } catch (IOException e) {
-            showAlert(Alert.AlertType.ERROR, "Navigation Error", "Unable to open eligibility.");
+            SessionManager.requireSession(identity);
+            if ("LECTURER".equals(SessionManager.getCurrentUser().getRole())) {
+                // Keep the existing academic integrations within the lecturer's assigned courses.
+                FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/lecturer_workspace.fxml"));
+                Parent root = loader.load();
+                marksTable.getScene().setRoot(root);
+                LecturerWorkspaceController controller = loader.getController();
+                controller.configure(mode, title);
+            } else {
+                NavigationUtil.navigate(marksTable, resource, title);
+            }
+        } catch (IOException | SecurityException e) {
+            showAlert(Alert.AlertType.ERROR, "Navigation Error", e.getMessage());
             e.printStackTrace();
         }
     }
 
     @FXML
-    private void handleResults() {
+    private void handleDashboard() {
         try {
-            NavigationUtil.navigate(marksTable, "/fxml/results.fxml", "FTMS - Results & Grades");
-        } catch (IOException e) {
-            showAlert(Alert.AlertType.ERROR, "Navigation Error", "Unable to open results.");
-            e.printStackTrace();
+            SessionManager.requireSession(identity);
+            NavigationUtil.navigate(marksTable, NavigationUtil.dashboardResource(), "FTMS - Dashboard");
+        } catch (IOException | SecurityException e) {
+            showAlert(Alert.AlertType.ERROR, "Navigation Error", e.getMessage());
         }
     }
 

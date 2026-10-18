@@ -46,6 +46,7 @@ public class ResultService {
     }
 
     public List<ResultRow> getBatchResults(int offeringId) {
+        LecturerAccessService.rejectUnscopedLecturerOperation();
         requirePositive(offeringId, "Course offering");
         try { return resultDAO.findEnrollmentRowsByOfferingId(offeringId); }
         catch (SQLException error) { throw systemError("load batch results", error); }
@@ -53,7 +54,16 @@ public class ResultService {
 
     public CourseResult getResultByEnrollmentId(int enrollmentId) {
         requirePositive(enrollmentId, "Enrollment");
-        try { return resultDAO.getByEnrollmentId(enrollmentId); }
+        try {
+            var user=lk.ac.ruhuna.ftms.util.SessionManager.getCurrentUser();
+            boolean lecturer=user!=null && "LECTURER".equals(user.getRole());
+            LecturerAccessService access=lecturer ? new LecturerAccessService() : null;
+            int offering=lecturer ? new lk.ac.ruhuna.ftms.dao.LecturerCourseAssignmentDAO().enrollmentOffering(enrollmentId) : 0;
+            if(lecturer) access.requireOffering(offering);
+            var result=resultDAO.getByEnrollmentId(enrollmentId);
+            if(lecturer) access.requireOffering(offering);
+            return lecturer && result!=null && !result.isPublished() ? null : result;
+        }
         catch (SQLException error) { throw systemError("load the saved result", error); }
     }
 
@@ -63,6 +73,7 @@ public class ResultService {
 
     /** Recalculates from current database inputs; never trusts a UI preview or a supplied grade. */
     public CourseResult calculateAndSaveResult(int enrollmentId, Integer calculatedBy) {
+        LecturerAccessService.rejectUnscopedLecturerOperation();
         if (calculatedBy != null) { requirePositive(calculatedBy, "Calculating user"); }
         return calculateInTransaction(enrollmentId, calculatedBy, true);
     }

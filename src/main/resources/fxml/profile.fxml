@@ -6,24 +6,26 @@
 
 <BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1"
             fx:id="profileRoot" fx:controller="lk.ac.ruhuna.ftms.controller.ProfileController"
-            prefWidth="1200" prefHeight="760" stylesheets="@../css/profile.css" styleClass="profile-root">
+            prefWidth="1200" prefHeight="760" minWidth="0" minHeight="0" stylesheets="@../css/profile.css" styleClass="profile-root">
     <top>
-        <HBox alignment="CENTER_LEFT" spacing="16" styleClass="profile-header">
-            <Label text="FTMS" styleClass="brand"/>
-            <Separator orientation="VERTICAL" prefHeight="28"/>
-            <VBox spacing="2">
-                <Label text="Faculty of Technology" styleClass="header-title"/>
-                <Label text="University of Ruhuna" styleClass="muted"/>
-            </VBox>
-            <Region HBox.hgrow="ALWAYS"/>
-            <Label text="MY ACCOUNT" styleClass="header-caption"/>
-        </HBox>
+        <VBox spacing="12" minHeight="-Infinity" styleClass="profile-header">
+            <Button fx:id="dashboardButton" text="&#8592; Back to Dashboard" onAction="#handleDashboard"
+                    minWidth="-Infinity" styleClass="secondary-action" stylesheets="@../css/lecturer_dashboard.css"/>
+            <HBox alignment="CENTER_LEFT" spacing="16">
+                <Label text="FTMS" styleClass="brand"/>
+                <Separator orientation="VERTICAL" prefHeight="28"/>
+                <VBox spacing="2">
+                    <Label text="Faculty of Technology" styleClass="header-title"/>
+                    <Label text="University of Ruhuna" styleClass="muted"/>
+                </VBox>
+                <Region HBox.hgrow="ALWAYS"/>
+                <Label text="MY ACCOUNT" styleClass="header-caption"/>
+            </HBox>
+        </VBox>
     </top>
     <left>
         <VBox spacing="12" prefWidth="204" minWidth="180" styleClass="profile-sidebar">
             <Label text="WORKSPACE" styleClass="sidebar-caption"/>
-            <Button fx:id="dashboardButton" text="Dashboard" onAction="#handleDashboard"
-                    maxWidth="Infinity" styleClass="nav-button"/>
             <Label text="My Profile" maxWidth="Infinity" styleClass="nav-current"/>
             <Region VBox.vgrow="ALWAYS"/>
             <Label text="Your faculty.&#10;Your workspace." wrapText="true" styleClass="sidebar-note"/>

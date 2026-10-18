@@ -33,6 +33,7 @@ public class AttendanceService {
     }
 
     public void saveSession(AttendanceSession session) {
+        LecturerAccessService.rejectUnscopedLecturerOperation();
 
         validateSession(session);
 
@@ -48,6 +49,7 @@ public class AttendanceService {
     }
 
     public List<AttendanceSession> getSessionsByOffering(int offeringId) {
+        LecturerAccessService.rejectUnscopedLecturerOperation();
 
         if (offeringId <= 0) {
             throw new IllegalArgumentException("Invalid offering ID.");
@@ -62,6 +64,7 @@ public class AttendanceService {
     }
 
     public void deleteSession(int sessionId) {
+        LecturerAccessService.rejectUnscopedLecturerOperation();
 
         if (sessionId <= 0) {
             throw new IllegalArgumentException("Invalid session ID.");
@@ -76,6 +79,7 @@ public class AttendanceService {
     }
 
     public void saveAttendance(AttendanceRecord record) {
+        LecturerAccessService.rejectUnscopedLecturerOperation();
 
         validateAttendanceRecord(record);
 
@@ -88,6 +92,7 @@ public class AttendanceService {
     }
 
     public List<AttendanceRecord> getAttendanceBySession(int sessionId) {
+        LecturerAccessService.rejectUnscopedLecturerOperation();
 
         if (sessionId <= 0) {
             throw new IllegalArgumentException("Invalid session ID.");
@@ -103,6 +108,7 @@ public class AttendanceService {
 
     public List<AttendanceRecord> getAttendanceByEnrollment(
             int enrollmentId) {
+        LecturerAccessService.rejectUnscopedLecturerOperation();
 
         if (enrollmentId <= 0) {
             throw new IllegalArgumentException("Invalid enrollment ID.");
@@ -125,7 +131,12 @@ public class AttendanceService {
         }
 
         try {
-            return summaryDAO.findByOfferingId(offeringId);
+            var user=lk.ac.ruhuna.ftms.util.SessionManager.getCurrentUser();
+            LecturerAccessService access=user!=null && "LECTURER".equals(user.getRole()) ? new LecturerAccessService() : null;
+            if(access!=null) access.requireOffering(offeringId);
+            var rows=summaryDAO.findByOfferingId(offeringId);
+            if(access!=null) access.requireOffering(offeringId);
+            return rows;
         } catch (SQLException e) {
             throw new RuntimeException(
                     "Failed to load attendance summaries.", e);
@@ -135,6 +146,7 @@ public class AttendanceService {
     // NEW: Get individual student attendance summary
     public AttendanceSummary getSummaryByEnrollment(
             int enrollmentId) {
+        LecturerAccessService.rejectUnscopedLecturerOperation();
 
         if (enrollmentId <= 0) {
             throw new IllegalArgumentException("Invalid enrollment ID.");
