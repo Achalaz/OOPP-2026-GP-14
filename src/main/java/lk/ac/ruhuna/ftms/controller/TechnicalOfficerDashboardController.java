@@ -102,9 +102,18 @@ public class TechnicalOfficerDashboardController {
         }
     }
 
-    // Future attendance/medical services must check the account and its authorized department
-    // for every operation. No staff-wide CRUD or medical review permissions are granted here.
-    @FXML private void handleAttendance() { showComingSoon("Attendance Management"); }
+    // AttendanceService verifies the account, department, and enrollment for each operation.
+    @FXML private void handleAttendance() {
+        try {
+            requireTechnicalOfficer();
+            NavigationUtil.navigate(technicalOfficerRoot, "/fxml/attendance.fxml", "FTMS - Attendance Management");
+        } catch (SecurityException exception) {
+            showSessionError(exception);
+        } catch (IOException | RuntimeException exception) {
+            statusLabel.setText("Unable to open Attendance Management. Please try again.");
+            contentScroll.setVvalue(1);
+        }
+    }
     @FXML private void handleMedical() { showComingSoon("Medical Management"); }
     // Future notice queries must select published records; timetable queries must be read-only
     // and constrained by the officer's verified users.department_id, never a form-supplied ID.

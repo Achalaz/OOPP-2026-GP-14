@@ -117,7 +117,7 @@
                         <VBox spacing="12" minWidth="0" maxWidth="Infinity" styleClass="feature-card,attendance-card" GridPane.columnIndex="1">
                             <HBox alignment="CENTER_LEFT" spacing="6">
                                 <StackPane styleClass="card-icon"><SVGPath content="M7 4 H4 V22 H20 V4 H17 M8 2 H16 V6 H8 Z M8 14 L11 17 L16 11"/></StackPane>
-                                <Region HBox.hgrow="ALWAYS"/><Label text="COMING SOON" styleClass="coming-soon"/>
+                                <Region HBox.hgrow="ALWAYS"/><Label text="AVAILABLE" styleClass="account-badge"/>
                             </HBox>
                             <Label text="Attendance Management" wrapText="true" styleClass="card-title"/>
                             <Label text="Add, view and maintain undergraduate attendance." wrapText="true" styleClass="card-description" VBox.vgrow="ALWAYS" maxHeight="Infinity"/>

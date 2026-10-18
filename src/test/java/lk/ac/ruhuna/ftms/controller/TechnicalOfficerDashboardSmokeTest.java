@@ -83,7 +83,7 @@ public final class TechnicalOfficerDashboardSmokeTest {
                 stage.setTitle("FTMS - Technical Officer UI verification");
                 stage.setOpacity(0);
                 stage.show();
-                for (String forbidden : List.of("Users.fxml", "attendance.fxml", "medical.fxml", "marks_entry.fxml",
+                for (String forbidden : List.of("Users.fxml", "medical.fxml", "marks_entry.fxml",
                         "results.fxml", "gpa.fxml", "reports.fxml", "eligibility.fxml", "lecturer_workspace.fxml",
                         "admin_dashboard.fxml", "lecturer_dashboard.fxml", "student_dashboard.fxml")) {
                     try {
@@ -135,8 +135,9 @@ public final class TechnicalOfficerDashboardSmokeTest {
             fx(() -> {
                 var identity = SessionManager.requireSession();
                 List<Button> placeholders = root.lookupAll(".button").stream().filter(Button.class::isInstance)
-                        .map(Button.class::cast).filter(button -> !List.of("Dashboard", "Logout", "My Profile").contains(button.getText())).toList();
-                check(placeholders.size() == 8, "four sidebar and four card placeholder actions");
+                        .map(Button.class::cast).filter(button -> !List.of("Dashboard", "Logout", "My Profile",
+                                "Attendance Management", "Manage Attendance").contains(button.getText())).toList();
+                check(placeholders.size() == 6, "three sidebar and three card placeholder actions");
                 for (Button button : placeholders) {
                     AtomicReference<Throwable> failure = new AtomicReference<>();
                     Platform.runLater(() -> {
