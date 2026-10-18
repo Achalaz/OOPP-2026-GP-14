@@ -20,6 +20,7 @@ public final class NavigationUtil {
         return switch (user.getRole()) {
             case "LECTURER" -> "/fxml/lecturer_dashboard.fxml";
             case "ADMIN" -> "/fxml/admin_dashboard.fxml";
+            case "STUDENT" -> "/fxml/student_dashboard.fxml";
             default -> "/fxml/dashboard.fxml";
         };
     }
