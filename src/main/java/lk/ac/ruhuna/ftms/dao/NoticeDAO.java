@@ -2,220 +2,140 @@ package lk.ac.ruhuna.ftms.dao;
 
 import lk.ac.ruhuna.ftms.database.DBConnection;
 import lk.ac.ruhuna.ftms.model.Notice;
+import lk.ac.ruhuna.ftms.model.Notice.Audience;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.sql.Timestamp;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 public class NoticeDAO {
+    private static final String COLUMNS =
+            "notice_id, title, content, audience, created_by, published_at, expires_at, is_active";
 
-    // Get all notices
+    protected Connection getConnection() throws SQLException {
+        return DBConnection.getConnection();
+    }
+
     public List<Notice> getAllNotices() throws SQLException {
-        List<Notice> notices = new ArrayList<>();
-
-        String sql = """
-                SELECT notice_id, title, content, is_published,
-                       created_at, updated_at
-                FROM notices
-                ORDER BY created_at DESC
-                """;
-
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql);
+        String sql = "SELECT " + COLUMNS + " FROM notices ORDER BY published_at DESC, notice_id DESC";
+        try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement(sql);
              ResultSet rs = stmt.executeQuery()) {
-
-            while (rs.next()) {
-                notices.add(mapNotice(rs));
-            }
+            return readNotices(rs);
         }
-
-        return notices;
     }
 
-    // Search notices by title or content
-    public List<Notice> searchNotices(String keyword)
-            throws SQLException {
-
-        List<Notice> notices = new ArrayList<>();
-
-        String sql = """
-                SELECT notice_id, title, content, is_published,
-                       created_at, updated_at
-                FROM notices
-                WHERE title LIKE ? OR content LIKE ?
-                ORDER BY created_at DESC
+    public List<Notice> searchNotices(String keyword) throws SQLException {
+        String sql = "SELECT " + COLUMNS + """
+                 FROM notices WHERE title LIKE ? OR content LIKE ?
+                 ORDER BY published_at DESC, notice_id DESC
                 """;
-
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-
-            String searchValue = "%" + keyword + "%";
-
-            stmt.setString(1, searchValue);
-            stmt.setString(2, searchValue);
-
-            try (ResultSet rs = stmt.executeQuery()) {
-                while (rs.next()) {
-                    notices.add(mapNotice(rs));
-                }
-            }
+        try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, "%" + keyword + "%");
+            stmt.setString(2, "%" + keyword + "%");
+            try (ResultSet rs = stmt.executeQuery()) { return readNotices(rs); }
         }
-
-        return notices;
     }
 
-    // Create a new notice or update an existing notice
-    public boolean saveNotice(Notice notice) throws SQLException {
-
-        if (notice.getTitle() == null
-                || notice.getTitle().isBlank()
-                || notice.getContent() == null
-                || notice.getContent().isBlank()) {
-            throw new IllegalArgumentException(
-                    "Notice title and content are required."
-            );
+    /** The service supplies the audience derived from the authenticated user's role. */
+    public List<Notice> getPublishedNotices(Audience audience) throws SQLException {
+        Objects.requireNonNull(audience, "Audience is required.");
+        String sql = "SELECT " + COLUMNS + """
+                 FROM notices
+                 WHERE is_active = 1
+                   AND published_at <= CURRENT_TIMESTAMP
+                   AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
+                   AND (audience = 'ALL' OR audience = ?)
+                 ORDER BY published_at DESC, notice_id DESC
+                """;
+        try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, audience.name());
+            try (ResultSet rs = stmt.executeQuery()) { return readNotices(rs); }
         }
+    }
 
-        if (notice.getNoticeId() > 0) {
-            return updateNotice(notice);
+    public boolean saveNotice(Notice notice, int creatorId) throws SQLException {
+        if (notice == null || notice.getTitle() == null || notice.getTitle().isBlank()
+                || notice.getContent() == null || notice.getContent().isBlank() || notice.getAudience() == null) {
+            throw new IllegalArgumentException("Notice title, content and audience are required.");
         }
+        if (notice.getNoticeId() > 0) return updateNotice(notice);
 
         String sql = """
-                INSERT INTO notices (title, content, is_published)
-                VALUES (?, ?, ?)
+                INSERT INTO notices (title, content, audience, created_by, published_at, expires_at, is_active)
+                VALUES (?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP), ?, ?)
                 """;
-
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(
-                     sql, Statement.RETURN_GENERATED_KEYS)) {
-
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             stmt.setString(1, notice.getTitle().trim());
             stmt.setString(2, notice.getContent().trim());
-            stmt.setBoolean(3, notice.isPublished());
-
-            int rows = stmt.executeUpdate();
-
-            if (rows > 0) {
-                try (ResultSet keys = stmt.getGeneratedKeys()) {
-                    if (keys.next()) {
-                        notice.setNoticeId(keys.getLong(1));
-                    }
-                }
-                return true;
+            stmt.setString(3, notice.getAudience().name());
+            stmt.setInt(4, creatorId);
+            setTimestamp(stmt, 5, notice.getPublishedAt());
+            setTimestamp(stmt, 6, notice.getExpiresAt());
+            stmt.setBoolean(7, notice.isActive());
+            if (stmt.executeUpdate() == 0) return false;
+            try (ResultSet keys = stmt.getGeneratedKeys()) {
+                if (keys.next()) notice.setNoticeId(keys.getLong(1));
             }
+            notice.setCreatedBy(creatorId);
+            return true;
         }
-
-        return false;
     }
 
-    // Update an existing notice
-    private boolean updateNotice(Notice notice)
-            throws SQLException {
-
+    private boolean updateNotice(Notice notice) throws SQLException {
         String sql = """
                 UPDATE notices
-                SET title = ?, content = ?, is_published = ?
+                SET title = ?, content = ?, audience = ?, published_at = ?, expires_at = ?, is_active = ?
                 WHERE notice_id = ?
                 """;
-
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-
+        try (Connection conn = getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, notice.getTitle().trim());
             stmt.setString(2, notice.getContent().trim());
-            stmt.setBoolean(3, notice.isPublished());
-            stmt.setLong(4, notice.getNoticeId());
-
+            stmt.setString(3, notice.getAudience().name());
+            setTimestamp(stmt, 4, notice.getPublishedAt());
+            setTimestamp(stmt, 5, notice.getExpiresAt());
+            stmt.setBoolean(6, notice.isActive());
+            stmt.setLong(7, notice.getNoticeId());
             return stmt.executeUpdate() > 0;
         }
     }
 
-    // Publish or unpublish a notice
-    public boolean setPublished(long noticeId, boolean published)
-            throws SQLException {
-
-        String sql = """
-                UPDATE notices
-                SET is_published = ?
-                WHERE notice_id = ?
-                """;
-
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-
+    /** Enable/disable publication without moving its scheduled start or expiry. */
+    public boolean setPublished(long noticeId, boolean published) throws SQLException {
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement("UPDATE notices SET is_active = ? WHERE notice_id = ?")) {
             stmt.setBoolean(1, published);
             stmt.setLong(2, noticeId);
-
             return stmt.executeUpdate() > 0;
         }
     }
 
-    // Delete a notice
     public boolean deleteNotice(long noticeId) throws SQLException {
-
-        String sql = """
-                DELETE FROM notices
-                WHERE notice_id = ?
-                """;
-
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement("DELETE FROM notices WHERE notice_id = ?")) {
             stmt.setLong(1, noticeId);
-
             return stmt.executeUpdate() > 0;
         }
     }
 
-    // Convert a database row into a Notice object
-    private Notice mapNotice(ResultSet rs) throws SQLException {
-
-        Notice notice = new Notice();
-
-        notice.setNoticeId(rs.getLong("notice_id"));
-        notice.setTitle(rs.getString("title"));
-        notice.setContent(rs.getString("content"));
-        notice.setPublished(rs.getBoolean("is_published"));
-
-        Timestamp createdAt = rs.getTimestamp("created_at");
-        if (createdAt != null) {
-            notice.setCreatedAt(createdAt.toLocalDateTime());
-        }
-
-        Timestamp updatedAt = rs.getTimestamp("updated_at");
-        if (updatedAt != null) {
-            notice.setUpdatedAt(updatedAt.toLocalDateTime());
-        }
-
-        return notice;
+    private static void setTimestamp(PreparedStatement stmt, int index, java.time.LocalDateTime value) throws SQLException {
+        if (value == null) stmt.setNull(index, Types.TIMESTAMP);
+        else stmt.setTimestamp(index, Timestamp.valueOf(value));
     }
-    // Get published notices only for general users
-    public List<Notice> getPublishedNotices() throws SQLException {
 
+    private List<Notice> readNotices(ResultSet rs) throws SQLException {
         List<Notice> notices = new ArrayList<>();
-
-        String sql = """
-            SELECT notice_id, title, content, is_published,
-                   created_at, updated_at
-            FROM notices
-            WHERE is_published = TRUE
-            ORDER BY created_at DESC
-            """;
-
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql);
-             ResultSet rs = stmt.executeQuery()) {
-
-            while (rs.next()) {
-                notices.add(mapNotice(rs));
-            }
-        }
-
+        while (rs.next()) notices.add(mapNotice(rs));
         return notices;
+    }
+
+    private Notice mapNotice(ResultSet rs) throws SQLException {
+        Timestamp publishedAt = rs.getTimestamp("published_at");
+        Timestamp expiresAt = rs.getTimestamp("expires_at");
+        return new Notice(rs.getLong("notice_id"), rs.getString("title"), rs.getString("content"),
+                Audience.valueOf(rs.getString("audience")), rs.getInt("created_by"),
+                publishedAt == null ? null : publishedAt.toLocalDateTime(),
+                expiresAt == null ? null : expiresAt.toLocalDateTime(), rs.getBoolean("is_active"));
     }
 }

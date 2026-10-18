@@ -115,9 +115,18 @@ public class TechnicalOfficerDashboardController {
         }
     }
     @FXML private void handleMedical() { showComingSoon("Medical Management"); }
-    // Future notice queries must select published records; timetable queries must be read-only
-    // and constrained by the officer's verified users.department_id, never a form-supplied ID.
-    @FXML private void handleNotices() { showComingSoon("Notices"); }
+    @FXML private void handleNotices() {
+        try {
+            requireTechnicalOfficer();
+            NavigationUtil.navigate(technicalOfficerRoot, "/fxml/view_notices.fxml", "FTMS - Faculty Notices");
+        } catch (SecurityException error) {
+            showSessionError(error);
+        } catch (IOException error) {
+            statusLabel.setText("Unable to open Faculty Notices. Please try again.");
+            contentScroll.setVvalue(1);
+        }
+    }
+    // Timetable queries must be constrained by the officer's verified department.
     @FXML private void handleTimetable() { showComingSoon("Department Timetable"); }
 
     private void showComingSoon(String feature) {

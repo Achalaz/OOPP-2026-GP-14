@@ -100,7 +100,17 @@ public class StudentDashboardController {
     @FXML private void handleCourses() { showComingSoon("My Courses"); }
     @FXML private void handleGrades() { showComingSoon("Grades and GPA"); }
     @FXML private void handleTimetable() { showComingSoon("My Timetable"); }
-    @FXML private void handleNotices() { showComingSoon("Notices"); }
+    @FXML private void handleNotices() {
+        try {
+            requireStudent();
+            NavigationUtil.navigate(studentRoot, "/fxml/view_notices.fxml", "FTMS - Faculty Notices");
+        } catch (SecurityException error) {
+            showSessionError(error);
+        } catch (IOException error) {
+            statusLabel.setText("Unable to open Faculty Notices. Please try again.");
+            contentScroll.setVvalue(1);
+        }
+    }
 
     private void showComingSoon(String feature) {
         try {

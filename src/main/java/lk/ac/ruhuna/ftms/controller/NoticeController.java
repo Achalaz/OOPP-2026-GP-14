@@ -1,322 +1,261 @@
 package lk.ac.ruhuna.ftms.controller;
 
+import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
-import javafx.scene.control.Alert;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.CheckBox;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableView;
-import javafx.scene.control.TextArea;
-import javafx.scene.control.TextField;
+import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
-
-import lk.ac.ruhuna.ftms.model.Notice;
-import lk.ac.ruhuna.ftms.service.NoticeService;
-
-import java.sql.SQLException;
-import java.util.Optional;
 import lk.ac.ruhuna.ftms.dao.NoticeDAO;
-import lk.ac.ruhuna.ftms.model.User;
+import lk.ac.ruhuna.ftms.model.Notice;
+import lk.ac.ruhuna.ftms.model.Notice.Audience;
 import lk.ac.ruhuna.ftms.service.NoticeService;
-import lk.ac.ruhuna.ftms.util.SessionManager;
+import lk.ac.ruhuna.ftms.util.NavigationUtil;
+
+import java.io.IOException;
+import java.sql.SQLException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.time.format.ResolverStyle;
+import java.util.List;
+import java.util.Objects;
 
 public class NoticeController {
-
     @FXML private TextField searchField;
     @FXML private TextField titleField;
     @FXML private TextArea contentField;
     @FXML private CheckBox publishedCheckBox;
-
+    @FXML private ComboBox<Audience> audienceCombo;
+    @FXML private TextField publishedAtField;
+    @FXML private TextField expiresAtField;
+    @FXML private Label formHeading;
+    @FXML private Label statusLabel;
+    @FXML private Button saveButton;
+    @FXML private Button editButton;
+    @FXML private Button publishButton;
+    @FXML private Button deleteButton;
     @FXML private TableView<Notice> noticeTable;
-
     @FXML private TableColumn<Notice, Long> idColumn;
     @FXML private TableColumn<Notice, String> titleColumn;
     @FXML private TableColumn<Notice, String> contentColumn;
-    @FXML private TableColumn<Notice, Boolean> publishedColumn;
-    @FXML private TableColumn<Notice, Object> createdAtColumn;
+    @FXML private TableColumn<Notice, String> publishedColumn;
+    @FXML private TableColumn<Notice, String> publishedAtColumn;
+    @FXML private TableColumn<Notice, Audience> audienceColumn;
 
-    private final ObservableList<Notice> noticeList =
-            FXCollections.observableArrayList();
+    private static final DateTimeFormatter DATE_INPUT = DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss")
+            .withResolverStyle(ResolverStyle.STRICT);
 
-    private NoticeService noticeService;
+    private final ObservableList<Notice> noticeList = FXCollections.observableArrayList();
+    private final NoticeService noticeService;
+    private long editingNoticeId;
 
-    @FXML
-    public void initialize() {
+    public NoticeController() {
+        this(new NoticeService(new NoticeDAO()));
+    }
 
-        idColumn.setCellValueFactory(
-                new PropertyValueFactory<>("noticeId"));
+    public NoticeController(NoticeService noticeService) {
+        this.noticeService = Objects.requireNonNull(noticeService);
+    }
 
-        titleColumn.setCellValueFactory(
-                new PropertyValueFactory<>("title"));
-
-        contentColumn.setCellValueFactory(
-                new PropertyValueFactory<>("content"));
-
-        publishedColumn.setCellValueFactory(
-                new PropertyValueFactory<>("published"));
-
-        createdAtColumn.setCellValueFactory(
-                new PropertyValueFactory<>("createdAt"));
-
+    @FXML public void initialize() {
+        // Reject direct FXMLLoader/controller access before loading any drafts.
+        noticeService.requireAdminAccess();
+        idColumn.setCellValueFactory(new PropertyValueFactory<>("noticeId"));
+        titleColumn.setCellValueFactory(new PropertyValueFactory<>("title"));
+        contentColumn.setCellValueFactory(new PropertyValueFactory<>("content"));
+        audienceColumn.setCellValueFactory(new PropertyValueFactory<>("audience"));
+        audienceCombo.getItems().setAll(Audience.values());
+        publishedColumn.setCellValueFactory(cell -> new ReadOnlyStringWrapper(
+                cell.getValue().publicationStatus(LocalDateTime.now())));
+        publishedAtColumn.setCellValueFactory(cell -> new ReadOnlyStringWrapper(
+                cell.getValue().getPublishedAt() == null ? "Not recorded" :
+                        cell.getValue().getPublishedAt().format(DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm"))));
+        noticeTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+        noticeTable.setPlaceholder(new Label("No notices found. Create a notice or change your search."));
         noticeTable.setItems(noticeList);
-
-        noticeTable.getSelectionModel()
-                .selectedItemProperty()
-                .addListener((observable, oldNotice, selectedNotice) -> {
-                    if (selectedNotice != null) {
-                        populateForm(selectedNotice);
-                    }
-                });
-        noticeService = new NoticeService(
-                new NoticeDAO(),
-                this::isActiveAdmin
-        );
-
+        noticeTable.getSelectionModel().selectedItemProperty().addListener((observable, old, selected) -> {
+            if (selected == null) clearForm();
+            else populateForm(selected);
+        });
+        clearForm();
         refreshNotices();
     }
 
-    // Called by the navigation code after loading the FXML.
-    public void setNoticeService(NoticeService noticeService) {
-        this.noticeService = noticeService;
-        refreshNotices();
-    }
+    @FXML private void handleSearch() { refreshNotices(); }
 
-    @FXML
-    private void handleSearch() {
-        if (!ensureServiceConfigured()) {
-            return;
-        }
-
-        try {
-            noticeList.setAll(
-                    noticeService.searchNotices(searchField.getText())
-            );
-        } catch (SQLException | SecurityException e) {
-            showError("Could not search notices", e);
-        }
-    }
-
-    @FXML
-    private void handleShowAll() {
+    @FXML private void handleShowAll() {
         searchField.clear();
         refreshNotices();
     }
 
-    @FXML
-    private void handleSave() {
-        if (!ensureServiceConfigured()) {
-            return;
+    @FXML private void handleSave() {
+        if (!ensureAdmin()) return;
+        try {
+            Notice notice = new Notice();
+            notice.setNoticeId(editingNoticeId);
+            notice.setTitle(titleField.getText());
+            notice.setContent(contentField.getText());
+            notice.setActive(publishedCheckBox.isSelected());
+            notice.setAudience(audienceCombo.getValue());
+            notice.setPublishedAt(parseDate(publishedAtField.getText(), "Publication start"));
+            notice.setExpiresAt(parseDate(expiresAtField.getText(), "Expiry"));
+            if (noticeService.saveNotice(notice)) {
+                // Show the saved row even if the previous search no longer matches it.
+                searchField.clear();
+                if (refreshNotices()) statusLabel.setText("Notice #" + notice.getNoticeId() + " saved successfully.");
+            } else {
+                statusLabel.setText("The notice was not saved. Refresh to check whether it still exists.");
+            }
+        } catch (SQLException | IllegalArgumentException | SecurityException error) {
+            showError("Could not save notice", error);
         }
+    }
 
-        String title = titleField.getText();
-        String content = contentField.getText();
-
-        if (title == null || title.isBlank()) {
-            showWarning("Please enter a notice title.");
-            titleField.requestFocus();
-            return;
-        }
-
-        if (content == null || content.isBlank()) {
-            showWarning("Please enter notice content.");
-            contentField.requestFocus();
-            return;
-        }
-
-        Notice selected = noticeTable.getSelectionModel()
-                .getSelectedItem();
-
-        Notice notice = new Notice();
-
+    @FXML private void handleEdit() {
+        if (!ensureAdmin()) return;
+        Notice selected = noticeTable.getSelectionModel().getSelectedItem();
         if (selected != null) {
-            notice.setNoticeId(selected.getNoticeId());
-        }
-
-        notice.setTitle(title.trim());
-        notice.setContent(content.trim());
-        notice.setPublished(publishedCheckBox.isSelected());
-
-        try {
-            boolean saved = noticeService.saveNotice(notice);
-
-            if (saved) {
-                showInformation("Notice saved successfully.");
-                handleClear();
-                refreshNotices();
-            } else {
-                showWarning("The notice was not saved.");
-            }
-
-        } catch (SQLException | IllegalArgumentException
-                 | SecurityException e) {
-            showError("Could not save notice", e);
+            populateForm(selected);
+            titleField.requestFocus();
         }
     }
 
-    @FXML
-    private void handleClear() {
+    @FXML private void handleClear() {
         noticeTable.getSelectionModel().clearSelection();
-
-        titleField.clear();
-        contentField.clear();
-        publishedCheckBox.setSelected(false);
+        clearForm();
     }
 
-    @FXML
-    private void handlePublishToggle() {
-        if (!ensureServiceConfigured()) {
-            return;
-        }
-
-        Notice selected = noticeTable.getSelectionModel()
-                .getSelectedItem();
-
+    @FXML private void handlePublishToggle() {
+        if (!ensureAdmin()) return;
+        Notice selected = noticeTable.getSelectionModel().getSelectedItem();
         if (selected == null) {
-            showWarning("Please select a notice first.");
+            statusLabel.setText("Please select a notice first.");
             return;
         }
-
-        boolean newStatus = !selected.isPublished();
-
+        boolean published = !selected.isActive();
         try {
-            boolean updated = noticeService.setPublished(
-                    selected.getNoticeId(), newStatus);
-
-            if (updated) {
-                showInformation(
-                        newStatus
-                                ? "Notice published successfully."
-                                : "Notice unpublished successfully."
-                );
-
-                refreshNotices();
-                handleClear();
+            if (noticeService.setPublished(selected.getNoticeId(), published)) {
+                if (refreshNotices()) statusLabel.setText(published
+                        ? "Publication enabled. The audience, publication start and expiry still apply."
+                        : "Notice unpublished (inactive).");
             } else {
-                showWarning("The notice status was not changed.");
+                statusLabel.setText("The notice no longer exists. Refresh the list.");
             }
-
-        } catch (SQLException | IllegalArgumentException
-                 | SecurityException e) {
-            showError("Could not change notice status", e);
+        } catch (SQLException | IllegalArgumentException | SecurityException error) {
+            showError("Could not change notice status", error);
         }
     }
 
-    @FXML
-    private void handleDelete() {
-        if (!ensureServiceConfigured()) {
-            return;
-        }
-
-        Notice selected = noticeTable.getSelectionModel()
-                .getSelectedItem();
-
+    @FXML private void handleDelete() {
+        if (!ensureAdmin()) return;
+        Notice selected = noticeTable.getSelectionModel().getSelectedItem();
         if (selected == null) {
-            showWarning("Please select a notice to delete.");
+            statusLabel.setText("Please select a notice to delete.");
             return;
         }
-
         Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
         confirmation.setTitle("Delete Notice");
         confirmation.setHeaderText("Delete this notice?");
-        confirmation.setContentText(
-                "Are you sure you want to delete \""
-                        + selected.getTitle()
-                        + "\"? This action cannot be undone."
-        );
-
-        Optional<ButtonType> result = confirmation.showAndWait();
-
-        if (result.isEmpty()
-                || result.get() != ButtonType.OK) {
-            return;
-        }
-
+        confirmation.setContentText("Delete \"" + selected.getTitle() + "\"? This action cannot be undone.");
+        confirmation.initOwner(noticeTable.getScene().getWindow());
+        if (confirmation.showAndWait().orElse(ButtonType.CANCEL) != ButtonType.OK) return;
         try {
-            boolean deleted = noticeService.deleteNotice(
-                    selected.getNoticeId());
-
-            if (deleted) {
-                showInformation("Notice deleted successfully.");
-                handleClear();
-                refreshNotices();
+            if (noticeService.deleteNotice(selected.getNoticeId())) {
+                if (refreshNotices()) statusLabel.setText("Notice deleted.");
             } else {
-                showWarning("The notice could not be deleted.");
+                statusLabel.setText("The notice no longer exists. Refresh the list.");
             }
-
-        } catch (SQLException | IllegalArgumentException
-                 | SecurityException e) {
-            showError("Could not delete notice", e);
+        } catch (SQLException | IllegalArgumentException | SecurityException error) {
+            showError("Could not delete notice", error);
         }
     }
 
-    private void refreshNotices() {
-        if (noticeService == null) {
-            return;
-        }
-
+    @FXML private void handleBack() {
         try {
-            noticeList.setAll(noticeService.getAllNotices());
-        } catch (SQLException | SecurityException e) {
-            showError("Could not load notices", e);
+            noticeService.requireAdminAccess();
+            NavigationUtil.navigate(noticeTable, NavigationUtil.dashboardResource(), "FTMS - Admin Dashboard");
+        } catch (IOException | SecurityException error) {
+            showError("Could not open dashboard", error);
+        }
+    }
+
+    private boolean refreshNotices() {
+        handleClear();
+        noticeList.clear();
+        try {
+            List<Notice> notices = searchField.getText() == null || searchField.getText().isBlank()
+                    ? noticeService.getAllNotices() : noticeService.searchNotices(searchField.getText());
+            noticeList.setAll(notices);
+            statusLabel.setText(notices.isEmpty() ? "No notices found. Create a notice or change your search."
+                    : notices.size() + " notice(s). Select one to edit or manage it.");
+            return true;
+        } catch (SQLException | SecurityException error) {
+            showError("Could not load notices", error);
+            return false;
         }
     }
 
     private void populateForm(Notice notice) {
+        if (!ensureAdmin()) return;
+        editingNoticeId = notice.getNoticeId();
         titleField.setText(notice.getTitle());
         contentField.setText(notice.getContent());
-        publishedCheckBox.setSelected(notice.isPublished());
+        publishedCheckBox.setSelected(notice.isActive());
+        audienceCombo.setValue(notice.getAudience());
+        publishedAtField.setText(notice.getPublishedAt() == null ? "" : notice.getPublishedAt().format(DATE_INPUT));
+        expiresAtField.setText(notice.getExpiresAt() == null ? "" : notice.getExpiresAt().format(DATE_INPUT));
+        formHeading.setText("Editing notice #" + editingNoticeId);
+        saveButton.setText("Save Changes");
+        editButton.setDisable(false);
+        publishButton.setDisable(false);
+        publishButton.setText(notice.isActive() ? "Unpublish" : "Publish");
+        deleteButton.setDisable(false);
     }
 
-    private boolean ensureServiceConfigured() {
-        if (noticeService == null) {
-            showWarning(
-                    "Notice service is not configured. "
-                            + "Please connect it through the Admin dashboard."
-            );
+    private void clearForm() {
+        editingNoticeId = 0;
+        titleField.clear();
+        contentField.clear();
+        publishedCheckBox.setSelected(false);
+        audienceCombo.setValue(Audience.ALL);
+        publishedAtField.clear();
+        expiresAtField.clear();
+        formHeading.setText("Create a notice");
+        saveButton.setText("Save Notice");
+        editButton.setDisable(true);
+        publishButton.setDisable(true);
+        publishButton.setText("Publish / Unpublish");
+        deleteButton.setDisable(true);
+    }
+
+    private boolean ensureAdmin() {
+        try {
+            noticeService.requireAdminAccess();
+            return true;
+        } catch (SecurityException error) {
+            showError("Access denied", error);
             return false;
         }
-
-        return true;
     }
 
-    private void showInformation(String message) {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("Notice Management");
-        alert.setHeaderText(null);
-        alert.setContentText(message);
-        alert.showAndWait();
+    private LocalDateTime parseDate(String value, String label) {
+        if (value == null || value.isBlank()) return null;
+        try {
+            return LocalDateTime.parse(value.trim(), DATE_INPUT);
+        } catch (DateTimeParseException error) {
+            throw new IllegalArgumentException(label + " must use yyyy-MM-dd HH:mm:ss (for example, 2026-12-20 10:00:00).");
+        }
     }
 
-    private void showWarning(String message) {
-        Alert alert = new Alert(Alert.AlertType.WARNING);
-        alert.setTitle("Notice Management");
-        alert.setHeaderText(null);
-        alert.setContentText(message);
-        alert.showAndWait();
-    }
-
-    private void showError(String heading, Exception exception) {
-        Alert alert = new Alert(Alert.AlertType.ERROR);
-        alert.setTitle("Notice Management");
-        alert.setHeaderText(heading);
-
-        String message = exception.getMessage();
-
-        alert.setContentText(
-                message == null || message.isBlank()
-                        ? "An unexpected error occurred."
-                        : message
-        );
-
-        alert.showAndWait();
-    }
-    private boolean isActiveAdmin() {
-        User user = SessionManager.getCurrentUser();
-
-        return user != null
-                && user.isActive()
-                && "ADMIN".equals(user.getRole());
+    private void showError(String heading, Exception error) {
+        if (error instanceof SecurityException) {
+            handleClear();
+            noticeList.clear();
+        }
+        String message = error instanceof SQLException
+                ? "Check the database connection and notices schema, then refresh."
+                : error.getMessage();
+        statusLabel.setText(heading + ": " + message);
     }
 }

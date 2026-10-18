@@ -1,74 +1,44 @@
 <?xml version="1.0" encoding="UTF-8"?>
-
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
-<BorderPane xmlns="http://javafx.com/javafx/21"
-            xmlns:fx="http://javafx.com/fxml/1"
-            fx:controller="lk.ac.ruhuna.ftms.controller.ViewNoticesController">
-
+<BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1"
+            fx:id="viewNoticesRoot" fx:controller="lk.ac.ruhuna.ftms.controller.ViewNoticesController"
+            prefWidth="1100" prefHeight="700" minWidth="0"
+            style="-fx-background-color: #f4f8fc; -fx-font-family: 'Segoe UI';">
     <top>
-        <VBox spacing="10"
-              style="-fx-background-color: #f4f6f9;">
-            <padding>
-                <Insets top="20" right="20" bottom="15" left="20"/>
-            </padding>
-
-            <Label text="Faculty Notices"
-                   style="-fx-font-size: 24px; -fx-font-weight: bold;"/>
-
-            <Label text="View the latest published notices."/>
-
-            <Button text="Refresh Notices"
-                    onAction="#handleRefresh"/>
+        <VBox spacing="8" style="-fx-background-color: #102b4e; -fx-padding: 16 24;">
+            <FlowPane hgap="10" vgap="8">
+                <Button text="Back to Dashboard" onAction="#handleBack"/>
+                <Button text="Refresh Notices" onAction="#handleRefresh"/>
+            </FlowPane>
+            <Label text="Faculty Notices" wrapText="true"
+                   style="-fx-text-fill: white; -fx-font-size: 24px; -fx-font-weight: bold;"/>
+            <Label text="Read published faculty announcements. Refresh to see the latest changes."
+                   wrapText="true" style="-fx-text-fill: #cbdcf0;"/>
         </VBox>
     </top>
-
     <center>
-        <VBox spacing="10">
-            <padding>
-                <Insets top="15" right="20" bottom="15" left="20"/>
-            </padding>
-
-            <Label text="Published Notices"
-                   style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
-
-            <TableView fx:id="noticeTable"
-                       VBox.vgrow="ALWAYS">
-
-                <columns>
-                    <TableColumn fx:id="titleColumn"
-                                 text="Notice Title"
-                                 prefWidth="300"/>
-
-                    <TableColumn fx:id="createdAtColumn"
-                                 text="Published Date"
-                                 prefWidth="200"/>
-                </columns>
-            </TableView>
-
-            <Label text="Select a notice to read its full content."
-                   style="-fx-text-fill: #666666;"/>
-        </VBox>
+        <ScrollPane fitToWidth="true" hbarPolicy="NEVER" minWidth="0">
+            <VBox spacing="14" minWidth="0">
+                <padding><Insets top="18" right="24" bottom="20" left="24"/></padding>
+                <Label fx:id="statusLabel" wrapText="true" style="-fx-text-fill: #102b4e;"/>
+                <TableView fx:id="noticeTable" minWidth="0" prefHeight="230" minHeight="150" editable="false">
+                    <columns>
+                        <TableColumn fx:id="titleColumn" text="Notice Title" prefWidth="600" minWidth="120"/>
+                        <TableColumn fx:id="publishedAtColumn" text="Published from" prefWidth="200" minWidth="160"/>
+                    </columns>
+                </TableView>
+                <VBox spacing="10" minWidth="0"
+                      style="-fx-background-color: white; -fx-background-radius: 10; -fx-padding: 18;">
+                    <Label fx:id="selectedTitleLabel" text="Select a notice" wrapText="true"
+                           style="-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #102b4e;"/>
+                    <Label fx:id="selectedDateLabel" wrapText="true" style="-fx-text-fill: #52657b;"/>
+                    <TextArea fx:id="contentArea" editable="false" wrapText="true" prefRowCount="7"
+                              promptText="Select a notice above to read its full content."/>
+                </VBox>
+            </VBox>
+        </ScrollPane>
     </center>
-
-    <bottom>
-        <VBox spacing="10">
-            <padding>
-                <Insets top="10" right="20" bottom="20" left="20"/>
-            </padding>
-
-            <Label fx:id="selectedTitleLabel"
-                   text="Select a notice"
-                   style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
-
-            <TextArea fx:id="contentArea"
-                      editable="false"
-                      wrapText="true"
-                      prefRowCount="5"
-                      promptText="Notice content will appear here."/>
-        </VBox>
-    </bottom>
-
 </BorderPane>
