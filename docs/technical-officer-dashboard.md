@@ -5,7 +5,7 @@ continues to authenticate accounts, and `NavigationUtil.dashboardResource()` rou
 active `TECHNICAL_OFFICER` sessions to `/fxml/technical_officer_dashboard.fxml`.
 `MainApp`, authentication, User/DAO models, academic calculations, and Medical
 remain unchanged. Attendance is now connected through the existing module with
-department authorization; see [Attendance integration](technical-officer-attendance.md).
+active Technical Officer authorization; see [Attendance integration](technical-officer-attendance.md).
 
 ## Available UI
 
@@ -18,8 +18,9 @@ department authorization; see [Attendance integration](technical-officer-attenda
 - My Profile opens the existing owner-bound profile screen. That workflow supports
   name, email, and picture updates. Username and role are read-only, and no password
   editor exists. Its service/DAO update only personal details or the picture reference.
-- Attendance opens the existing management screen with scoped course, session, and
-  undergraduate selectors, saving/updating records, and read-only summaries.
+- Attendance opens the existing management screen with active course offerings
+  across departments, session and undergraduate selectors, saving/updating records,
+  and read-only summaries. No officer department or subtype profile is required.
 - Medical, Notices, and Department Timetable display the information
   dialog **This feature will be available soon.** Each has its own controller handler.
 

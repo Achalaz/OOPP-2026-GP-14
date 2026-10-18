@@ -18,8 +18,8 @@ public final class AttendanceIntegrationTest {
         try (var fixture = new AttendanceDatabaseFixture()) {
             AttendanceDatabaseFixture.signInFixture();
             var service = fixture.service();
-            check(service.getAuthorizedOfferings().stream().map(AttendanceOffering::offeringId).toList().equals(List.of(11, 10)),
-                    "only department offerings, with distinct semester choices");
+            check(service.getAuthorizedOfferings().stream().map(AttendanceOffering::offeringId).toList().equals(List.of(11, 10, 20)),
+                    "active offerings across departments without an officer department or profile");
             check(service.getEnrollmentsByOffering(10).size() == 2, "only selected offering enrollments");
             var session = session(10);
             session.setConductedBy(999);
@@ -58,27 +58,42 @@ public final class AttendanceIntegrationTest {
             denied(() -> service.saveAttendance(new AttendanceRecord(id, 200, "PRESENT", 1)));
             denied(() -> service.saveAttendance(new AttendanceRecord(id, 999, "PRESENT", 1)));
             denied(() -> service.saveAttendance(new AttendanceRecord(999, 100, "PRESENT", 1)));
-            denied(() -> service.saveSession(session(20)));
-            denied(() -> service.getSessionsByOffering(20));
-            denied(() -> service.getEnrollmentsByOffering(20));
-            denied(() -> service.getSummariesByOffering(20));
-            denied(() -> service.getSummaryByEnrollment(200));
-            denied(() -> service.getAttendanceByEnrollment(200));
-            denied(() -> service.calculateAttendancePercentage(200));
-            fixture.execute("INSERT INTO attendance_sessions (session_id,offering_id,session_date,session_type) VALUES (999,20,CURRENT_DATE,'THEORY')");
-            denied(() -> service.getAttendanceBySession(999));
+            for (int inactive : List.of(12, 13, 14, 30, 999)) {
+                denied(() -> service.saveSession(session(inactive)));
+                denied(() -> service.getSessionsByOffering(inactive));
+                denied(() -> service.getEnrollmentsByOffering(inactive));
+                denied(() -> service.getSummariesByOffering(inactive));
+            }
+            // A cached choice cannot be used after its offering stops being active.
+            fixture.execute("UPDATE course_offerings SET status = 'COMPLETED' WHERE offering_id = 10");
+            denied(() -> service.saveAttendance(new AttendanceRecord(id, 100, "ABSENT", 1)));
+            denied(() -> service.getAttendanceBySession(id));
+            fixture.execute("UPDATE course_offerings SET status = 'ACTIVE' WHERE offering_id = 10");
             session.setOfferingId(11);
             denied(() -> service.saveSession(session));
             session.setOfferingId(10);
             denied(() -> service.deleteSession(id));
             check(fixture.countRecords() == 2, "denied writes leave records intact");
+            var otherDepartment = session(20);
+            service.saveSession(otherDepartment);
+            check(service.getSessionsByOffering(20).size() == 1, "other department session created");
+            check(service.getEnrollmentsByOffering(20).size() == 1, "other department enrollment loaded");
+            service.saveAttendance(new AttendanceRecord(otherDepartment.getSessionId(), 200, "PRESENT", 999));
+            check(service.getAttendanceBySession(otherDepartment.getSessionId()).getFirst().getMarkedBy() == 1,
+                    "officer without profile or department can save attendance with session-derived audit identity");
+            service.saveAttendance(new AttendanceRecord(otherDepartment.getSessionId(), 200, "ABSENT", 999));
+            check(service.getAttendanceByEnrollment(200).getFirst().getAttendanceStatus().equals("ABSENT"),
+                    "other department attendance update persisted");
+            check(service.getSummariesByOffering(20).size() == 1
+                    && service.getSummaryByEnrollment(200).getCombinedPercentage() == 0.0
+                    && service.calculateAttendancePercentage(200) == 0.0, "other department summaries available");
             // Nullable legacy times do not break the session selector.
             fixture.execute("INSERT INTO attendance_sessions (offering_id,session_date,session_type) VALUES (10,CURRENT_DATE,'THEORY')");
             check(service.getSessionsByOffering(10).stream().anyMatch(row -> row.getStartTime() == null), "nullable legacy session times load");
             fixture.execute("UPDATE users SET department_id = NULL WHERE user_id = 1");
-            denied(service::getAuthorizedOfferings);
+            check(service.getAuthorizedOfferings().size() == 3, "missing department does not restrict attendance");
             fixture.execute("UPDATE users SET department_id = 2 WHERE user_id = 1");
-            denied(() -> service.getAttendanceBySession(id));
+            check(service.getAttendanceBySession(id).size() == 2, "department change does not restrict attendance");
             fixture.execute("UPDATE users SET department_id = 1, is_active = 0 WHERE user_id = 1");
             denied(service::getAuthorizedOfferings);
             fixture.execute("UPDATE users SET is_active = 1, role = 'ADMIN' WHERE user_id = 1");
@@ -92,7 +107,7 @@ public final class AttendanceIntegrationTest {
             AttendanceDatabaseFixture.signInFixture();
             check(fixture.service().getSessionsByOffering(11).isEmpty(), "session switch rolls back the actual insert");
             SessionManager.startSession(new User(4, "fixture", "Fixture", "", "TECHNICAL_OFFICER", true));
-            denied(fixture.service()::getAuthorizedOfferings);
+            check(fixture.service().getAuthorizedOfferings().size() == 3, "officer profile row is not required");
             AttendanceDatabaseFixture.signInFixture();
             denied(service::getAuthorizedOfferings); // same account, different login generation
             var current = fixture.service();
@@ -112,37 +127,40 @@ public final class AttendanceIntegrationTest {
 
     private static void liveRead() throws Exception {
         int officers = 0;
+        boolean checkedTec = false;
         try {
+            var expected = new java.util.HashSet<Integer>();
+            try (var connection = DBConnection.getConnection()) {
+                connection.setReadOnly(true);
+                try (var statement = connection.prepareStatement("""
+                        SELECT o.offering_id FROM course_offerings o JOIN courses c ON c.course_id=o.course_id
+                        WHERE o.status='ACTIVE' AND c.is_active=1
+                        """); var rows = statement.executeQuery()) {
+                    while (rows.next()) expected.add(rows.getInt(1));
+                }
+            }
             for (var user : new UserDAO().getAllUsers()) {
                 if (!user.isActive() || !"TECHNICAL_OFFICER".equals(user.getRole())) continue;
                 SessionManager.startSession(user);
                 var service = new AttendanceService();
-                try {
-                    var offerings = service.getAuthorizedOfferings();
-                    try (var connection = DBConnection.getConnection();
-                         var statement = connection.prepareStatement("""
-                                 SELECT o.offering_id FROM course_offerings o JOIN courses c ON c.course_id=o.course_id
-                                 JOIN users u ON u.department_id=c.department_id WHERE u.user_id=?
-                                 """)) {
-                        connection.setReadOnly(true);
-                        statement.setInt(1, user.getUserId());
-                        var expected = new java.util.HashSet<Integer>();
-                        try (var rows = statement.executeQuery()) { while (rows.next()) expected.add(rows.getInt(1)); }
-                        check(expected.equals(offerings.stream().map(AttendanceOffering::offeringId).collect(java.util.stream.Collectors.toSet())),
-                                "live offering scope matches department");
-                    }
-                    for (var offering : offerings) {
-                        service.getEnrollmentsByOffering(offering.offeringId());
-                        service.getSummariesByOffering(offering.offeringId());
-                        for (var session : service.getSessionsByOffering(offering.offeringId()))
-                            service.getAttendanceBySession(session.getSessionId());
-                    }
-                    officers++;
-                } catch (SecurityException missingMapping) {
-                    System.out.println("Live account denied: missing/invalid department or officer mapping.");
+                var offerings = service.getAuthorizedOfferings();
+                check(expected.equals(offerings.stream().map(AttendanceOffering::offeringId).collect(java.util.stream.Collectors.toSet())),
+                        "active offerings available independent of officer department/profile");
+                for (var offering : offerings) {
+                    service.getEnrollmentsByOffering(offering.offeringId());
+                    service.getSummariesByOffering(offering.offeringId());
+                    for (var session : service.getSessionsByOffering(offering.offeringId()))
+                        service.getAttendanceBySession(session.getSessionId());
                 }
+                if ("tec".equals(user.getUsername())) {
+                    checkedTec = true;
+                    check(!offerings.isEmpty(), "tec can load active course offerings");
+                    System.out.println("tec: " + offerings.size() + " active offerings loaded; no department/profile prerequisite.");
+                }
+                officers++;
             }
-            System.out.println("Live read-only checks: " + officers + " mapped Technical Officer accounts. Credential login was not exercised.");
+            check(checkedTec, "live tec account tested");
+            System.out.println("Live read-only checks: " + officers + " active Technical Officer accounts. Credential login was not exercised.");
         } finally { SessionManager.logout(); }
     }
 

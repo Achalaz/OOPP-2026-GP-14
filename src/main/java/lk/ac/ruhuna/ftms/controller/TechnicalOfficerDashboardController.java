@@ -102,7 +102,7 @@ public class TechnicalOfficerDashboardController {
         }
     }
 
-    // AttendanceService verifies the account, department, and enrollment for each operation.
+    // AttendanceService verifies the active officer account, offering, and enrollment for each operation.
     @FXML private void handleAttendance() {
         try {
             requireTechnicalOfficer();

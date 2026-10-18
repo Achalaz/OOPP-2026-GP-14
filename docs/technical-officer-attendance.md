@@ -1,7 +1,7 @@
 # Technical Officer Attendance integration
 
 Both Attendance Management buttons open the existing `attendance.fxml`. Choose a
-department course offering, create or select a session, select an undergraduate,
+active course offering, create or select a session, select an undergraduate,
 and save PRESENT, ABSENT, LATE, EXCUSED, or MEDICAL. Select a saved record to update
 it. Load Attendance reloads saved records; Load Batch Summary uses the existing
 theory/practical/combined calculations and individual details.
@@ -12,11 +12,8 @@ Department Timetable remain Coming Soon. MainApp still starts at login.fxml.
 
 ## Audit and integration decisions
 
-- Starting branch: `Tecnical-offecr-dashboard`; starting HEAD: `c25393b`.
+- This access correction started on `Tecnical-offecr-dashboard` at `0f2682d`.
   The working tree and index were clean. No branch switch was performed.
-- No optional `FTMS_Technical_Officer_Attendance_Integration.zip` or extracted
-  `README_INTEGRATION.md` was found in the project, C:/Myproject, Downloads, or
-  Desktop. No patch files were applied.
 - Attendance already had session CRUD, record upsert, and summary queries.
   `AttendanceDAO` is split into `AttendanceSessionDAO`, `AttendanceRecordDAO`,
   and `AttendanceSummaryDAO`. These implementations are reused.
@@ -24,9 +21,19 @@ Department Timetable remain Coming Soon. MainApp still starts at login.fxml.
   records are read-only projections; no course/enrollment CRUD has been added.
 - Live schema inspection confirmed the five attendance statuses, four session
   types, and unique attendance key `(session_id, enrollment_id)`.
-- Department scope follows `users.department_id -> departments` and
-  `course_offerings.course_id -> courses.department_id`. A matching
-  `technical_officers.technical_officer_id = users.user_id` is also required.
+- Attendance authorization requires only an authenticated, active
+  `TECHNICAL_OFFICER` user. Neither `users.department_id` nor a
+  `technical_officers` profile row is required. Live metadata confirms
+  `attendance_records.marked_by` and `attendance_sessions.conducted_by` reference
+  `users.user_id`, not the officer subtype.
+- `CourseOfferingDAO` is currently a stub. The existing equivalent
+  `AttendanceAccessDAO` loads offerings with `status = 'ACTIVE'` belonging to active
+  courses, across all departments. It applies the same availability check to direct
+  service calls, preventing use of stale or inactive offerings.
+- `TechnicalOfficerAccessService` does not exist in this project. The checks are in
+  AttendanceService and AttendanceAccessDAO. SessionManager and login are unchanged.
+- Department Timetable remains Coming Soon; its required department restriction
+  is unchanged and must be enforced when that feature is integrated.
 - No explicit administrator attendance-management permission was found. Management
   is restricted to Technical Officers. Lecturers retain their existing assigned
   course summary access through the lecturer workspace; students have no new access.
@@ -34,8 +41,8 @@ Department Timetable remain Coming Soon. MainApp still starts at login.fxml.
 ## Authorization and persistence
 
 AttendanceService binds to one login generation. Every management read/write
-revalidates the session, active database role, officer subtype, and department.
-Account/scope rows are locked with `FOR SHARE` until the transaction completes.
+revalidates the session and active database role. Account and relationship rows
+are locked with `FOR SHARE` until the transaction completes.
 Existing DAOs now accept the transaction's connection while preserving their original
 entry points. Statements use bound parameters; no form input becomes SQL.
 
@@ -43,8 +50,8 @@ Session and enrollment must belong to the same authorized offering. A saved sess
 cannot be moved to another offering. `marked_by` always comes from the authenticated
 session, overriding caller input. This workflow does not assign a session conductor;
 new sessions leave the nullable `conducted_by` unset, and existing values are preserved.
-Missing/changed mappings, inactive accounts, other departments, and stale sessions
-are rejected. A login change before commit rolls back the write. Session deletion
+Inactive accounts, incorrect roles, inactive offerings, mismatched enrollments, and
+stale sessions are rejected. A login change before commit rolls back the write. Session deletion
 is not enabled by this integration.
 
 Record reads exclude inconsistent session/enrollment offering pairs. Existing
@@ -60,28 +67,17 @@ window size and decorations.
 
 ## Files
 
-Created:
+This correction creates no new source files. Modified:
 
+- `src/main/java/lk/ac/ruhuna/ftms/controller/AttendanceController.java`
+- `src/main/java/lk/ac/ruhuna/ftms/controller/TechnicalOfficerDashboardController.java`
 - `src/main/java/lk/ac/ruhuna/ftms/dao/AttendanceAccessDAO.java`
-- `src/main/java/lk/ac/ruhuna/ftms/model/AttendanceOffering.java`
-- `src/main/java/lk/ac/ruhuna/ftms/model/AttendanceEnrollment.java`
+- `src/main/java/lk/ac/ruhuna/ftms/service/AttendanceService.java`
+- `src/main/resources/fxml/attendance.fxml`
 - `src/test/java/lk/ac/ruhuna/ftms/service/AttendanceDatabaseFixture.java`
 - `src/test/java/lk/ac/ruhuna/ftms/service/AttendanceIntegrationTest.java`
 - `src/test/java/lk/ac/ruhuna/ftms/controller/AttendanceViewSmokeTest.java`
 - `docs/technical-officer-attendance.md`
-
-Modified:
-
-- `src/main/java/lk/ac/ruhuna/ftms/controller/AttendanceController.java`
-- `src/main/java/lk/ac/ruhuna/ftms/controller/TechnicalOfficerDashboardController.java`
-- `src/main/java/lk/ac/ruhuna/ftms/dao/AttendanceSessionDAO.java`
-- `src/main/java/lk/ac/ruhuna/ftms/dao/AttendanceRecordDAO.java`
-- `src/main/java/lk/ac/ruhuna/ftms/dao/AttendanceSummaryDAO.java`
-- `src/main/java/lk/ac/ruhuna/ftms/service/AttendanceService.java`
-- `src/main/java/lk/ac/ruhuna/ftms/util/NavigationUtil.java`
-- `src/main/resources/fxml/attendance.fxml`
-- `src/main/resources/fxml/technical_officer_dashboard.fxml`
-- `src/test/java/lk/ac/ruhuna/ftms/controller/TechnicalOfficerDashboardSmokeTest.java`
 - `docs/technical-officer-dashboard.md`
 
 ## Verification
@@ -91,19 +87,20 @@ Executed with Java 25.0.4.1, JavaFX 25, and Maven 3.8.5 on 2026-10-18:
 | Check | Result |
 | --- | --- |
 | Maven offline test-compile | Passed; 98 production and 17 test source files compiled |
-| AttendanceIntegrationTest --live-read | 61 checks passed |
-| AttendanceViewSmokeTest --snapshot --live-read | 75 checks passed |
-| TechnicalOfficerDashboardSmokeTest --live-profile | 362 checks passed |
+| AttendanceIntegrationTest --live-read | 83 checks passed |
+| AttendanceViewSmokeTest --live-read | 81 checks passed |
 | LecturerAccessSmokeTest | 413 checks passed; live reads only |
 
 The JDBC tests include all supported statuses, upsert/reload, summary percentages,
-same-department but wrong-offering enrollment denial, other-department denial,
-invalid/missing mappings, account deactivation/role changes, stale sessions, and
+wrong-offering enrollment denial, cross-department save/update and summaries,
+access without an officer department/profile, inactive offering rejection,
+account deactivation/role changes, stale sessions, and
 rollback after a login change between insert and commit. JavaFX tests exercise FXML
 injection, both dashboard entry points, session creation, PRESENT/ABSENT saves,
 update/reload, summaries, direct-screen denial, Back, Attendance Logout, and resizing.
-The existing dashboard runner checks ADMIN/LECTURER/STUDENT routing and the remaining
-Coming Soon dialogs. The lecturer suite verifies assigned attendance-summary access.
+The UI test verifies that ADMIN/LECTURER/STUDENT cannot open the management screen.
+The lecturer suite verifies assigned attendance-summary access. The dashboard runner
+previously passed 362 checks; it was not rerun for this correction.
 
 Tests are explicit main runners, following the existing project convention.
 Maven compiles them but does not automatically execute these checks.
@@ -134,21 +131,23 @@ account sessions inside test runners; no application authorization bypass was ad
 The unchanged login controller routes through NavigationUtil, whose four role routes
 are exercised by the dashboard regression test.
 
-Live read-only checks found one mapped Technical Officer account and one active
-account missing a valid officer/department mapping. That account is denied access.
-An administrator must correct the existing account mapping before it can manage
-attendance; this task does not alter accounts or grant cross-department access.
+Live read-only checks confirmed `tec` is active with role `TECHNICAL_OFFICER` and
+has no officer-profile row. Both active Technical Officer accounts can now read the
+four active offerings. The JavaFX test specifically exercises `tec` from both
+dashboard buttons and asserts that the Attendance form unlocks and offerings load.
+No account mapping changes are necessary. Password-entry login remains untested
+because no password was provided.
 
 ## Preview and manual acceptance
 
-Run the normal application and sign in with a mapped active Technical Officer.
-Use Attendance Management, select a course, and verify the allowed offerings with
-your department's administrator. Any manual saves affect real academic records.
+Run the normal application and sign in with an active Technical Officer, including
+`tec`. Use Attendance Management and select an active course offering.
+Any manual saves affect real academic records.
 
 For a static preview, open `src/main/resources/fxml/attendance.fxml` in Scene Builder.
 Do not remove its controller/security checks. Test-runner screenshots containing
 only synthetic temporary-table fixtures are saved in `target/attendance-ui-check/`
 at 1100x720, 900x600, and 640x480 window sizes.
 
-No commit or push is part of this implementation. Review the dedicated staged diff
+No commit or push is part of this correction. Review the working-tree diff
 and approve a commit separately.

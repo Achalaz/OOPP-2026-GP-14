@@ -44,17 +44,17 @@ public class AttendanceService {
     }
 
     @FunctionalInterface
-    private interface DepartmentOperation<T> {
-        T run(Connection connection, int departmentId) throws SQLException;
+    private interface AttendanceOperation<T> {
+        T run(Connection connection) throws SQLException;
     }
 
-    private <T> T inDepartment(DepartmentOperation<T> operation) {
+    private <T> T inAttendanceTransaction(AttendanceOperation<T> operation) {
         requireManagementSession();
         try (Connection connection = connections.open()) {
             connection.setAutoCommit(false);
             try {
-                int departmentId = accessDAO.requireOfficerDepartment(connection, identity.userId());
-                T value = operation.run(connection, departmentId);
+                accessDAO.requireActiveOfficer(connection, identity.userId());
+                T value = operation.run(connection);
                 requireManagementSession();
                 connection.commit();
                 return value;
@@ -68,12 +68,12 @@ public class AttendanceService {
     }
 
     public List<AttendanceOffering> getAuthorizedOfferings() {
-        return inDepartment(accessDAO::findOfferings);
+        return inAttendanceTransaction(accessDAO::findOfferings);
     }
 
     public List<AttendanceEnrollment> getEnrollmentsByOffering(int offeringId) {
-        return inDepartment((connection, departmentId) -> {
-            accessDAO.requireOffering(connection, departmentId, offeringId);
+        return inAttendanceTransaction(connection -> {
+            accessDAO.requireOffering(connection, offeringId);
             return accessDAO.findEnrollments(connection, offeringId);
         });
     }
@@ -85,8 +85,8 @@ public class AttendanceService {
             throw new IllegalArgumentException("The session topic must be 255 characters or fewer.");
         int originalId = session.getSessionId();
         try {
-            inDepartment((connection, departmentId) -> {
-                accessDAO.requireOffering(connection, departmentId, session.getOfferingId());
+            inAttendanceTransaction(connection -> {
+                accessDAO.requireOffering(connection, session.getOfferingId());
                 if (session.getSessionId() > 0) {
                     int savedOffering = accessDAO.sessionOffering(connection, session.getSessionId());
                     if (savedOffering != session.getOfferingId())
@@ -107,8 +107,8 @@ public class AttendanceService {
     }
 
     public List<AttendanceSession> getSessionsByOffering(int offeringId) {
-        return inDepartment((connection, departmentId) -> {
-            accessDAO.requireOffering(connection, departmentId, offeringId);
+        return inAttendanceTransaction(connection -> {
+            accessDAO.requireOffering(connection, offeringId);
             return sessionDAO.findByOfferingId(connection, offeringId);
         });
     }
@@ -122,9 +122,9 @@ public class AttendanceService {
         requireManagementSession();
         validateAttendanceRecord(record);
         record.setMarkedBy(identity.userId());
-        inDepartment((connection, departmentId) -> {
+        inAttendanceTransaction(connection -> {
             int offering = accessDAO.sessionOffering(connection, record.getSessionId());
-            accessDAO.requireOffering(connection, departmentId, offering);
+            accessDAO.requireOffering(connection, offering);
             if (accessDAO.enrollmentOffering(connection, record.getEnrollmentId()) != offering)
                 throw new SecurityException("The student enrollment does not belong to this attendance session's course offering.");
             recordDAO.saveOrUpdate(connection, record);
@@ -133,15 +133,15 @@ public class AttendanceService {
     }
 
     public List<AttendanceRecord> getAttendanceBySession(int sessionId) {
-        return inDepartment((connection, departmentId) -> {
-            accessDAO.requireOffering(connection, departmentId, accessDAO.sessionOffering(connection, sessionId));
+        return inAttendanceTransaction(connection -> {
+            accessDAO.requireOffering(connection, accessDAO.sessionOffering(connection, sessionId));
             return recordDAO.findBySessionId(connection, sessionId);
         });
     }
 
     public List<AttendanceRecord> getAttendanceByEnrollment(int enrollmentId) {
-        return inDepartment((connection, departmentId) -> {
-            accessDAO.requireOffering(connection, departmentId, accessDAO.enrollmentOffering(connection, enrollmentId));
+        return inAttendanceTransaction(connection -> {
+            accessDAO.requireOffering(connection, accessDAO.enrollmentOffering(connection, enrollmentId));
             return recordDAO.findByEnrollmentId(connection, enrollmentId);
         });
     }
@@ -162,23 +162,23 @@ public class AttendanceService {
                 throw new IllegalStateException("Failed to load attendance summaries.", exception);
             }
         }
-        return inDepartment((connection, departmentId) -> {
-            accessDAO.requireOffering(connection, departmentId, offeringId);
+        return inAttendanceTransaction(connection -> {
+            accessDAO.requireOffering(connection, offeringId);
             return summaryDAO.findByOfferingId(connection, offeringId);
         });
     }
 
     public AttendanceSummary getSummaryByEnrollment(int enrollmentId) {
-        return inDepartment((connection, departmentId) -> {
-            accessDAO.requireOffering(connection, departmentId, accessDAO.enrollmentOffering(connection, enrollmentId));
+        return inAttendanceTransaction(connection -> {
+            accessDAO.requireOffering(connection, accessDAO.enrollmentOffering(connection, enrollmentId));
             return summaryDAO.findByEnrollmentId(connection, enrollmentId);
         });
     }
 
     // Existing attendance percentage calculation; only authorization/transaction handling is added.
     public double calculateAttendancePercentage(int enrollmentId) {
-        return inDepartment((connection, departmentId) -> {
-            accessDAO.requireOffering(connection, departmentId, accessDAO.enrollmentOffering(connection, enrollmentId));
+        return inAttendanceTransaction(connection -> {
+            accessDAO.requireOffering(connection, accessDAO.enrollmentOffering(connection, enrollmentId));
             int totalSessions = sessionDAO.countSessionsByEnrollment(connection, enrollmentId);
             if (totalSessions == 0) return 0.0;
             int presentSessions = recordDAO.countPresentByEnrollment(connection, enrollmentId);

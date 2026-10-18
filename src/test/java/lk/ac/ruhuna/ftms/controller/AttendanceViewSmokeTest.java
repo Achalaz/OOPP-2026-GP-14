@@ -72,7 +72,8 @@ public final class AttendanceViewSmokeTest {
             });
             awaitIdle();
             fx(() -> {
-                check(combo("offeringCombo").getItems().size() == 2, "scoped offerings loaded");
+                check(combo("offeringCombo").getItems().size() == 3,
+                        "active offerings across departments load without officer department/profile");
                 ComboBox<AttendanceOffering> offerings = combo("offeringCombo");
                 offerings.getItems().stream().filter(row -> row.offeringId() == 10).findFirst().ifPresent(offerings::setValue);
                 return null;
@@ -170,7 +171,8 @@ public final class AttendanceViewSmokeTest {
 
             if (List.of(args).contains("--live-read")) {
                 var officer = new UserDAO().getAllUsers().stream()
-                        .filter(user -> user.isActive() && "TECHNICAL_OFFICER".equals(user.getRole()))
+                        .filter(user -> "tec".equals(user.getUsername())
+                                && user.isActive() && "TECHNICAL_OFFICER".equals(user.getRole()))
                         .findFirst().orElseThrow();
                 for (String action : List.of("Attendance Management", "Manage Attendance")) {
                     fx(() -> {
@@ -182,15 +184,18 @@ public final class AttendanceViewSmokeTest {
                         check(root.getId().equals("attendanceRoot"), "real dashboard action opens Attendance: " + action);
                         return null;
                     });
-                    awaitLoadedOrDenied();
+                    awaitIdle();
                     fx(() -> {
+                        check(!combo("offeringCombo").getItems().isEmpty(), "tec active course offerings loaded");
+                        check(!((Label) root.lookup("#statusLabel")).getText().contains("department"),
+                                "no department warning for tec");
                         var identity = SessionManager.requireSession();
                         button("Back to Dashboard").fire();
                         check(SessionManager.isCurrentSession(identity), "live Back preserves identity");
                         return null;
                     });
                 }
-                System.out.println("Dashboard Attendance actions exercised with an existing account session; credential login was not tested.");
+                System.out.println("tec account session: Attendance unlocked and active offerings loaded from both dashboard buttons. Credential login was not tested.");
             }
             System.out.println("Attendance FXML/JDBC UI: " + checks + " checks passed. All writes were temporary-table fixtures.");
         } finally {

@@ -194,10 +194,10 @@ public class AttendanceController {
             attendanceRecords.clear();
             attendanceStatusCombo.setValue(null);
         });
-        run("Loading authorized course offerings...", attendanceService::getAuthorizedOfferings, choices -> {
+        run("Loading active course offerings...", attendanceService::getAuthorizedOfferings, choices -> {
             offeringCombo.getItems().setAll(choices);
-            statusLabel.setText(choices.isEmpty() ? "No course offerings are assigned to your department."
-                    : "Select a course offering from your department to begin.");
+            statusLabel.setText(choices.isEmpty() ? "No active course offerings are available."
+                    : "Select an active course offering to begin.");
         });
     }
 
@@ -546,7 +546,7 @@ public class AttendanceController {
             endTimeField.clear();
             sessionTypeCombo.setValue(null);
             topicField.clear();
-            statusLabel.setText("Select a course offering from your department to begin.");
+            statusLabel.setText("Select an active course offering to begin.");
         } catch (SecurityException exception) { denyAccess(exception.getMessage()); }
     }
 

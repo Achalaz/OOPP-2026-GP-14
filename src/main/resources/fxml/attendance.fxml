@@ -15,9 +15,9 @@
             </FlowPane>
             <Label text="Attendance Management" wrapText="true"
                    style="-fx-text-fill: white; -fx-font-size: 24px; -fx-font-weight: bold;"/>
-            <Label text="Technical Officer Portal · Your department's course offerings"
+            <Label text="Technical Officer Portal · Undergraduate attendance"
                    wrapText="true" style="-fx-text-fill: #cbdcf0;"/>
-            <Label fx:id="statusLabel" text="Loading authorized course offerings..."
+            <Label fx:id="statusLabel" text="Loading active course offerings..."
                    wrapText="true" style="-fx-text-fill: #ffffff;"/>
         </VBox>
     </top>
@@ -27,7 +27,7 @@
                 <padding><Insets top="24" right="24" bottom="24" left="24"/></padding>
                 <VBox spacing="10" minWidth="0">
                     <Label text="1. Select a course offering" style="-fx-font-size: 17px; -fx-font-weight: bold;"/>
-                    <ComboBox fx:id="offeringCombo" promptText="Choose an authorized course offering"
+                    <ComboBox fx:id="offeringCombo" promptText="Choose an active course offering"
                               maxWidth="Infinity" minWidth="0"/>
                 </VBox>
                 <!-- Reuses the existing Attendance Session workflow. -->

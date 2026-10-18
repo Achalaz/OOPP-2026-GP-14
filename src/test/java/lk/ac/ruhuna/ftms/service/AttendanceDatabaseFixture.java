@@ -41,15 +41,17 @@ public final class AttendanceDatabaseFixture implements AutoCloseable {
                 }
             }
             execute("INSERT INTO departments (department_id,department_code,department_name) VALUES (1,'TEST-A','Test Department A'),(2,'TEST-B','Test Department B')");
-            insertUser(1, "TECHNICAL_OFFICER", 1);
+            // Attendance must work with neither a department nor an officer-profile row.
+            insertUser(1, "TECHNICAL_OFFICER", null);
             insertUser(2, "STUDENT", 1);
             insertUser(3, "STUDENT", 1);
             insertUser(4, "TECHNICAL_OFFICER", 1); // Deliberately missing officer subtype.
             insertUser(5, "STUDENT", 2);
-            execute("INSERT INTO technical_officers (technical_officer_id,staff_no) VALUES (1,'TEST-TO')");
             execute("INSERT INTO students (student_id,registration_no,intake_year) VALUES (2,'TEST-ST-2',2026),(3,'TEST-ST-3',2026),(5,'TEST-ST-5',2026)");
             execute("INSERT INTO courses (course_id,course_code,course_name,credits,department_id) VALUES (1,'TEST-A','Test Course A',3,1),(2,'TEST-B','Test Course B',3,2)");
+            execute("INSERT INTO courses (course_id,course_code,course_name,credits,department_id,is_active) VALUES (3,'TEST-INACTIVE','Inactive Test Course',3,1,0)");
             execute("INSERT INTO course_offerings (offering_id,course_id,semester_id,status) VALUES (10,1,1,'ACTIVE'),(11,1,2,'ACTIVE'),(20,2,1,'ACTIVE')");
+            execute("INSERT INTO course_offerings (offering_id,course_id,semester_id,status) VALUES (12,1,3,'PLANNED'),(13,1,4,'COMPLETED'),(14,1,5,'CANCELLED'),(30,3,1,'ACTIVE')");
             execute("INSERT INTO enrollments (enrollment_id,offering_id,student_id) VALUES (100,10,2),(101,10,3),(110,11,2),(200,20,5)");
             borrowed = (Connection) Proxy.newProxyInstance(Connection.class.getClassLoader(), new Class<?>[]{Connection.class},
                     (proxy, method, arguments) -> {
@@ -82,7 +84,7 @@ public final class AttendanceDatabaseFixture implements AutoCloseable {
         }
     }
 
-    private void insertUser(int id, String role, int department) throws SQLException {
+    private void insertUser(int id, String role, Integer department) throws SQLException {
         try (var statement = connection.prepareStatement("""
                 INSERT INTO users (user_id,username,password_hash,role,first_name,last_name,department_id)
                 VALUES (?, ?, ?, ?, 'Test', 'Fixture', ?)
@@ -92,7 +94,7 @@ public final class AttendanceDatabaseFixture implements AutoCloseable {
             // Deliberately unusable random value, never a hardcoded or usable password.
             statement.setString(3, UUID.randomUUID().toString());
             statement.setString(4, role);
-            statement.setInt(5, department);
+            statement.setObject(5, department, java.sql.Types.INTEGER);
             statement.executeUpdate();
         }
     }
