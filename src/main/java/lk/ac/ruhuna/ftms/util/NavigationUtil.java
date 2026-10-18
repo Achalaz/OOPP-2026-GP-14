@@ -20,6 +20,7 @@ public final class NavigationUtil {
         return switch (user.getRole()) {
             case "LECTURER" -> "/fxml/lecturer_dashboard.fxml";
             case "ADMIN" -> "/fxml/admin_dashboard.fxml";
+            case "STUDENT" -> "/fxml/student_dashboard.fxml";
             default -> "/fxml/dashboard.fxml";
         };
     }
@@ -39,10 +40,14 @@ public final class NavigationUtil {
 
         Parent root = new FXMLLoader(location).load();
         Scene scene = source.getScene();
+        // The responsive student UI keeps MainApp's screen-bounded login window size,
+        // including on logout; other dashboards retain their existing sizing behavior.
+        boolean preserveWindowSize = "/fxml/student_dashboard.fxml".equals(resource)
+                || "studentRoot".equals(scene.getRoot().getId());
         scene.setRoot(root);
         if (scene.getWindow() instanceof Stage stage) {
             stage.setTitle(title);
-            stage.sizeToScene();
+            if (!preserveWindowSize) stage.sizeToScene();
         }
     }
 }
