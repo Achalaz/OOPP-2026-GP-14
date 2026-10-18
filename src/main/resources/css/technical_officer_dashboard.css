@@ -1,0 +1,136 @@
+/* Matches the existing FTMS portal palette; selectors are isolated to this dashboard. */
+.technical-officer-dashboard {
+    -fx-font-family: "Segoe UI", "Arial", sans-serif;
+    -fx-font-size: 13px;
+    -fx-background-color: #f2f6fc;
+    -fx-focus-color: #3577ce;
+    -fx-faint-focus-color: transparent;
+}
+
+.officer-sidebar { -fx-background-color: #112740; }
+.technical-officer-dashboard .sidebar-brand { -fx-padding: 27 20 24 20; }
+.technical-officer-dashboard .brand-mark { -fx-background-color: #2d6bbb; -fx-background-radius: 12; }
+.technical-officer-dashboard .brand-symbol { -fx-fill: transparent; -fx-stroke: white; -fx-stroke-width: 1.6; }
+.technical-officer-dashboard .brand-title { -fx-text-fill: #ffffff; -fx-font-size: 25px; -fx-font-weight: bold; }
+.technical-officer-dashboard .brand-subtitle { -fx-text-fill: #adbed4; -fx-font-size: 12px; }
+.technical-officer-dashboard .sidebar-divider .line { -fx-border-color: #2a3e57 transparent transparent transparent; }
+.technical-officer-dashboard .sidebar-scroll,
+.technical-officer-dashboard .sidebar-scroll > .viewport { -fx-background-color: #112740; -fx-background: #112740; }
+.technical-officer-dashboard .sidebar-scroll { -fx-padding: 0; -fx-border-width: 0; }
+.technical-officer-dashboard .sidebar-navigation { -fx-padding: 17 12; }
+.technical-officer-dashboard .sidebar-caption { -fx-text-fill: #8fa4bf; -fx-font-size: 10px; -fx-font-weight: bold; -fx-padding: 2 12 12 12; }
+.technical-officer-dashboard .nav-button {
+    -fx-background-color: transparent;
+    -fx-background-radius: 9;
+    -fx-text-fill: #c0cee0;
+    -fx-font-size: 12px;
+    -fx-alignment: CENTER_LEFT;
+    -fx-graphic-text-gap: 12;
+    -fx-padding: 12 13;
+    -fx-cursor: hand;
+    -fx-border-color: transparent;
+    -fx-border-radius: 9;
+}
+.technical-officer-dashboard .nav-icon { -fx-fill: transparent; -fx-stroke: #a9bed7; -fx-stroke-width: 1.55; -fx-scale-x: 0.75; -fx-scale-y: 0.75; }
+.technical-officer-dashboard .nav-button:hover { -fx-background-color: #203c5e; -fx-text-fill: white; }
+.technical-officer-dashboard .nav-active { -fx-background-color: #2b64ad; -fx-text-fill: white; -fx-font-weight: bold; }
+.technical-officer-dashboard .nav-active .nav-icon { -fx-stroke: white; }
+.technical-officer-dashboard .nav-active:hover { -fx-background-color: #3476c4; }
+.technical-officer-dashboard .nav-button:focused { -fx-border-color: #89b8f2; }
+.technical-officer-dashboard .sidebar-bottom { -fx-padding: 0 20 20 20; }
+.technical-officer-dashboard .officer-avatar { -fx-background-color: #2a4565; -fx-background-radius: 11; }
+.technical-officer-dashboard .avatar-letter { -fx-text-fill: #e1edff; -fx-font-size: 15px; -fx-font-weight: bold; }
+.technical-officer-dashboard .sidebar-name { -fx-text-fill: #edf3fc; -fx-font-size: 12px; -fx-font-weight: bold; }
+.technical-officer-dashboard .sidebar-role { -fx-text-fill: #97abc5; -fx-font-size: 9px; }
+.technical-officer-dashboard .logout-button {
+    -fx-background-color: #233a54;
+    -fx-text-fill: #f0c9cf;
+    -fx-background-radius: 9;
+    -fx-border-radius: 9;
+    -fx-border-color: #3b4b62;
+    -fx-font-weight: bold;
+    -fx-padding: 10 12;
+    -fx-graphic-text-gap: 12;
+    -fx-cursor: hand;
+}
+.technical-officer-dashboard .logout-icon { -fx-fill: transparent; -fx-stroke: #f0c9cf; -fx-stroke-width: 1.7; -fx-scale-x: 0.7; -fx-scale-y: 0.7; }
+.technical-officer-dashboard .logout-button:hover { -fx-background-color: #493d51; }
+.technical-officer-dashboard .logout-button:focused { -fx-border-color: #edb4c1; }
+
+.technical-officer-dashboard .dashboard-scroll,
+.technical-officer-dashboard .dashboard-scroll > .viewport { -fx-background: #f2f6fc; -fx-background-color: #f2f6fc; }
+.technical-officer-dashboard .dashboard-scroll { -fx-padding: 0; -fx-border-width: 0; }
+.technical-officer-dashboard .dashboard-content { -fx-padding: 27 28 22 28; }
+.technical-officer-dashboard .university-label { -fx-text-fill: #52759e; -fx-font-size: 10px; -fx-font-weight: bold; }
+.technical-officer-dashboard .date-label { -fx-text-fill: #5d718b; -fx-font-size: 11px; -fx-background-color: #e7eef8; -fx-background-radius: 7; -fx-padding: 7 11; }
+.technical-officer-dashboard .page-title { -fx-text-fill: #142e4f; -fx-font-size: 28px; -fx-font-weight: bold; }
+.technical-officer-dashboard .page-subtitle { -fx-text-fill: #64768e; -fx-font-size: 12px; }
+
+.technical-officer-dashboard .welcome-banner {
+    -fx-background-color: linear-gradient(to right bottom, #16385f, #21518a 65%, #3375b4);
+    -fx-background-radius: 18;
+    -fx-padding: 25 26;
+    -fx-effect: dropshadow(gaussian, rgba(23, 55, 93, 0.13), 18, 0, 0, 5);
+}
+.technical-officer-dashboard .campus-illustration { -fx-fill: transparent; -fx-stroke: #c3dfff; -fx-stroke-width: 2; -fx-opacity: 0.12; }
+.technical-officer-dashboard .welcome-eyebrow { -fx-text-fill: #afcff2; -fx-font-size: 9px; -fx-font-weight: bold; }
+.technical-officer-dashboard .welcome-title { -fx-text-fill: #ffffff; -fx-font-size: 24px; -fx-font-weight: bold; }
+.technical-officer-dashboard .welcome-description { -fx-text-fill: #d3e2f5; -fx-font-size: 12px; -fx-line-spacing: 3; }
+.technical-officer-dashboard .welcome-details { -fx-padding: 3 0 0 0; -fx-alignment: CENTER_LEFT; }
+.technical-officer-dashboard .welcome-chip { -fx-text-fill: #eef5ff; -fx-font-size: 9px; -fx-font-weight: bold; -fx-background-color: rgba(255, 255, 255, 0.12); -fx-background-radius: 6; -fx-padding: 6 9; }
+.technical-officer-dashboard .department-label { -fx-text-fill: #d2e2f7; -fx-font-size: 11px; -fx-padding: 5 0; }
+.technical-officer-dashboard .section-title { -fx-text-fill: #1b3656; -fx-font-size: 18px; -fx-font-weight: bold; }
+.technical-officer-dashboard .section-description { -fx-text-fill: #6b7e95; -fx-font-size: 12px; }
+
+.technical-officer-dashboard .feature-card {
+    -fx-background-color: white;
+    -fx-background-radius: 14;
+    -fx-border-radius: 14;
+    -fx-border-color: #e3eaf4;
+    -fx-padding: 19;
+    -fx-pref-height: 226;
+    -fx-effect: dropshadow(gaussian, rgba(29, 56, 92, 0.045), 12, 0, 0, 3);
+    -card-accent: #326cc0;
+    -card-tint: #edf3ff;
+}
+.technical-officer-dashboard .feature-card:hover { -fx-border-color: #bed1eb; -fx-effect: dropshadow(gaussian, rgba(29, 56, 92, 0.12), 18, 0, 0, 5); }
+.technical-officer-dashboard .attendance-card { -card-accent: #168073; -card-tint: #e8f6f1; }
+.technical-officer-dashboard .medical-card { -card-accent: #b85272; -card-tint: #fceef2; }
+.technical-officer-dashboard .timetable-card { -card-accent: #337f9e; -card-tint: #eaf5fa; }
+.technical-officer-dashboard .notices-card { -card-accent: #ac6545; -card-tint: #fff1e9; }
+.technical-officer-dashboard .card-icon { -fx-background-color: -card-tint; -fx-background-radius: 11; -fx-min-width: 42; -fx-pref-width: 42; -fx-max-width: 42; -fx-min-height: 42; -fx-pref-height: 42; -fx-max-height: 42; }
+.technical-officer-dashboard .card-icon SVGPath { -fx-fill: transparent; -fx-stroke: -card-accent; -fx-stroke-width: 1.7; }
+.technical-officer-dashboard SVGPath { -fx-stroke-line-cap: round; -fx-stroke-line-join: round; }
+.technical-officer-dashboard .coming-soon { -fx-text-fill: #7d8b9f; -fx-font-size: 8px; -fx-font-weight: bold; -fx-padding: 5 6; -fx-background-color: #f3f6fa; -fx-background-radius: 5; }
+.technical-officer-dashboard .card-title { -fx-text-fill: #1b3655; -fx-font-size: 16px; -fx-font-weight: bold; }
+.technical-officer-dashboard .card-description { -fx-text-fill: #65778f; -fx-font-size: 12px; -fx-alignment: TOP_LEFT; -fx-line-spacing: 2; }
+.technical-officer-dashboard .card-button {
+    -fx-text-fill: -card-accent;
+    -fx-background-color: -card-tint;
+    -fx-background-radius: 7;
+    -fx-border-color: transparent;
+    -fx-border-radius: 7;
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-padding: 9 11;
+    -fx-alignment: CENTER_LEFT;
+    -fx-cursor: hand;
+}
+.technical-officer-dashboard .card-button:hover { -fx-background-color: -card-accent; -fx-text-fill: white; }
+.technical-officer-dashboard .card-button:focused { -fx-border-color: -card-accent; }
+.technical-officer-dashboard .card-button:pressed { -fx-opacity: 0.85; }
+.technical-officer-dashboard .dashboard-footer { -fx-padding: 3 0 0 0; }
+.technical-officer-dashboard .dashboard-footer .line { -fx-border-color: #dfe7f2 transparent transparent transparent; }
+.technical-officer-dashboard .status-label { -fx-text-fill: #60758f; -fx-font-size: 11px; }
+.technical-officer-dashboard .footer-label { -fx-text-fill: #7b8ca2; -fx-font-size: 10px; }
+.technical-officer-dashboard .scroll-bar { -fx-background-color: transparent; -fx-pref-width: 10; }
+.technical-officer-dashboard .scroll-bar .thumb { -fx-background-color: #b8c8db; -fx-background-radius: 6; }
+.technical-officer-dashboard .scroll-bar .track { -fx-background-color: transparent; }
+.technical-officer-dashboard .scroll-bar .increment-button,
+.technical-officer-dashboard .scroll-bar .decrement-button { -fx-padding: 3; -fx-background-color: transparent; }
+.technical-officer-dashboard .sidebar-scroll .scroll-bar .thumb { -fx-background-color: #39516d; }
+
+.technical-officer-dashboard .account-badge { -fx-text-fill: #386bb2; -fx-font-size: 8px; -fx-font-weight: bold; -fx-padding: 5 6; -fx-background-color: #edf3ff; -fx-background-radius: 5; }
+.technical-officer-dashboard .primary-card-button { -fx-background-color: #326cc0; -fx-text-fill: white; }
+.technical-officer-dashboard .primary-card-button:hover { -fx-background-color: #24569a; }
+.technical-officer-dashboard .primary-card-button:focused { -fx-border-color: #142e4f; }
