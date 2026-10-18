@@ -194,4 +194,28 @@ public class NoticeDAO {
 
         return notice;
     }
+    // Get published notices only for general users
+    public List<Notice> getPublishedNotices() throws SQLException {
+
+        List<Notice> notices = new ArrayList<>();
+
+        String sql = """
+            SELECT notice_id, title, content, is_published,
+                   created_at, updated_at
+            FROM notices
+            WHERE is_published = TRUE
+            ORDER BY created_at DESC
+            """;
+
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
+
+            while (rs.next()) {
+                notices.add(mapNotice(rs));
+            }
+        }
+
+        return notices;
+    }
 }

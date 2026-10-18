@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns="http://javafx.com/javafx/21"
+            xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="lk.ac.ruhuna.ftms.controller.NoticeController">
+
+    <top>
+        <VBox spacing="12" style="-fx-background-color: #f4f6f9;">
+            <padding>
+                <Insets top="20" right="20" bottom="15" left="20"/>
+            </padding>
+
+            <Label text="Notice Management"
+                   style="-fx-font-size: 24px; -fx-font-weight: bold;"/>
+
+            <Label text="Create, edit, publish and manage faculty notices."/>
+
+            <HBox spacing="10">
+                <TextField fx:id="searchField"
+                           promptText="Search notices by title or content..."
+                           HBox.hgrow="ALWAYS"
+                           onAction="#handleSearch"/>
+
+                <Button text="Search" onAction="#handleSearch"/>
+                <Button text="Show All" onAction="#handleShowAll"/>
+            </HBox>
+        </VBox>
+    </top>
+
+    <center>
+        <VBox spacing="10">
+            <padding>
+                <Insets top="10" right="20" bottom="10" left="20"/>
+            </padding>
+
+            <TableView fx:id="noticeTable"
+                       VBox.vgrow="ALWAYS">
+
+                <columns>
+                    <TableColumn fx:id="idColumn"
+                                 text="ID"
+                                 prefWidth="55"/>
+
+                    <TableColumn fx:id="titleColumn"
+                                 text="Title"
+                                 prefWidth="200"/>
+
+                    <TableColumn fx:id="contentColumn"
+                                 text="Content"
+                                 prefWidth="300"/>
+
+                    <TableColumn fx:id="publishedColumn"
+                                 text="Published"
+                                 prefWidth="90"/>
+
+                    <TableColumn fx:id="createdAtColumn"
+                                 text="Created At"
+                                 prefWidth="170"/>
+                </columns>
+            </TableView>
+
+            <Label text="Select a notice from the table to edit or manage it."
+                   style="-fx-text-fill: #666666;"/>
+        </VBox>
+    </center>
+
+    <bottom>
+        <VBox spacing="10"
+              style="-fx-background-color: #ffffff;">
+
+            <padding>
+                <Insets top="15" right="20" bottom="20" left="20"/>
+            </padding>
+
+            <Label text="Notice Details"
+                   style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
+
+            <TextField fx:id="titleField"
+                       promptText="Enter notice title (maximum 200 characters)"/>
+
+            <TextArea fx:id="contentField"
+                      promptText="Enter notice content..."
+                      prefRowCount="4"
+                      wrapText="true"/>
+
+            <CheckBox fx:id="publishedCheckBox"
+                      text="Publish this notice"/>
+
+            <HBox spacing="10" wrapText="true">
+                <Button text="Save Notice"
+                        onAction="#handleSave"
+                        style="-fx-background-color: #2563eb; -fx-text-fill: white;"/>
+
+                <Button text="New / Clear"
+                        onAction="#handleClear"/>
+
+                <Button text="Publish / Unpublish"
+                        onAction="#handlePublishToggle"/>
+
+                <Button text="Delete Notice"
+                        onAction="#handleDelete"
+                        style="-fx-background-color: #dc2626; -fx-text-fill: white;"/>
+            </HBox>
+        </VBox>
+    </bottom>
+
+</BorderPane>

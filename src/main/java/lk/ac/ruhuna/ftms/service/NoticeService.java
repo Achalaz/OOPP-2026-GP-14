@@ -7,6 +7,8 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.BooleanSupplier;
+import lk.ac.ruhuna.ftms.model.User;
+import lk.ac.ruhuna.ftms.util.SessionManager;
 
 public class NoticeService {
 
@@ -17,6 +19,12 @@ public class NoticeService {
                          BooleanSupplier isAdmin) {
         this.noticeDAO = Objects.requireNonNull(noticeDAO);
         this.isAdmin = Objects.requireNonNull(isAdmin);
+    }
+
+    // Constructor for read-only notice viewing
+    public NoticeService(NoticeDAO noticeDAO) {
+        this.noticeDAO = Objects.requireNonNull(noticeDAO);
+        this.isAdmin = () -> false;
     }
 
     // Check whether the logged-in user is an Admin
@@ -112,5 +120,18 @@ public class NoticeService {
         }
 
         return noticeDAO.deleteNotice(noticeId);
+    }
+    // Allow active logged-in users to view published notices
+    public List<Notice> getPublishedNotices() throws SQLException {
+
+        User user = SessionManager.getCurrentUser();
+
+        if (user == null || !user.isActive()) {
+            throw new SecurityException(
+                    "Please sign in with an active account to view notices."
+            );
+        }
+
+        return noticeDAO.getPublishedNotices();
     }
 }
