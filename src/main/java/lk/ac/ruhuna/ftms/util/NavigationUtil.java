@@ -20,6 +20,8 @@ public final class NavigationUtil {
         return switch (user.getRole()) {
             case "LECTURER" -> "/fxml/lecturer_dashboard.fxml";
             case "ADMIN" -> "/fxml/admin_dashboard.fxml";
+            case "STUDENT" -> "/fxml/student_dashboard.fxml";
+            case "TECHNICAL_OFFICER" -> "/fxml/technical_officer_dashboard.fxml";
             default -> "/fxml/dashboard.fxml";
         };
     }
@@ -32,6 +34,11 @@ public final class NavigationUtil {
                     "/fxml/marks_entry.fxml", "/fxml/profile.fxml", "/fxml/login.fxml").contains(resource)) {
             throw new SecurityException("Use the lecturer workspace for authorized course records.");
         }
+        if (user != null && "TECHNICAL_OFFICER".equals(user.getRole())
+                && !java.util.Set.of("/fxml/technical_officer_dashboard.fxml",
+                    "/fxml/profile.fxml", "/fxml/login.fxml").contains(resource)) {
+            throw new SecurityException("Use the Technical Officer workspace. Department features are not available yet.");
+        }
         URL location = NavigationUtil.class.getResource(resource);
         if (location == null) {
             throw new IOException("Screen not found: " + resource);
@@ -39,10 +46,16 @@ public final class NavigationUtil {
 
         Parent root = new FXMLLoader(location).load();
         Scene scene = source.getScene();
+        // Responsive portals and logout retain MainApp's screen-bounded window size.
+        boolean preserveWindowSize = "/fxml/student_dashboard.fxml".equals(resource)
+                || "/fxml/technical_officer_dashboard.fxml".equals(resource)
+                || "/fxml/login.fxml".equals(resource)
+                || "studentRoot".equals(scene.getRoot().getId())
+                || "technicalOfficerRoot".equals(scene.getRoot().getId());
         scene.setRoot(root);
         if (scene.getWindow() instanceof Stage stage) {
             stage.setTitle(title);
-            stage.sizeToScene();
+            if (!preserveWindowSize) stage.sizeToScene();
         }
     }
 }
