@@ -48,12 +48,15 @@ public final class ProfileDatabaseSmokeTest {
                     ProfileService service = new ProfileService(dao);
                     User loaded = service.getMyProfile();
                     check(loaded.getUserId() == account.getUserId(), "owner read for " + role);
+                    boolean student = role.equals("STUDENT");
+                    String saveName = student ? loaded.getFullName() : "Profile Smoke Check";
                     String email = "profile-smoke-" + UUID.randomUUID() + "@example.com";
-                    service.updateMyProfile("Profile Smoke Check", email);
+                    if (student) expectDenied(() -> service.updateMyProfile("Changed Student Name",email));
+                    service.updateMyProfile(saveName, email);
                     Map<Integer, Map<String, String>> changed = snapshot(connection);
                     Map<String, String> row = changed.get(account.getUserId());
-                    check("Profile".equals(row.get("first_name")), "first name stored");
-                    check("Smoke Check".equals(row.get("last_name")), "remaining names stored");
+                    check((student ? original.get(account.getUserId()).get("first_name") : "Profile").equals(row.get("first_name")), "first name stored or preserved");
+                    check((student ? original.get(account.getUserId()).get("last_name") : "Smoke Check").equals(row.get("last_name")), "remaining names stored or preserved");
                     check(email.equals(row.get("email")), "email stored");
                     for (var entry : original.entrySet()) {
                         if (entry.getKey() == account.getUserId()) {
@@ -67,15 +70,17 @@ public final class ProfileDatabaseSmokeTest {
                             check(entry.getValue().equals(changed.get(entry.getKey())), "other account unchanged");
                         }
                     }
-                    service.updateMyProfile("Profile Smoke Check", email);
+                    service.updateMyProfile(saveName, email);
                     check(email.equals(service.getMyProfile().getEmail()), "unchanged save succeeds");
-                    service.updateMyProfile("Amara", email);
-                    check(dao.getProfile(account.getUserId()).getFullName().equals("Amara"), "single-name round trip");
+                    if (!student) {
+                        service.updateMyProfile("Amara", email);
+                        check(dao.getProfile(account.getUserId()).getFullName().equals("Amara"), "single-name round trip");
+                    }
 
                     User other = accounts.stream().filter(user -> user.getUserId() != account.getUserId()
                             && user.getEmail() != null && !user.getEmail().isBlank()).findFirst().orElseThrow();
                     try {
-                        service.updateMyProfile("Profile Smoke Check", other.getEmail());
+                        service.updateMyProfile(saveName, other.getEmail());
                         throw new AssertionError("Duplicate email accepted");
                     } catch (SQLException expected) {
                         check(expected.getErrorCode() == 1062, "MySQL unique-email constraint enforced");
@@ -86,7 +91,8 @@ public final class ProfileDatabaseSmokeTest {
                         statement.setInt(1, account.getUserId());
                         statement.executeUpdate();
                     }
-                    check(!dao.updateProfile(account.getUserId(), "Inactive", email), "DAO refuses inactive account");
+                    if (student) expectDenied(() -> dao.updateProfile(account.getUserId(),"Inactive",email));
+                    else check(!dao.updateProfile(account.getUserId(), "Inactive", email), "DAO refuses inactive account");
                     expectDenied(service::getMyProfile);
                     expectDenied(() -> service.updateMyProfile("Inactive", email));
                     roles++;

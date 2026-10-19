@@ -2,6 +2,7 @@
 
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
+<?import javafx.scene.control.TextArea?>
 <?import javafx.scene.control.ComboBox?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.Separator?>
@@ -14,7 +15,7 @@
 <?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.VBox?>
 
-<BorderPane xmlns="http://javafx.com/javafx"
+<BorderPane minWidth="0" minHeight="0" xmlns="http://javafx.com/javafx"
             xmlns:fx="http://javafx.com/fxml"
             fx:controller="lk.ac.ruhuna.ftms.controller.ReportsController"
             prefWidth="1280.0"
@@ -27,15 +28,14 @@
               spacing="15"
               style="-fx-background-color: #1f2937; -fx-padding: 18;">
 
-            <Button fx:id="backButton"
-                    text="← Back"
+            <Button fx:id="backButton" id="dashboardButton" minWidth="-Infinity" text="&#8592; Back to Dashboard"
                     onAction="#handleBack"
                     style="-fx-background-color: #374151;
                            -fx-text-fill: white;
                            -fx-font-size: 14px;
                            -fx-background-radius: 6;"/>
 
-            <Label text="Results Reports"
+            <Label fx:id="titleLabel" text="Results Reports"
                    style="-fx-text-fill: white;
                           -fx-font-size: 22px;
                           -fx-font-weight: bold;"/>
@@ -86,7 +86,7 @@
                                    -fx-font-weight: bold;
                                    -fx-background-radius: 6;"/>
 
-                    <Label text="Course Offering:"
+                    <Label fx:id="offeringLabel" text="Course Offering:"
                            GridPane.rowIndex="1"
                            GridPane.columnIndex="0"
                            style="-fx-font-weight: bold;"/>
@@ -98,7 +98,7 @@
                               GridPane.columnIndex="1"/>
 
                     <Button fx:id="offeringReportButton"
-                            text="Load Batch Report"
+                            text="Load Offering Report"
                             onAction="#handleOfferingReport"
                             prefWidth="170"
                             GridPane.rowIndex="1"
@@ -108,7 +108,10 @@
                                    -fx-font-weight: bold;
                                    -fx-background-radius: 6;"/>
 
-                </GridPane>
+                <Label fx:id="batchLabel" text="Batch intake year:" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
+<ComboBox fx:id="batchCombo" promptText="Select intake" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
+<Button fx:id="batchReportButton" text="Load Batch Report" onAction="#handleBatchReport" GridPane.rowIndex="2" GridPane.columnIndex="2"/>
+</GridPane>
             </VBox>
 
             <!-- SUMMARY CARDS -->
@@ -274,7 +277,7 @@
 
                     </columns>
 
-                </TableView>
+                </TableView><Label text="Published assessment details (select a report row)"/><TextArea fx:id="detailsArea" editable="false" prefRowCount="3"/>
 
             </VBox>
 

@@ -36,7 +36,9 @@ public final class LecturerNavigationSmokeTest {
             });
             var identity = SessionManager.requireSession();
             for (String panel : List.of("Upload Marks", "Upload Exam Marks", "Course Materials", "Undergraduates",
-                    "Student Eligibility", "Marks and Grades", "Reports", "GPA", "Attendance Records", "Medical", "My Profile")) {
+                    "Student Eligibility", "Assessments", "Result Publication", "View Reports", "View GPA",
+                    "Attendance Records", "Medical", "My Profile")) {
+                System.out.println("Navigation panel: "+panel);
                 fx(() -> { button(panel).fire(); return null; });
                 awaitReady();
                 checkBackAtEverySize(panel);
@@ -102,7 +104,7 @@ public final class LecturerNavigationSmokeTest {
                         back().fire();
                         check(SessionManager.isCurrentSession(sharedIdentity), role + " shared screen preserves session");
                         check(role.equals("ADMIN") ? "adminRoot".equals(scene.getRoot().getId())
-                                : scene.getRoot().lookup("#nameLabel") != null, role + " returns to its own dashboard");
+                                : role.equals("STUDENT") ? "studentRoot".equals(scene.getRoot().getId()) : "technicalOfficerRoot".equals(scene.getRoot().getId()), role + " returns to its own dashboard");
                         return null;
                     });
                 }
@@ -138,7 +140,12 @@ public final class LecturerNavigationSmokeTest {
                 stage.setHeight(size[1] + stage.getHeight() - scene.getHeight());
                 return null;
             });
-            await(() -> Math.abs(scene.getWidth() - size[0]) <= 2 && Math.abs(scene.getHeight() - size[1]) <= 2);
+            // Native window sizes may be clamped by Windows DPI/work-area limits.
+            for(int retry=0;retry<20;retry++) {
+                if(fx(()->Math.abs(scene.getWidth()-size[0])<=2 && Math.abs(scene.getHeight()-size[1])<=2))break;
+                Thread.sleep(50);
+            }
+            System.out.println("Viewport requested "+size[0]+"x"+size[1]+", actual "+fx(()->scene.getWidth()+"x"+scene.getHeight()));
             fx(() -> {
                 scene.getRoot().applyCss(); scene.getRoot().layout();
                 Button back = back();

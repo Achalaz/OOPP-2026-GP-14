@@ -28,6 +28,10 @@ import java.util.List;
 import java.util.Objects;
 
 public class ResultService {
+    public List<CourseResultDAO.PublishedStudentResult> getMyPublishedResults(SessionIdentity identity)
+            throws SQLException {
+        return new StudentAccessService(identity).read(resultDAO::findPublishedForStudent);
+    }
     private static final BigDecimal HUNDRED = new BigDecimal("100");
     private static final MathContext PRECISION = MathContext.DECIMAL128;
     private final CourseResultDAO resultDAO;
@@ -37,7 +41,7 @@ public class ResultService {
     private final PublicationAuthority publicationAuthority;
 
     public static final String PUBLICATION_POLICY_PENDING =
-            "Result publication is unavailable until the course coordinator confirms the authorized role and offering scope.";
+            "Only an active lecturer assigned to this offering may publish results.";
 
     @FunctionalInterface interface ConnectionSource { Connection open() throws SQLException; }
     @FunctionalInterface interface PublicationAuthority { boolean permits(User user, int offeringId); }
@@ -47,8 +51,13 @@ public class ResultService {
     }
 
     public ResultService(CourseResultDAO resultDAO, GradeRuleDAO gradeRuleDAO, EligibilityDAO eligibilityDAO) {
-        // SRS FR-AUTH-02 denies unassigned permissions. No production role is approved to publish.
-        this(resultDAO, gradeRuleDAO, eligibilityDAO, DBConnection::getConnection, (user, offering) -> false);
+        this(resultDAO, gradeRuleDAO, eligibilityDAO, DBConnection::getConnection);
+    }
+
+    ResultService(CourseResultDAO resultDAO, GradeRuleDAO gradeRuleDAO, EligibilityDAO eligibilityDAO,
+                  ConnectionSource connections) {
+        this(resultDAO, gradeRuleDAO, eligibilityDAO, connections,
+                (user, offering) -> "LECTURER".equals(user.getRole()));
     }
 
     /** Package-only seams for transaction tests; no runtime setting enables an unapproved role. */
@@ -62,34 +71,46 @@ public class ResultService {
     }
 
     public List<EligibilityOffering> getOfferings() {
-        try { return eligibilityDAO.findOfferings(); }
+        try { return new lk.ac.ruhuna.ftms.dao.LecturerCourseAssignmentDAO()
+                .findAssigned(new LecturerAccessService().requireLecturer()); }
         catch (SQLException error) { throw systemError("load course offerings", error); }
     }
 
     public List<ResultRow> getBatchResults(int offeringId) {
-        LecturerAccessService.rejectUnscopedLecturerOperation();
         requirePositive(offeringId, "Course offering");
-        try { return resultDAO.findEnrollmentRowsByOfferingId(offeringId); }
+        SessionIdentity identity = SessionManager.requireSession();
+        try (Connection c = connections.open()) {
+            c.setAutoCommit(false);
+            try {
+                requireAssigned(c, identity, offeringId);
+                var rows = resultDAO.findEnrollmentRowsByOfferingId(c, offeringId);
+                SessionManager.requireSession(identity);
+                c.commit();
+                return rows;
+            } catch(SQLException | RuntimeException error) {
+                try { c.rollback(); } catch(SQLException rollback) { error.addSuppressed(rollback); }
+                throw error;
+            }
+        }
         catch (SQLException error) { throw systemError("load batch results", error); }
     }
 
     public CourseResult getResultByEnrollmentId(int enrollmentId) {
         requirePositive(enrollmentId, "Enrollment");
         try {
-            var user=lk.ac.ruhuna.ftms.util.SessionManager.getCurrentUser();
-            boolean lecturer=user!=null && "LECTURER".equals(user.getRole());
-            LecturerAccessService access=lecturer ? new LecturerAccessService() : null;
-            int offering=lecturer ? new lk.ac.ruhuna.ftms.dao.LecturerCourseAssignmentDAO().enrollmentOffering(enrollmentId) : 0;
-            if(lecturer) access.requireOffering(offering);
+            LecturerAccessService access = new LecturerAccessService();
+            int offering = new lk.ac.ruhuna.ftms.dao.LecturerCourseAssignmentDAO().enrollmentOffering(enrollmentId);
+            access.requireOffering(offering);
             var result=resultDAO.getByEnrollmentId(enrollmentId);
-            if(lecturer) access.requireOffering(offering);
-            return lecturer && result!=null && !result.isPublished() ? null : result;
+            access.requireOffering(offering);
+            return result;
         }
         catch (SQLException error) { throw systemError("load the saved result", error); }
     }
 
     public CourseResult calculateResult(int enrollmentId) {
-        return calculateInTransaction(enrollmentId, null, false);
+        requirePositive(enrollmentId, "Enrollment");
+        return calculateInTransaction(enrollmentId, SessionManager.requireSession(), false);
     }
 
     public CourseResult calculateAndSaveResult(int enrollmentId) {
@@ -98,12 +119,12 @@ public class ResultService {
 
     /** Recalculates from current database inputs; never trusts a UI preview or a supplied grade. */
     public CourseResult calculateAndSaveResult(int enrollmentId, Integer calculatedBy) {
-        LecturerAccessService.rejectUnscopedLecturerOperation();
         if (calculatedBy != null) { requirePositive(calculatedBy, "Calculating user"); }
         SessionIdentity identity = SessionManager.requireSession();
         if (calculatedBy != null && calculatedBy != identity.userId()) {
             throw new SecurityException("Calculated-by must be the signed-in user.");
         }
+        requirePublicationAuthority(SessionManager.getCurrentUser(), 1);
         return calculateInTransaction(enrollmentId, identity, true);
     }
 
@@ -113,7 +134,13 @@ public class ResultService {
             connection.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
             connection.setAutoCommit(false);
             try {
-                if (save) { requireActiveActor(connection, identity); }
+                int offering = resultDAO.enrollmentOffering(connection, enrollmentId);
+                requireAssigned(connection, identity, offering);
+                if (!resultDAO.lockPublicationContext(connection, enrollmentId, offering))
+                    throw new ResultCalculationException("Enrollment or offering is unavailable.");
+                CourseResult existing = resultDAO.getByEnrollmentId(connection, enrollmentId, true);
+                if (existing != null && existing.isPublished())
+                    throw new ResultCalculationException("Published results are protected; a formal correction policy is required.");
                 CalculationData data = resultDAO.loadCalculationData(connection, enrollmentId, save);
                 if (data == null) {
                     throw new ResultCalculationException("Enrollment " + enrollmentId + " does not exist.");
@@ -124,7 +151,7 @@ public class ResultService {
                 result.setPublished(false);
                 result.setPublishedAt(null);
                 if (save) { result = resultDAO.saveOrUpdate(connection, result); }
-                if (save) { SessionManager.requireSession(identity); }
+                SessionManager.requireSession(identity);
                 connection.commit();
                 return result;
             } catch (SQLException | RuntimeException error) {
@@ -139,7 +166,17 @@ public class ResultService {
     /** UI hint only. publishResult independently enforces authorization under the transaction. */
     public boolean canPublishResult(int offeringId) {
         User user = SessionManager.getCurrentUser();
-        return offeringId > 0 && user != null && user.isActive() && publicationAuthority.permits(user, offeringId);
+        if (offeringId <= 0 || user == null || !user.isActive() || !"LECTURER".equals(user.getRole())) return false;
+        try (Connection c = connections.open()) {
+            requireAssigned(c, SessionManager.requireSession(), offeringId);
+            return true;
+        } catch (SQLException | SecurityException error) { return false; }
+    }
+
+    private void requireAssigned(Connection c, SessionIdentity identity, int offering) throws SQLException {
+        requirePublicationAuthority(requireActiveActor(c, identity), offering);
+        if (!resultDAO.lockLecturerAssignment(c, identity.userId(), offering))
+            throw new SecurityException("You are not assigned to this course offering.");
     }
 
     public CourseResult publishResult(int offeringId, PublicationSnapshot reviewed) {
@@ -174,10 +211,18 @@ public class ResultService {
                     throw new ResultCalculationException("The enrollment is no longer available.");
                 }
                 CourseResult current = calculate(data, connection);
+                if (!resultDAO.eligibilityInputsCurrent(connection, reviewed.enrollmentId()))
+                    throw new ResultCalculationException("Eligibility is stale or attendance is unresolved. Re-evaluate eligibility before publishing.");
+                if (data.assessments().stream().anyMatch(a -> !"FINAL_EXAM".equals(a.assessmentType()) && a.weightPercentage().signum() > 0)) {
+                    var ca = EligibilityService.calculateCA(data.assessments());
+                    if (!Boolean.TRUE.equals(ca.eligible()))
+                        throw new ResultCalculationException("Current CA does not confirm eligibility. Re-evaluate eligibility before publishing.");
+                }
                 if (!sameCalculatedResult(saved, current)) {
                     throw new ResultCalculationException("The draft is stale. Recalculate, save and review the current result before publishing.");
                 }
                 CourseResult published = resultDAO.publishDraft(connection, reviewed.enrollmentId(), reviewed.resultId());
+                resultDAO.invalidateStoredGpa(connection, reviewed.enrollmentId());
                 SessionManager.requireSession(identity);
                 connection.commit();
                 return published;
@@ -201,7 +246,7 @@ public class ResultService {
     }
 
     private void requirePublicationAuthority(User user, int offeringId) {
-        if (user == null || !user.isActive() || !publicationAuthority.permits(user, offeringId)) {
+        if (user == null || !user.isActive() || !"LECTURER".equals(user.getRole()) || !publicationAuthority.permits(user, offeringId)) {
             throw new SecurityException(PUBLICATION_POLICY_PENDING);
         }
     }

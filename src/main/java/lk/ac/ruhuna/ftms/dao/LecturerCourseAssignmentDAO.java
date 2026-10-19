@@ -13,7 +13,7 @@ public class LecturerCourseAssignmentDAO {
     }
     public boolean isAssigned(int lecturer, int offering) throws SQLException {
         try(var c=DBConnection.getConnection(); var p=c.prepareStatement(
-                "SELECT 1 FROM lecturer_course_assignments WHERE lecturer_id=? AND offering_id=?")) {
+                "SELECT 1 FROM lecturer_course_assignments WHERE lecturer_id=? AND offering_id=? AND assignment_type IN ('PRIMARY','ASSISTANT','PRACTICAL')")) {
             p.setInt(1,lecturer); p.setInt(2,offering);
             try(var r=p.executeQuery()) { return r.next(); }
         }
@@ -23,7 +23,7 @@ public class LecturerCourseAssignmentDAO {
         try(var c=DBConnection.getConnection();var p=c.prepareStatement("""
             SELECT DISTINCT o.offering_id,c.course_code,c.course_name,o.offering_group
             FROM lecturer_course_assignments a JOIN course_offerings o ON o.offering_id=a.offering_id
-            JOIN courses c ON c.course_id=o.course_id WHERE a.lecturer_id=? ORDER BY c.course_code
+            JOIN courses c ON c.course_id=o.course_id WHERE a.lecturer_id=? AND o.status<>'CANCELLED' AND a.assignment_type IN ('PRIMARY','ASSISTANT','PRACTICAL') ORDER BY c.course_code,o.offering_id
             """)) {
             p.setInt(1,lecturer);
             try(var r=p.executeQuery()) { while(r.next()) rows.add(new EligibilityOffering(r.getInt(1),r.getString(2),r.getString(3),r.getString(4))); }

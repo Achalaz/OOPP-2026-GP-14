@@ -88,6 +88,10 @@ public class AttendanceEligibilityDAO {
     public AttendanceCounts findByEnrollmentId(
             int enrollmentId) throws SQLException {
 
+        try (Connection c = DBConnection.getConnection()) { return findByEnrollmentId(c, enrollmentId); }
+    }
+
+    public AttendanceCounts findByEnrollmentId(Connection connection, int enrollmentId) throws SQLException {
         if (enrollmentId <= 0) {
             throw new IllegalArgumentException(
                     "Invalid enrollment ID."
@@ -176,10 +180,7 @@ public class AttendanceEligibilityDAO {
                 GROUP BY e.enrollment_id
                 """;
 
-        try (Connection connection =
-                     DBConnection.getConnection();
-
-             PreparedStatement statement =
+        try (PreparedStatement statement =
                      connection.prepareStatement(sql)) {
 
             statement.setInt(1, enrollmentId);

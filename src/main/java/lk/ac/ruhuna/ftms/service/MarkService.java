@@ -95,6 +95,7 @@ public class MarkService {
     }
 
     private void validate(Mark mark) {
+        validateStatus(mark);
 
         if (mark.getEnrollmentId() <= 0) {
             throw new InvalidMarkException(
@@ -145,5 +146,11 @@ public class MarkService {
                     "Mark must be between 0 and " + maxMark + "."
             );
         }
+    }
+
+    /** Missing, absent and medical marks remain NULL; numeric zero is a PRESENT mark. */
+    public static void validateStatus(Mark mark) {
+        if (mark == null) throw new InvalidMarkException("Mark is required.");
+        mark.validateState();
     }
 }

@@ -62,6 +62,7 @@ public class ResultsController {
     @FXML private TableColumn<ResultRow, String> gradePointColumn;
     @FXML private TableColumn<ResultRow, String> stateColumn;
 
+    private final SessionManager.SessionIdentity screenIdentity = SessionManager.requireSession();
     private final ResultService resultService;
     private final ObservableList<ResultRow> rows = FXCollections.observableArrayList();
     private final BooleanProperty busy = new SimpleBooleanProperty();
@@ -226,6 +227,8 @@ public class ResultsController {
         return confirmation.showAndWait().filter(ButtonType.OK::equals).isPresent();
     }
 
+    @FXML private void handleGpa() throws IOException { NavigationUtil.navigate(batchTable,"/fxml/gpa.fxml","FTMS - GPA"); }
+    @FXML private void handleReports() throws IOException { NavigationUtil.navigate(batchTable,"/fxml/reports.fxml","FTMS - Reports"); }
     private void replaceRow(ResultRow replacement) {
         updatingSelection = true;
         try {
@@ -257,7 +260,7 @@ public class ResultsController {
 
     @FXML
     private void handleBack() {
-        try { NavigationUtil.navigate(batchTable, "/fxml/marks_entry.fxml", "FTMS - Marks Entry"); }
+        try { NavigationUtil.navigate(batchTable, NavigationUtil.dashboardResource(), "FTMS - Marks Entry"); }
         catch (IOException error) { showError("Unable to open Marks Entry. Please retry.", error); }
     }
 
@@ -300,7 +303,7 @@ public class ResultsController {
     }
 
     private <T> void runTask(String message, Callable<T> work, Consumer<T> onSuccess) {
-        var identity = SessionManager.isLoggedIn() ? SessionManager.requireSession() : null;
+        var identity = screenIdentity;
         busy.set(true);
         statusLabel.setText(message);
         Task<T> task = new Task<>() {
@@ -311,11 +314,13 @@ public class ResultsController {
         };
         task.setOnSucceeded(event -> {
             busy.set(false);
+            if (identity != null && !SessionManager.isCurrentSession(identity)) { rows.clear(); display(null); return; }
             onSuccess.accept(task.getValue());
         });
         task.setOnFailed(event -> {
             busy.set(false);
             readyEnrollment.set(null);
+            rows.clear(); display(null);
             Throwable error = task.getException();
             showError(error instanceof ResultCalculationException || error instanceof SecurityException ? error.getMessage()
                     : "Unable to complete the result action. Check the database connection and retry.", error);

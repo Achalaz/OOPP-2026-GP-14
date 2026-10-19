@@ -74,6 +74,7 @@ public class EligibilityController {
     @FXML private TableColumn<EligibilityRow, String>
             stateColumn;
 
+    private final lk.ac.ruhuna.ftms.util.SessionManager.SessionIdentity identity = lk.ac.ruhuna.ftms.util.SessionManager.requireSession();
     private final EligibilityDAO eligibilityDAO;
     private final EligibilityService eligibilityService;
 
@@ -87,14 +88,6 @@ public class EligibilityController {
             new SimpleObjectProperty<>();
 
     private boolean updatingSelection;
-
-    // Attendance integration
-    // Official cutoff is not configured yet.
-    private AttendanceEligibilityProvider attendanceProvider =
-            new AttendanceEligibilityService();
-
-    // Authentication integration pending
-    private Integer calculatedBy;
 
     public EligibilityController() {
         this(
@@ -114,24 +107,18 @@ public class EligibilityController {
                 Objects.requireNonNull(eligibilityService);
     }
 
-    public void setAttendanceProvider(
-            AttendanceEligibilityProvider provider) {
-
-        attendanceProvider = Objects.requireNonNull(provider);
+    /** Compatibility hook: controller callers cannot configure an academic attendance policy. */
+    @Deprecated
+    public void setAttendanceProvider(AttendanceEligibilityProvider provider) {
+        Objects.requireNonNull(provider);
         readyEnrollment.set(null);
     }
-
-    public void setCalculatedBy(Integer calculatedBy) {
-
-        if (calculatedBy != null && calculatedBy <= 0) {
-            throw new IllegalArgumentException(
-                    "Calculated-by user ID must be positive."
-            );
-        }
-
-        this.calculatedBy = calculatedBy;
+    /** Compatibility hook: persistence always uses the authenticated session identity. */
+    @Deprecated
+    public void setCalculatedBy(Integer userId) {
+        if(userId!=null && !Objects.equals(userId,lk.ac.ruhuna.ftms.util.SessionManager.getCurrentUserIdOrNull()))
+            throw new SecurityException("Calculated-by must be the signed-in user.");
     }
-
     @FXML
     public void initialize() {
 
@@ -233,7 +220,7 @@ public class EligibilityController {
 
         runTask(
                 "Loading course offerings...",
-                eligibilityDAO::findOfferings,
+                eligibilityService::getOfferings,
 
                 offerings -> {
 
@@ -281,7 +268,7 @@ public class EligibilityController {
         runTask(
                 "Loading eligibility results...",
 
-                () -> eligibilityDAO.findByOfferingId(
+                () -> eligibilityService.getLecturerEligibility(
                         offering.offeringId()
                 ),
 
@@ -333,193 +320,27 @@ public class EligibilityController {
         }
     }
 
-    // Calculate CA and attendance percentage
     @FXML
     private void handleCalculate() {
-
-        EligibilityRow selected = enrollmentCombo.getValue();
-
-        if (selected == null) {
-            return;
-        }
-
+        EligibilityRow selected=enrollmentCombo.getValue();
+        if(selected==null)return;
         readyEnrollment.set(null);
-
-        int enrollmentId = selected.enrollmentId();
-
-        AttendanceEligibilityProvider provider =
-                attendanceProvider;
-
-        runTask(
-                "Calculating eligibility...",
-
-                () -> {
-
-                    var attendance =
-                            provider.findByEnrollmentId(enrollmentId);
-
-                    // Official decision is available.
-                    if (attendance.isPresent()) {
-
-                        var decision = attendance.get();
-
-                        EligibilityResult result =
-                                eligibilityService.evaluateEligibility(
-                                        enrollmentId,
-                                        decision.percentage(),
-                                        decision.eligible()
-                                );
-
-                        return EligibilityRow.fromResult(
-                                result,
-                                false
-                        );
-                    }
-
-                    // No final decision yet.
-                    // Still calculate raw attendance percentage.
-                    Double attendancePercentage = null;
-
-                    String reasonText =
-                            "Attendance data or decision is not available yet.";
-
-                    if (provider instanceof AttendanceEligibilityService service) {
-
-                        var counts =
-                                service.getAttendanceCounts(enrollmentId);
-
-                        if (counts == null) {
-
-                            reasonText =
-                                    "No enrollment found for attendance calculation.";
-
-                        } else if (counts.getTotalSessions() == 0) {
-
-                            reasonText =
-                                    "No Theory/Practical sessions available yet.";
-
-                        } else {
-
-                            attendancePercentage =
-                                    counts.getCombinedPercentage();
-
-                            if (counts.requiresPolicyDecision()) {
-
-                                reasonText =
-                                        "Attendance calculated. Special or unmarked statuses need an official policy.";
-
-                            } else {
-
-                                reasonText =
-                                        "Attendance calculated. Waiting for the confirmed eligibility cutoff.";
-                            }
-                        }
-                    }
-
-                    return new EligibilityRow(
-
-                            enrollmentId,
-
-                            eligibilityService.calculateCAPercentage(
-                                    enrollmentId
-                            ),
-
-                            eligibilityService.isCAEligible(
-                                    enrollmentId
-                            ),
-
-                            attendancePercentage,
-
-                            null, // Attendance eligibility pending
-                            null, // Overall eligibility pending
-
-                            reasonText,
-
-                            false
-                    );
-                },
-
-                row -> {
-
-                    replaceRow(row);
-
-                    if (row.attendanceEligible() != null) {
-
-                        readyEnrollment.set(enrollmentId);
-
-                        statusLabel.setText(
-                                "Eligibility calculated. Save / Update to store this result."
-                        );
-
-                    } else {
-
-                        statusLabel.setText(
-                                row.attendancePercentage() == null
-                                        ? "CA calculated. Attendance information is not yet available."
-                                        : "CA and attendance percentages calculated. Eligibility decision is pending."
-                        );
-                    }
-                }
-        );
+        runTask("Calculating CA and attendance...",()->eligibilityService.evaluate(selected.enrollmentId(),false), result->{
+            replaceRow(EligibilityRow.fromResult(result,false));
+            readyEnrollment.set(selected.enrollmentId());
+            statusLabel.setText("Calculated. Save stores available values and a pending overall decision.");
+        });
     }
-
-    // Save only when a final attendance decision exists
     @FXML
     private void handleSave() {
-
-        EligibilityRow selected = enrollmentCombo.getValue();
-
-        if (selected == null
-                || !Objects.equals(
-                readyEnrollment.get(),
-                selected.enrollmentId()
-        )) {
-            return;
-        }
-
+        EligibilityRow selected=enrollmentCombo.getValue();
+        if(selected==null || !Objects.equals(readyEnrollment.get(),selected.enrollmentId()))return;
         readyEnrollment.set(null);
-
-        int enrollmentId = selected.enrollmentId();
-        Integer userId = calculatedBy;
-
-        AttendanceEligibilityProvider provider =
-                attendanceProvider;
-
-        runTask(
-                "Saving eligibility...",
-
-                () -> {
-
-                    var attendance =
-                            provider.findByEnrollmentId(enrollmentId)
-                                    .orElseThrow(
-                                            () -> new IllegalStateException(
-                                                    "Attendance decision is no longer available."
-                                            )
-                                    );
-
-                    return eligibilityService.evaluateAndSaveEligibility(
-                            enrollmentId,
-                            attendance.percentage(),
-                            attendance.eligible(),
-                            userId
-                    );
-                },
-
-                result -> {
-
-                    replaceRow(
-                            EligibilityRow.fromResult(result, true)
-                    );
-
-                    statusLabel.setText(
-                            "Eligibility saved successfully for enrollment "
-                                    + enrollmentId
-                    );
-                }
-        );
+        runTask("Recalculating and saving eligibility...",()->eligibilityService.evaluate(selected.enrollmentId(),true), result->{
+            replaceRow(EligibilityRow.fromResult(result,true));
+            statusLabel.setText("Eligibility saved. Unconfirmed attendance decisions remain pending.");
+        });
     }
-
     private void replaceRow(
             EligibilityRow replacement) {
 
@@ -582,7 +403,7 @@ public class EligibilityController {
 
             NavigationUtil.navigate(
                     batchTable,
-                    "/fxml/marks_entry.fxml",
+                    NavigationUtil.dashboardResource(),
                     "FTMS - Marks Entry"
             );
 
@@ -689,6 +510,7 @@ public class EligibilityController {
 
             @Override
             protected T call() throws Exception {
+                lk.ac.ruhuna.ftms.util.SessionManager.requireSession(identity);
                 return work.call();
             }
         };
@@ -696,6 +518,7 @@ public class EligibilityController {
         task.setOnSucceeded(event -> {
 
             busy.set(false);
+            if (!lk.ac.ruhuna.ftms.util.SessionManager.isCurrentSession(identity)) { rows.clear(); display(null); return; }
             onSuccess.accept(task.getValue());
         });
 

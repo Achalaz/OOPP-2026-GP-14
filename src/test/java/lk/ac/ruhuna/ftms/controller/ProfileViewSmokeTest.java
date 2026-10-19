@@ -69,6 +69,7 @@ public final class ProfileViewSmokeTest {
                     check(button("refreshButton").isDisabled(), "refresh disabled during load");
                     check(!field("usernameField").isEditable(), "username is read-only");
                     check(!field("roleField").isEditable(), "role is read-only");
+                    check(field("fullNameField").isEditable() != role.equals("STUDENT"), "student name is read-only");
                     check(root.lookupAll(".password-field").stream().noneMatch(PasswordField.class::isInstance),
                             "no password control for " + role);
                     return null;
@@ -123,7 +124,7 @@ public final class ProfileViewSmokeTest {
                 await(() -> !button("saveButton").isDisabled());
                 onFx(() -> {
                     check(label("statusLabel").getStyleClass().contains("status-error"), "validation error shown");
-                    field("fullNameField").setText("Updated Person");
+                    field("fullNameField").setText(role.equals("STUDENT") ? "Original Name" : "Updated Person");
                     field("emailField").setText("updated@example.com");
                     button("saveButton").fire();
                     check(button("dashboardButton").isDisabled(), "navigation waits for save");
@@ -136,8 +137,9 @@ public final class ProfileViewSmokeTest {
                 await(() -> !button("saveButton").isDisabled());
                 onFx(() -> {
                     check(label("statusLabel").getText().contains("saved successfully"), "success feedback");
-                    check(label("summaryNameLabel").getText().equals("Updated Person"), "summary refreshed");
-                    check(SessionManager.getCurrentUser().getFullName().equals("Updated Person"), "session refreshed");
+                    String expectedName = role.equals("STUDENT") ? "Original Name" : "Updated Person";
+                    check(label("summaryNameLabel").getText().equals(expectedName), "summary refreshed");
+                    check(SessionManager.getCurrentUser().getFullName().equals(expectedName), "session refreshed");
                     dao.failSave = new SQLException("Synthetic duplicate", "23000", 1062);
                     field("emailField").setText("duplicate@example.com");
                     button("saveButton").fire();
@@ -167,7 +169,8 @@ public final class ProfileViewSmokeTest {
                     root = scene.getRoot();
                     root.applyCss();
                     root.layout();
-                    check(label(role.equals("LECTURER") ? "welcomeLabel" : "nameLabel").getText().contains("Updated Person"), "return to dashboard uses new name");
+                    check(label(role.equals("LECTURER") ? "welcomeLabel" : "nameLabel").getText()
+                            .contains(role.equals("STUDENT") ? "Original Name" : "Updated Person"), "return to dashboard uses correct name");
                     check(root.lookupAll(".button").stream().filter(Button.class::isInstance).map(Button.class::cast).anyMatch(b -> b.getText().contains("Profile")), "dashboard exposes My Profile");
                     Button logout = root.lookupAll(".button").stream().filter(Button.class::isInstance)
                             .map(Button.class::cast).filter(button -> button.getText().replace(" ", "").equalsIgnoreCase("LOGOUT")).findFirst().orElseThrow();
@@ -264,6 +267,10 @@ public final class ProfileViewSmokeTest {
             if (!java.util.Objects.equals(expected, picture)) { return false; }
             picture = filename;
             return true;
+        }
+        @Override public boolean updateStudentContact(SessionIdentity identity, String name, String email, String phone)
+                throws SQLException {
+            return updateProfile(identity,name,email);
         }
         private static void waitFor(CountDownLatch gate) throws SQLException {
             try {

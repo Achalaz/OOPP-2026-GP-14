@@ -7,6 +7,10 @@ public class Mark {
     private int assessmentId;
     private Double marksObtained;
     private int attemptNo;
+    private String markStatus;
+
+    public String getMarkStatus() { return markStatus == null ? (marksObtained == null ? "PENDING" : "PRESENT") : markStatus; }
+    public void setMarkStatus(String status) { this.markStatus = status; }
 
     public Mark() {
     }
@@ -26,6 +30,17 @@ public class Mark {
         this.assessmentId = assessmentId;
         this.marksObtained = marksObtained;
         this.attemptNo = attemptNo;
+    }
+
+    /** Validates the relationship between status and a nullable numeric score. */
+    public void validateState() {
+        if (!java.util.List.of("PRESENT","PENDING","ABSENT","MEDICAL").contains(getMarkStatus()))
+            throw new lk.ac.ruhuna.ftms.exception.InvalidMarkException("Select a valid mark status.");
+        if ("PRESENT".equals(getMarkStatus()) != (getMarksObtained() != null))
+            throw new lk.ac.ruhuna.ftms.exception.InvalidMarkException("PRESENT requires a numeric mark; other statuses require an empty mark.");
+        if (getMarksObtained() != null && (!Double.isFinite(getMarksObtained()) || getMarksObtained() < 0
+                || java.math.BigDecimal.valueOf(getMarksObtained()).stripTrailingZeros().scale() > 2))
+            throw new lk.ac.ruhuna.ftms.exception.InvalidMarkException("Marks must be nonnegative numbers with at most two decimal places.");
     }
 
     public int getMarkId() {
