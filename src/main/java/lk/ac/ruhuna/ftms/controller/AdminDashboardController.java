@@ -1,39 +1,33 @@
 package lk.ac.ruhuna.ftms.controller;
 
 import javafx.fxml.FXML;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.Parent;
-import javafx.scene.Scene;
 import javafx.scene.control.Alert;
-import javafx.stage.Stage;
 
 import java.io.IOException;
-import java.net.URL;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
+import lk.ac.ruhuna.ftms.controller.CourseController;
+import lk.ac.ruhuna.ftms.dao.CourseDAO;
+import lk.ac.ruhuna.ftms.service.CourseService;
+import java.io.IOException;
 
 public class AdminDashboardController {
 
+    @FXML private javafx.scene.layout.BorderPane adminRoot;
+    @FXML private javafx.scene.control.Label nameLabel;
+
+    @FXML public void initialize() {
+        var user = lk.ac.ruhuna.ftms.util.SessionManager.getCurrentUser();
+        if (user == null || !user.isActive() || !"ADMIN".equals(user.getRole()))
+            throw new SecurityException("Active administrator access required.");
+        nameLabel.setText("Welcome back, " + user.getFullName());
+    }
+
     private void navigate(String fxmlFile) {
         try {
-            URL location = getClass().getResource("/fxml/" + fxmlFile);
-
-            if (location == null) {
-                showError("FXML file not found: " + fxmlFile);
-                return;
-            }
-
-            Parent root = FXMLLoader.load(location);
-
-            Stage stage = (Stage) Stage.getWindows()
-                    .stream()
-                    .filter(window -> window.isShowing())
-                    .findFirst()
-                    .orElseThrow();
-
-            stage.setScene(new Scene(root));
-            stage.show();
-
+            lk.ac.ruhuna.ftms.util.NavigationUtil.navigate(adminRoot, "/fxml/" + fxmlFile, "FTMS");
         } catch (IOException | RuntimeException e) {
-            showError("Navigation failed: " + e.getMessage());
+            showError("Unable to open the requested screen.");
         }
     }
 
@@ -49,12 +43,29 @@ public class AdminDashboardController {
 
     @FXML
     private void handleCourses() {
-        showInfo("Course Management will be connected after CRUD implementation.");
+        try {
+            FXMLLoader loader = new FXMLLoader(
+                    getClass().getResource("/fxml/courses.fxml"));
+
+            Parent root = loader.load();
+
+            CourseController controller = loader.getController();
+
+            // Connect the CourseService here using your
+            // existing admin session/role check.
+            // Do not hardcode the admin check to true.
+
+            // Display root using your existing dashboard navigation.
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     @FXML
     private void handleNotices() {
-        showInfo("Notice Management will be connected after CRUD implementation.");
+        navigate("notices.fxml");
+
     }
 
     @FXML
@@ -64,14 +75,13 @@ public class AdminDashboardController {
 
     @FXML
     private void handleProfile() {
-        showInfo("Connect this button to the existing Profile screen.");
+        navigate("profile.fxml");
     }
 
     @FXML
     private void handleLogout() {
-        // TODO: Clear the authenticated session using
-        // your project's SessionManager before navigating.
-        showInfo("Logout integration is not complete yet.");
+        lk.ac.ruhuna.ftms.util.SessionManager.logout();
+        navigate("login.fxml");
     }
 
     private void showInfo(String message) {
@@ -82,3 +92,4 @@ public class AdminDashboardController {
         new Alert(Alert.AlertType.ERROR, message).showAndWait();
     }
 }
+

@@ -165,7 +165,7 @@ public class ProfileController {
     @FXML
     private void handleDashboard() {
         if (busy.get()) { return; }
-        navigate("/fxml/dashboard.fxml", "FTMS - Dashboard", false);
+        navigate(NavigationUtil.dashboardResource(), "FTMS - Dashboard", false);
     }
 
     @FXML
@@ -176,8 +176,8 @@ public class ProfileController {
 
     private void navigate(String resource, String title, boolean logout) {
         try {
-            NavigationUtil.navigate(profileRoot, resource, title);
             if (logout) { SessionManager.logout(); }
+            NavigationUtil.navigate(profileRoot, resource, title);
         } catch (IOException error) {
             showMessage("Cannot open the requested screen. Please retry.", "error");
             error.printStackTrace();

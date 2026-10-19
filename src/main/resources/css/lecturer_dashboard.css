@@ -1,0 +1,240 @@
+.root {
+    -fx-font-family: "Segoe UI", "Arial", sans-serif;
+    -fx-background-color: #F3F6FB;
+}
+
+/* Sidebar */
+
+.sidebar {
+    -fx-background-color: #112845;
+    -fx-padding: 28 17 22 17;
+}
+
+.brand-icon {
+    -fx-background-color: #3479CD;
+    -fx-background-radius: 12;
+    -fx-text-fill: white;
+    -fx-font-size: 24px;
+    -fx-font-weight: bold;
+    -fx-alignment: center;
+    -fx-min-width: 47px;
+    -fx-min-height: 47px;
+}
+
+.brand-title {
+    -fx-text-fill: white;
+    -fx-font-size: 27px;
+    -fx-font-weight: bold;
+}
+
+.brand-subtitle {
+    -fx-text-fill: #A4C0E2;
+    -fx-font-size: 10px;
+    -fx-font-weight: bold;
+}
+
+.sidebar .separator .line {
+    -fx-border-color: #35506C;
+}
+
+.sidebar-heading {
+    -fx-text-fill: #8DA8C8;
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-padding: 9 8 3 8;
+}
+
+.nav-button {
+    -fx-background-color: transparent;
+    -fx-text-fill: #D0DDEF;
+    -fx-alignment: CENTER_LEFT;
+    -fx-font-size: 13px;
+    -fx-padding: 11 13;
+    -fx-background-radius: 10;
+    -fx-cursor: hand;
+}
+
+.nav-button:hover {
+    -fx-background-color: #284B71;
+    -fx-text-fill: white;
+}
+
+.nav-active {
+    -fx-background-color: #3475BE;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+}
+
+.sidebar-user {
+    -fx-text-fill: #DAE7F7;
+    -fx-font-size: 12px;
+    -fx-padding: 8 4;
+}
+
+.logout-button {
+    -fx-background-color: #FCE9EB;
+    -fx-text-fill: #B52E42;
+    -fx-font-weight: bold;
+    -fx-padding: 12;
+    -fx-background-radius: 10;
+    -fx-cursor: hand;
+}
+
+.logout-button:hover {
+    -fx-background-color: #FAD3D8;
+}
+
+/* Main content */
+
+.page-scroll {
+    -fx-background: #F3F6FB;
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.main-content {
+    -fx-padding: 34;
+    -fx-background-color: #F3F6FB;
+}
+
+.eyebrow {
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #3777BE;
+}
+
+.page-title {
+    -fx-font-size: 30px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #142C48;
+}
+
+.page-subtitle {
+    -fx-font-size: 13px;
+    -fx-text-fill: #8290A4;
+}
+
+.date-label {
+    -fx-font-size: 12px;
+    -fx-text-fill: #667B94;
+    -fx-background-color: white;
+    -fx-background-radius: 9;
+    -fx-padding: 12;
+}
+
+/* Welcome banner */
+
+.welcome-banner {
+    -fx-background-color:
+            linear-gradient(to right, #173C70, #367AC5);
+    -fx-background-radius: 18;
+    -fx-padding: 27;
+    -fx-effect: dropshadow(
+            gaussian, rgba(24,62,108,0.15), 16, 0, 0, 6
+    );
+}
+
+.welcome-tag {
+    -fx-text-fill: #B9DBFF;
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+}
+
+.welcome-title {
+    -fx-text-fill: white;
+    -fx-font-size: 23px;
+    -fx-font-weight: bold;
+}
+
+.welcome-description {
+    -fx-text-fill: #E0EDFF;
+    -fx-font-size: 13px;
+}
+
+/* Section headings */
+
+.section-title {
+    -fx-text-fill: #1B344F;
+    -fx-font-size: 21px;
+    -fx-font-weight: bold;
+}
+
+.section-subtitle {
+    -fx-text-fill: #8796A9;
+    -fx-font-size: 13px;
+}
+
+/* Management cards */
+
+.feature-card {
+    -fx-background-color: white;
+    -fx-background-radius: 17;
+    -fx-padding: 18;
+    -fx-pref-width: 335;
+    -fx-effect: dropshadow(
+            gaussian, rgba(28,53,85,0.08), 15, 0, 0, 4
+    );
+}
+
+.feature-card:hover {
+    -fx-background-color: #FAFCFF;
+    -fx-effect: dropshadow(
+            gaussian, rgba(25,67,119,0.17), 20, 0, 0, 7
+    );
+}
+
+.feature-icon {
+    -fx-background-color: #E4F0FF;
+    -fx-background-radius: 11;
+    -fx-text-fill: #2866AD;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-alignment: center;
+    -fx-min-width: 43px;
+    -fx-min-height: 43px;
+}
+
+.card-title {
+    -fx-text-fill: #1C3553;
+    -fx-font-size: 17px;
+    -fx-font-weight: bold;
+}
+
+.card-description {
+    -fx-text-fill: #8190A3;
+    -fx-font-size: 12px;
+}
+
+.primary-action {
+    -fx-background-color: #2E70B9;
+    -fx-text-fill: white;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-background-radius: 9;
+    -fx-padding: 10 15;
+    -fx-cursor: hand;
+}
+
+.primary-action:hover {
+    -fx-background-color: #1D5594;
+}
+
+.secondary-action {
+    -fx-background-color: #E9F2FC;
+    -fx-text-fill: #2866AD;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-background-radius: 9;
+    -fx-padding: 10 15;
+    -fx-cursor: hand;
+}
+
+.secondary-action:hover {
+    -fx-background-color: #D7E8FA;
+}
+
+.footer-label {
+    -fx-font-size: 11px;
+    -fx-text-fill: #96A4B7;
+    -fx-padding: 15 0 5 0;
+}

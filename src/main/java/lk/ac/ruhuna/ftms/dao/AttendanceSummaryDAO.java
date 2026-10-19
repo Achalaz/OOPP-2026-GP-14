@@ -102,10 +102,13 @@ public class AttendanceSummaryDAO {
     public List<AttendanceSummary> findByOfferingId(
             int offeringId) throws SQLException {
 
-        return findWithFilter(
-                "WHERE e.offering_id = ?",
-                offeringId
-        );
+        try (Connection connection = DBConnection.getConnection()) {
+            return findByOfferingId(connection, offeringId);
+        }
+    }
+
+    public List<AttendanceSummary> findByOfferingId(Connection connection, int offeringId) throws SQLException {
+        return findWithFilter(connection, "WHERE e.offering_id = ?", offeringId);
     }
 
     // Get attendance summary of one enrollment.
@@ -113,11 +116,13 @@ public class AttendanceSummaryDAO {
     public AttendanceSummary findByEnrollmentId(
             int enrollmentId) throws SQLException {
 
-        List<AttendanceSummary> summaries =
-                findWithFilter(
-                        "WHERE e.enrollment_id = ?",
-                        enrollmentId
-                );
+        try (Connection connection = DBConnection.getConnection()) {
+            return findByEnrollmentId(connection, enrollmentId);
+        }
+    }
+
+    public AttendanceSummary findByEnrollmentId(Connection connection, int enrollmentId) throws SQLException {
+        List<AttendanceSummary> summaries = findWithFilter(connection, "WHERE e.enrollment_id = ?", enrollmentId);
 
         return summaries.isEmpty()
                 ? null
@@ -127,7 +132,7 @@ public class AttendanceSummaryDAO {
     // Execute the summary query.
 
     private List<AttendanceSummary> findWithFilter(
-            String filter,
+            Connection connection, String filter,
             int id) throws SQLException {
 
         String sql = BASE_SQL
@@ -138,10 +143,7 @@ public class AttendanceSummaryDAO {
         List<AttendanceSummary> rows =
                 new ArrayList<>();
 
-        try (Connection connection =
-                     DBConnection.getConnection();
-
-             PreparedStatement statement =
+        try (PreparedStatement statement =
                      connection.prepareStatement(sql)) {
 
             statement.setInt(1, id);
