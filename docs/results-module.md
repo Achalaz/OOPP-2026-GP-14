@@ -17,9 +17,11 @@ The service requires the saved `eligibility_records.overall_eligible` decision.
 It does not invent attendance rules or recalculate eligibility. Missing/null
 eligibility gives `PENDING`; false gives `NOT_ELIGIBLE`, with no normal grade or
 grade point. The eligibility module must maintain that saved decision as inputs
-change. Authentication may call `ResultsController.setCalculatedBy(userId)`;
-until integrated, `calculated_by` is SQL NULL. Authorization remains an integration
-gap in the existing application.
+change. Draft saves now require an authenticated, active database account and derive
+`calculated_by` from `SessionManager`. The legacy user-ID argument/setter rejects
+impersonation; it cannot select another calculator. Existing restrictions on
+unscoped lecturer draft operations are retained. Broader legacy result-read/draft
+role permissions are not expanded by this publication phase.
 
 ## Calculation and explicit assumptions
 
@@ -72,8 +74,60 @@ roll back the transaction. Updating an ungraded result clears any previous grade
 
 Saving always produces an **unpublished draft**, including when replacing a
 published result; `published` becomes false and `published_at` becomes NULL.
-This behavior is stated on the screen. Publishing and GPA calculations are outside
-this module. Refresh discards unsaved previews and reloads saved results.
+This behavior is stated on the screen and enforced by the DAO upsert, even if a
+caller supplies publication flags. Refresh discards unsaved previews and reloads
+saved results. GPA calculation changes are reserved for Phase 2.
+
+## Phase 1 publication workflow (19 October 2026)
+
+The existing service, DAO, model, controller and FXML are extended; no duplicate
+controllers/services, schema migration, dashboard change or grading policy is added.
+
+Publication is **disabled for every production role**. The repository SRS
+(`docs/SRS/OOP_project_group_14_SRS.pdf`, sections 2.3, 3.1/FR-AUTH-02 and 3.8)
+defines academic viewing and lecturer marks entry, but assigns no result-publishing
+authority. Admin academic access is explicitly unconfirmed. The decision required
+before enabling this action is: **which existing role(s) may publish results, and
+for which course offerings (assigned offerings only, or an explicitly approved wider
+scope)?** Confirm with the course coordinator; do not infer Admin authority.
+The SRS also requires confirmation/loading of official grading rules before go-live;
+the existing sample grade table is not evidence of that approval.
+
+Both public `ResultService` constructors use a deny-all publication policy. There
+is no environment-variable/configuration switch granting permission. Package-only
+connection/policy seams let tests exercise successful publication with synthetic
+authorization; those grants do not affect production constructors or create a role.
+
+When authority is approved, the prepared workflow:
+
+- Shows **Publish Result** for an authorized offering and enables it only for a saved,
+  complete PASS/FAIL draft. A confirmation dialog identifies the student, enrollment,
+  offering, overall mark, grade and status; Cancel is the default.
+- Captures an immutable snapshot of the reviewed saved row. It rejects a different
+  saved row/version, an unsaved preview, a missing row or an already-published row.
+- Independently authorizes the service call, checks the same login generation and
+  locks the active account/role. Any authorized lecturer must also have a current
+  offering assignment, read under the same transaction.
+- Checks the actual enrollment/offering relationship, rejecting withdrawn
+  enrollments and cancelled offerings. No caller-supplied grade is trusted.
+- Rejects PENDING, INCOMPLETE, ABSENT, MEDICAL, NOT_ELIGIBLE, invalid grades and
+  missing audit fields. Legacy drafts without a calculator must be recalculated
+  and saved by a signed-in user before publication.
+- Recalculates current saved eligibility, assessments, marks and grade rules in an
+  InnoDB SERIALIZABLE transaction. It compares every derived mark/grade/status with
+  the reviewed draft. Input/rule locks protect the validation-to-update interval.
+  Changed results require a new calculation, save, review and confirmation.
+- Updates `published = TRUE` and `published_at = CURRENT_TIMESTAMP` atomically,
+  preserving marks, grades, `calculated_by` and `calculated_at`. SQL/validation/session
+  failures roll back. No `published_by` column is invented.
+
+Freshness means the reviewed saved result still exactly matches the recalculated
+academic values. The existing schema has no input revision history: edits producing
+identical stored marks/grades are equivalent, not separately audited. This phase
+does not recalculate eligibility or GPA and does not repair later input-edit paths;
+their invalidation requirements remain in the subsequent phases. In particular,
+revalidating a result does not prove that an existing eligibility decision was
+derived from current attendance/CA inputs.
 
 ## Verification
 
@@ -103,6 +157,103 @@ automatically executed by Surefire):
   platform JARs to the module path and use
   `--add-modules javafx.controls,javafx.fxml --enable-native-access=javafx.graphics`.
 
-Verified locally: a clean Maven `test-compile` succeeded; 89 service assertions,
-database checks for 11 configured rules and 36 enrollments, rollback upsert checks,
-and FXML/controller interaction checks passed. No result-row changes were retained.
+Additional explicit runners for Phase 1:
+
+```powershell
+java -cp 'target/test-classes;target/classes' lk.ac.ruhuna.ftms.service.ResultPublicationTest
+java -cp 'target/test-classes;target/classes;PATH_TO_MYSQL_CONNECTOR_JAR' lk.ac.ruhuna.ftms.service.ResultPublicationDatabaseTest
+```
+
+`ResultPublicationTest` covers production deny-all authorization, draft audit
+identity, PASS/FAIL (including numeric zero), missing/invalid/unresolved/stale drafts,
+changed rules/eligibility/marks, unauthorized offerings, inactive/changed roles,
+session replacement and SQL rollback. Its permission grants and grades are synthetic.
+
+`ResultPublicationDatabaseTest` uses existing local MySQL fixtures and exercises the
+actual service/DAO SQL, publication fields, audit preservation and rollback. Four
+second connections verify that concurrent edits of marks, assessments, eligibility
+and grade rules wait for publication locks. Commit calls are intercepted so no result
+is durably published; a fresh connection checks the original result after rollback.
+An upsert may reserve an auto-increment value even when rolled back.
+
+`ResultsViewSmokeTest` loads the actual FXML, checks handler/field wiring, hidden
+unauthorized controls, cancel/confirm behavior, the published display and disabled
+repeat clicks. Its confirmation seam avoids opening a visible dialog; manual visual
+inspection of the actual confirmation window is still outstanding.
+
+Executed results and scope limitations for the Phase 1 review are recorded below.
+Surefire does not execute these `main` runners: `mvn test` reporting zero tests is
+not treated as a test pass. Run the explicit runners as well.
+
+### Executed Phase 1 verification
+
+Java `25.0.4.1`, JavaFX `25`, MySQL Connector/J `9.4.0`, and the installed NetBeans
+Maven were used. `mvn` is not on PATH on this machine; the actual successful build was:
+
+```powershell
+& 'C:/Program Files/Apache NetBeans/java/maven/bin/mvn.cmd' '-Dmaven.repo.local=C:/Users/achal/.m2/repository' -o clean compile test
+```
+
+Compilation succeeded (101 main sources, 22 test sources). Surefire executed zero
+tests. The following 21 runners were invoked separately; 18 passed and three have
+the failures described below. No complete-suite pass is claimed.
+
+| Explicit runner | Executed result |
+| --- | --- |
+| ResultServiceTest | PASS: 89 assertions |
+| ResultPublicationTest | PASS: 149 assertions |
+| ResultPublicationDatabaseTest | PASS: 19 JDBC/locking/rollback assertions |
+| ResultsViewSmokeTest | PASS: FXML and controller flow |
+| ResultDatabaseSmokeTest --rollback-write | PASS: 11 grade rules, 36 enrollments, rollback upserts |
+| ProfileServiceTest | PASS: 79 assertions |
+| ProfilePictureServiceTest | PASS: 93 assertions |
+| CourseMaterialServiceTest | PASS: 21 assertions |
+| NoticeServiceTest | PASS: 105 assertions |
+| NoticeDatabaseSmokeTest --temporary-table | FAIL: fixture expects exactly four existing notices |
+| NoticeViewSmokeTest | PASS: 219 assertions |
+| LecturerAccessSmokeTest | PASS: 414 assertions |
+| LecturerViewSmokeTest | PASS: 63 assertions |
+| LecturerNavigationSmokeTest | FAIL: layout/navigation checks; see below |
+| MarksEntryIntegrationTest --rollback-write | FAIL: requires a mark in an offering unassigned to its chosen lecturer |
+| AttendanceIntegrationTest | PASS: 60 assertions, connection-local temporary tables |
+| AttendanceViewSmokeTest | PASS: 71 assertions, connection-local temporary tables |
+| TechnicalOfficerDashboardSmokeTest | PASS: 336 assertions |
+| ProfileDatabaseSmokeTest --rollback-write | PASS: 145 assertions, rollback verified |
+| ProfilePictureDatabaseSmokeTest --rollback-write | PASS: 873 assertions, rollback verified |
+| ProfileViewSmokeTest | PASS: 241 assertions |
+
+The notice database runner was initially invoked without its required flag and
+stopped; the corrected invocation reached the existing four-row fixture assertion.
+No notice files or fixtures were edited.
+
+The marks fixture failure was reproduced using the unchanged HEAD versions of all
+five Phase 1 production files in a separate `target/phase1-baseline` classpath.
+The navigation runner initially timed out waiting for a window size. The unchanged
+HEAD baseline also failed, at `STUDENT returns to its own dashboard`. No branch
+switch, source overwrite or unrelated navigation repair was performed. A diagnostic
+rerun against the changed tree reached the same student-dashboard assertion as HEAD.
+
+The actual confirmation dialog has not been manually clicked, real credential login
+has not been re-tested, and durable publication/restart persistence is not claimed:
+MySQL publication tests deliberately rolled back. Publication authority and official
+grading approval remain unresolved. Phase 2 has not started.
+
+### Phase 1 review files and Git state
+
+The starting and retained branch is `TG2122-other-funtions`, tracking
+`origin/TG2122-other-funtions`. Confirm this as Achala's destination before any push.
+No files were staged, committed or pushed. The four pre-existing untracked notice
+files are untouched. The Phase 1 change set is exactly:
+
+- `src/main/java/lk/ac/ruhuna/ftms/service/ResultService.java`
+- `src/main/java/lk/ac/ruhuna/ftms/dao/CourseResultDAO.java`
+- `src/main/java/lk/ac/ruhuna/ftms/model/CourseResult.java`
+- `src/main/java/lk/ac/ruhuna/ftms/controller/ResultsController.java`
+- `src/main/resources/fxml/results.fxml`
+- `src/test/java/lk/ac/ruhuna/ftms/service/ResultPublicationTest.java` (new)
+- `src/test/java/lk/ac/ruhuna/ftms/service/ResultPublicationDatabaseTest.java` (new)
+- `src/test/java/lk/ac/ruhuna/ftms/controller/ResultsViewSmokeTest.java`
+- `docs/results-module.md`
+
+Temporary build, test-log, baseline and diff-review artifacts are under ignored
+`target/`; they are not part of the source change set. `git diff --check` passed.

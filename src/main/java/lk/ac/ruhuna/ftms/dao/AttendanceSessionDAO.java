@@ -11,6 +11,12 @@ public class AttendanceSessionDAO {
 
     // Create attendance session
     public void save(AttendanceSession session) throws SQLException {
+        try (Connection connection = DBConnection.getConnection()) {
+            save(connection, session);
+        }
+    }
+
+    public void save(Connection connection, AttendanceSession session) throws SQLException {
 
         String sql = """
                 INSERT INTO attendance_sessions
@@ -19,8 +25,7 @@ public class AttendanceSessionDAO {
                 VALUES (?, ?, ?, ?, ?, ?, ?)
                 """;
 
-        try (Connection connection = DBConnection.getConnection();
-             PreparedStatement statement = connection.prepareStatement(
+        try (PreparedStatement statement = connection.prepareStatement(
                      sql, Statement.RETURN_GENERATED_KEYS)) {
 
             statement.setInt(1, session.getOfferingId());
@@ -48,6 +53,12 @@ public class AttendanceSessionDAO {
 
     // Update attendance session
     public void update(AttendanceSession session) throws SQLException {
+        try (Connection connection = DBConnection.getConnection()) {
+            update(connection, session);
+        }
+    }
+
+    public void update(Connection connection, AttendanceSession session) throws SQLException {
 
         String sql = """
                 UPDATE attendance_sessions
@@ -61,8 +72,7 @@ public class AttendanceSessionDAO {
                 WHERE session_id = ?
                 """;
 
-        try (Connection connection = DBConnection.getConnection();
-             PreparedStatement statement = connection.prepareStatement(sql)) {
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
 
             statement.setInt(1, session.getOfferingId());
             statement.setDate(2, Date.valueOf(session.getSessionDate()));
@@ -85,6 +95,12 @@ public class AttendanceSessionDAO {
 
     // Find one session
     public AttendanceSession findById(int sessionId) throws SQLException {
+        try (Connection connection = DBConnection.getConnection()) {
+            return findById(connection, sessionId);
+        }
+    }
+
+    public AttendanceSession findById(Connection connection, int sessionId) throws SQLException {
 
         String sql = """
                 SELECT *
@@ -92,8 +108,7 @@ public class AttendanceSessionDAO {
                 WHERE session_id = ?
                 """;
 
-        try (Connection connection = DBConnection.getConnection();
-             PreparedStatement statement = connection.prepareStatement(sql)) {
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
 
             statement.setInt(1, sessionId);
 
@@ -109,8 +124,13 @@ public class AttendanceSessionDAO {
     }
 
     // Get all sessions for one course offering
-    public List<AttendanceSession> findByOfferingId(int offeringId)
-            throws SQLException {
+    public List<AttendanceSession> findByOfferingId(int offeringId) throws SQLException {
+        try (Connection connection = DBConnection.getConnection()) {
+            return findByOfferingId(connection, offeringId);
+        }
+    }
+
+    public List<AttendanceSession> findByOfferingId(Connection connection, int offeringId) throws SQLException {
 
         List<AttendanceSession> sessions = new ArrayList<>();
 
@@ -121,8 +141,7 @@ public class AttendanceSessionDAO {
                 ORDER BY session_date DESC, start_time DESC
                 """;
 
-        try (Connection connection = DBConnection.getConnection();
-             PreparedStatement statement = connection.prepareStatement(sql)) {
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
 
             statement.setInt(1, offeringId);
 
@@ -138,8 +157,13 @@ public class AttendanceSessionDAO {
     }
 
     // Existing method - keep this
-    public int countSessionsByEnrollment(int enrollmentId)
-            throws SQLException {
+    public int countSessionsByEnrollment(int enrollmentId) throws SQLException {
+        try (Connection connection = DBConnection.getConnection()) {
+            return countSessionsByEnrollment(connection, enrollmentId);
+        }
+    }
+
+    public int countSessionsByEnrollment(Connection connection, int enrollmentId) throws SQLException {
 
         String sql = """
                 SELECT COUNT(s.session_id) AS total_sessions
@@ -149,8 +173,7 @@ public class AttendanceSessionDAO {
                 WHERE e.enrollment_id = ?
                 """;
 
-        try (Connection connection = DBConnection.getConnection();
-             PreparedStatement statement = connection.prepareStatement(sql)) {
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
 
             statement.setInt(1, enrollmentId);
 
@@ -167,14 +190,19 @@ public class AttendanceSessionDAO {
 
     // Delete session
     public void delete(int sessionId) throws SQLException {
+        try (Connection connection = DBConnection.getConnection()) {
+            delete(connection, sessionId);
+        }
+    }
+
+    public void delete(Connection connection, int sessionId) throws SQLException {
 
         String sql = """
                 DELETE FROM attendance_sessions
                 WHERE session_id = ?
                 """;
 
-        try (Connection connection = DBConnection.getConnection();
-             PreparedStatement statement = connection.prepareStatement(sql)) {
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
 
             statement.setInt(1, sessionId);
             statement.executeUpdate();
@@ -191,8 +219,8 @@ public class AttendanceSessionDAO {
                 resultSet.getInt("session_id"),
                 resultSet.getInt("offering_id"),
                 resultSet.getDate("session_date").toLocalDate(),
-                resultSet.getTime("start_time").toLocalTime(),
-                resultSet.getTime("end_time").toLocalTime(),
+                resultSet.getTime("start_time") == null ? null : resultSet.getTime("start_time").toLocalTime(),
+                resultSet.getTime("end_time") == null ? null : resultSet.getTime("end_time").toLocalTime(),
                 resultSet.getString("session_type"),
                 resultSet.getString("topic"),
                 (Integer) resultSet.getObject("conducted_by"),

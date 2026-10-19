@@ -7,11 +7,13 @@
 <BorderPane xmlns:fx="http://javafx.com/fxml"
             fx:controller="lk.ac.ruhuna.ftms.controller.MarksController"
             prefWidth="950"
-            prefHeight="600">
+            prefHeight="600"
+            minWidth="0"
+            minHeight="0">
 
     <top>
 
-        <VBox spacing="5"
+        <VBox spacing="10" minHeight="-Infinity"
               style="-fx-background-color: #1f2937;">
 
             <padding>
@@ -20,6 +22,13 @@
                         bottom="20"
                         left="25"/>
             </padding>
+
+            <Button fx:id="dashboardButton"
+                    text="&#8592; Back to Dashboard"
+                    onAction="#handleDashboard"
+                    minWidth="-Infinity"
+                    styleClass="secondary-action"
+                    stylesheets="@../css/lecturer_dashboard.css"/>
 
             <Label text="Marks Entry"
                    style="-fx-text-fill: white;
@@ -89,11 +98,13 @@
 
             <HBox spacing="10">
 
-                <Button text="Save / Update"
+                <Button fx:id="saveButton"
+                        text="Save / Update"
                         onAction="#handleSave"
                         prefWidth="130"/>
 
-                <Button text="Delete"
+                <Button fx:id="deleteButton"
+                        text="Delete"
                         onAction="#handleDelete"
                         prefWidth="100"/>
 

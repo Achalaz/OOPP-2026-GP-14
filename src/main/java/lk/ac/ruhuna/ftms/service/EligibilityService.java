@@ -9,6 +9,15 @@ import java.sql.SQLException;
 import java.util.List;
 public class EligibilityService {
 
+    public java.util.List<lk.ac.ruhuna.ftms.model.EligibilityRow> getLecturerEligibility(int offeringId)
+            throws SQLException {
+        var access = new LecturerAccessService();
+        access.requireOffering(offeringId);
+        var rows = eligibilityDAO.findByOfferingId(offeringId);
+        access.requireOffering(offeringId);
+        return rows;
+    }
+
     // Confirmed SRS rule
     private static final double CA_ELIGIBILITY_THRESHOLD = 40.0;
 
@@ -156,6 +165,7 @@ public class EligibilityService {
             double attendancePercentage,
             boolean attendanceEligible,
             Integer calculatedBy) {
+        LecturerAccessService.rejectUnscopedLecturerOperation();
 
         EligibilityResult result = evaluateEligibility(
                 enrollmentId,

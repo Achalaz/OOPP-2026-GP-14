@@ -3,6 +3,7 @@ package lk.ac.ruhuna.ftms.dao;
 import lk.ac.ruhuna.ftms.database.DBConnection;
 import lk.ac.ruhuna.ftms.model.CourseResult;
 import lk.ac.ruhuna.ftms.model.ResultRow;
+import lk.ac.ruhuna.ftms.model.User;
 
 import java.math.BigDecimal;
 import java.sql.Connection;
@@ -36,14 +37,14 @@ public class CourseResultDAO {
         }
     }
 
-    /** The caller owns this connection and transaction. Null grades clear any previous grade. */
+    /** Draft-only upsert. The caller owns the transaction. Null grades clear any previous grade. */
     public CourseResult saveOrUpdate(Connection connection, CourseResult result) throws SQLException {
         String sql = """
                 INSERT INTO course_results
                     (enrollment_id, ca_mark, final_exam_mark, overall_mark, grade_rule_id,
                      grade_letter, grade_point, result_status, published, calculated_at,
                      published_at, calculated_by)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, FALSE, CURRENT_TIMESTAMP, NULL, ?)
                 ON DUPLICATE KEY UPDATE
                     ca_mark = VALUES(ca_mark), final_exam_mark = VALUES(final_exam_mark),
                     overall_mark = VALUES(overall_mark), grade_rule_id = VALUES(grade_rule_id),
@@ -61,10 +62,7 @@ public class CourseResultDAO {
             statement.setString(6, result.getGradeLetter());
             statement.setBigDecimal(7, result.getGradePoint());
             statement.setString(8, result.getResultStatus().name());
-            statement.setBoolean(9, result.isPublished());
-            statement.setTimestamp(10, result.getPublishedAt() == null
-                    ? null : Timestamp.valueOf(result.getPublishedAt()));
-            nullableInt(statement, 11, result.getCalculatedBy());
+            nullableInt(statement, 9, result.getCalculatedBy());
             statement.executeUpdate();
         }
         return getByEnrollmentId(connection, result.getEnrollmentId());
@@ -77,13 +75,74 @@ public class CourseResultDAO {
     }
 
     public CourseResult getByEnrollmentId(Connection connection, int enrollmentId) throws SQLException {
-        String sql = "SELECT * FROM course_results WHERE enrollment_id = ?";
+        return getByEnrollmentId(connection, enrollmentId, false);
+    }
+
+    public CourseResult getByEnrollmentId(Connection connection, int enrollmentId, boolean lock) throws SQLException {
+        String sql = "SELECT * FROM course_results WHERE enrollment_id = ?" + (lock ? " FOR UPDATE" : "");
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setInt(1, enrollmentId);
             try (ResultSet rows = statement.executeQuery()) {
                 return rows.next() ? map(rows) : null;
             }
         }
+    }
+
+    /** Locks the selected enrollment/offering together; never trusts an offering supplied by the UI. */
+    public boolean lockPublicationContext(Connection connection, int enrollmentId, int offeringId) throws SQLException {
+        String sql = """
+                SELECT e.status AS enrollment_status, o.status AS offering_status
+                FROM enrollments e JOIN course_offerings o ON o.offering_id = e.offering_id
+                WHERE e.enrollment_id = ? AND o.offering_id = ? FOR UPDATE
+                """;
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, enrollmentId);
+            statement.setInt(2, offeringId);
+            try (ResultSet rows = statement.executeQuery()) {
+                return rows.next() && !"WITHDRAWN".equals(rows.getString("enrollment_status"))
+                        && !"CANCELLED".equals(rows.getString("offering_status"));
+            }
+        }
+    }
+
+    /** Read account status/role under the same transaction as the result mutation. */
+    public User lockActiveActor(Connection connection, int userId) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT role, is_active FROM users WHERE user_id = ? FOR SHARE")) {
+            statement.setInt(1, userId);
+            try (ResultSet rows = statement.executeQuery()) {
+                if (!rows.next() || !rows.getBoolean("is_active")) { return null; }
+                return new User(userId, null, null, null, rows.getString("role"), true);
+            }
+        }
+    }
+
+    public boolean lockLecturerAssignment(Connection connection, int userId, int offeringId) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("""
+                SELECT 1 FROM lecturer_course_assignments
+                WHERE lecturer_id = ? AND offering_id = ? FOR SHARE
+                """)) {
+            statement.setInt(1, userId);
+            statement.setInt(2, offeringId);
+            try (ResultSet rows = statement.executeQuery()) { return rows.next(); }
+        }
+    }
+
+    /** Persistence primitive; ResultService must authorize and validate in this same transaction. */
+    public CourseResult publishDraft(Connection connection, int enrollmentId, int resultId) throws SQLException {
+        if (connection.getAutoCommit()) { throw new SQLException("Publication requires a transaction."); }
+        try (PreparedStatement statement = connection.prepareStatement("""
+                UPDATE course_results SET published = TRUE, published_at = CURRENT_TIMESTAMP
+                WHERE enrollment_id = ? AND result_id = ? AND published = FALSE AND published_at IS NULL
+                  AND result_status IN ('PASS', 'FAIL') AND overall_mark IS NOT NULL
+                  AND grade_rule_id IS NOT NULL AND grade_letter IS NOT NULL AND grade_point IS NOT NULL
+                  AND calculated_by IS NOT NULL
+                """)) {
+            statement.setInt(1, enrollmentId);
+            statement.setInt(2, resultId);
+            if (statement.executeUpdate() != 1) { throw new SQLException("The draft changed before publication."); }
+        }
+        return getByEnrollmentId(connection, enrollmentId);
     }
 
     public List<CourseResult> findByOfferingId(int offeringId) throws SQLException {

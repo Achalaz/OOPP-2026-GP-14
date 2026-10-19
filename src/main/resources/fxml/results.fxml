@@ -70,11 +70,14 @@
             <HBox spacing="10">
                 <Button fx:id="calculateButton" text="Calculate Result" onAction="#handleCalculate" prefWidth="145"/>
                 <Button fx:id="saveButton" text="Save / Update Result" onAction="#handleSave" prefWidth="160"/>
+                <Button fx:id="publishButton" text="Publish Result" onAction="#handlePublish" prefWidth="130"
+                        visible="false" managed="false" disable="true"/>
                 <Button fx:id="clearButton" text="Clear" onAction="#handleClear" prefWidth="100"/>
                 <Button fx:id="refreshButton" text="Refresh" onAction="#handleRefresh" prefWidth="100"/>
             </HBox>
             <Label text="Save / Update recalculates current data and saves an unpublished draft, including when replacing a published result. Refresh reloads saved results and discards previews."
                    wrapText="true" maxWidth="Infinity" style="-fx-text-fill: #4b5563;"/>
+            <Label fx:id="publicationPolicyLabel" wrapText="true" maxWidth="Infinity" style="-fx-text-fill: #92400e;"/>
             <VBox spacing="5" VBox.vgrow="ALWAYS">
                 <Label text="Batch results" style="-fx-font-size: 16px; -fx-font-weight: bold;"/>
                 <Label text="Select a row to view the individual result. Calculations are saved one enrollment at a time."

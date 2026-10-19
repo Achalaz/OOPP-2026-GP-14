@@ -12,6 +12,10 @@ import lk.ac.ruhuna.ftms.model.CourseResult.ResultStatus;
 import lk.ac.ruhuna.ftms.model.EligibilityOffering;
 import lk.ac.ruhuna.ftms.model.GradeRule;
 import lk.ac.ruhuna.ftms.model.ResultRow;
+import lk.ac.ruhuna.ftms.model.User;
+import lk.ac.ruhuna.ftms.model.CourseResult.PublicationSnapshot;
+import lk.ac.ruhuna.ftms.util.SessionManager;
+import lk.ac.ruhuna.ftms.util.SessionManager.SessionIdentity;
 
 import java.math.BigDecimal;
 import java.math.MathContext;
@@ -29,15 +33,32 @@ public class ResultService {
     private final CourseResultDAO resultDAO;
     private final GradeRuleDAO gradeRuleDAO;
     private final EligibilityDAO eligibilityDAO;
+    private final ConnectionSource connections;
+    private final PublicationAuthority publicationAuthority;
+
+    public static final String PUBLICATION_POLICY_PENDING =
+            "Result publication is unavailable until the course coordinator confirms the authorized role and offering scope.";
+
+    @FunctionalInterface interface ConnectionSource { Connection open() throws SQLException; }
+    @FunctionalInterface interface PublicationAuthority { boolean permits(User user, int offeringId); }
 
     public ResultService() {
         this(new CourseResultDAO(), new GradeRuleDAO(), new EligibilityDAO());
     }
 
     public ResultService(CourseResultDAO resultDAO, GradeRuleDAO gradeRuleDAO, EligibilityDAO eligibilityDAO) {
+        // SRS FR-AUTH-02 denies unassigned permissions. No production role is approved to publish.
+        this(resultDAO, gradeRuleDAO, eligibilityDAO, DBConnection::getConnection, (user, offering) -> false);
+    }
+
+    /** Package-only seams for transaction tests; no runtime setting enables an unapproved role. */
+    ResultService(CourseResultDAO resultDAO, GradeRuleDAO gradeRuleDAO, EligibilityDAO eligibilityDAO,
+                  ConnectionSource connections, PublicationAuthority publicationAuthority) {
         this.resultDAO = Objects.requireNonNull(resultDAO);
         this.gradeRuleDAO = Objects.requireNonNull(gradeRuleDAO);
         this.eligibilityDAO = Objects.requireNonNull(eligibilityDAO);
+        this.connections = Objects.requireNonNull(connections);
+        this.publicationAuthority = Objects.requireNonNull(publicationAuthority);
     }
 
     public List<EligibilityOffering> getOfferings() {
@@ -46,6 +67,7 @@ public class ResultService {
     }
 
     public List<ResultRow> getBatchResults(int offeringId) {
+        LecturerAccessService.rejectUnscopedLecturerOperation();
         requirePositive(offeringId, "Course offering");
         try { return resultDAO.findEnrollmentRowsByOfferingId(offeringId); }
         catch (SQLException error) { throw systemError("load batch results", error); }
@@ -53,7 +75,16 @@ public class ResultService {
 
     public CourseResult getResultByEnrollmentId(int enrollmentId) {
         requirePositive(enrollmentId, "Enrollment");
-        try { return resultDAO.getByEnrollmentId(enrollmentId); }
+        try {
+            var user=lk.ac.ruhuna.ftms.util.SessionManager.getCurrentUser();
+            boolean lecturer=user!=null && "LECTURER".equals(user.getRole());
+            LecturerAccessService access=lecturer ? new LecturerAccessService() : null;
+            int offering=lecturer ? new lk.ac.ruhuna.ftms.dao.LecturerCourseAssignmentDAO().enrollmentOffering(enrollmentId) : 0;
+            if(lecturer) access.requireOffering(offering);
+            var result=resultDAO.getByEnrollmentId(enrollmentId);
+            if(lecturer) access.requireOffering(offering);
+            return lecturer && result!=null && !result.isPublished() ? null : result;
+        }
         catch (SQLException error) { throw systemError("load the saved result", error); }
     }
 
@@ -61,28 +92,39 @@ public class ResultService {
         return calculateInTransaction(enrollmentId, null, false);
     }
 
-    /** Recalculates from current database inputs; never trusts a UI preview or a supplied grade. */
-    public CourseResult calculateAndSaveResult(int enrollmentId, Integer calculatedBy) {
-        if (calculatedBy != null) { requirePositive(calculatedBy, "Calculating user"); }
-        return calculateInTransaction(enrollmentId, calculatedBy, true);
+    public CourseResult calculateAndSaveResult(int enrollmentId) {
+        return calculateAndSaveResult(enrollmentId, null);
     }
 
-    private CourseResult calculateInTransaction(int enrollmentId, Integer calculatedBy, boolean save) {
+    /** Recalculates from current database inputs; never trusts a UI preview or a supplied grade. */
+    public CourseResult calculateAndSaveResult(int enrollmentId, Integer calculatedBy) {
+        LecturerAccessService.rejectUnscopedLecturerOperation();
+        if (calculatedBy != null) { requirePositive(calculatedBy, "Calculating user"); }
+        SessionIdentity identity = SessionManager.requireSession();
+        if (calculatedBy != null && calculatedBy != identity.userId()) {
+            throw new SecurityException("Calculated-by must be the signed-in user.");
+        }
+        return calculateInTransaction(enrollmentId, identity, true);
+    }
+
+    private CourseResult calculateInTransaction(int enrollmentId, SessionIdentity identity, boolean save) {
         requirePositive(enrollmentId, "Enrollment");
-        try (Connection connection = DBConnection.getConnection()) {
+        try (Connection connection = connections.open()) {
             connection.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
             connection.setAutoCommit(false);
             try {
+                if (save) { requireActiveActor(connection, identity); }
                 CalculationData data = resultDAO.loadCalculationData(connection, enrollmentId, save);
                 if (data == null) {
                     throw new ResultCalculationException("Enrollment " + enrollmentId + " does not exist.");
                 }
                 CourseResult result = calculate(data, connection);
-                result.setCalculatedBy(calculatedBy);
+                result.setCalculatedBy(identity == null ? null : identity.userId());
                 // Recalculated results are drafts. A separate publication workflow must approve them.
                 result.setPublished(false);
                 result.setPublishedAt(null);
                 if (save) { result = resultDAO.saveOrUpdate(connection, result); }
+                if (save) { SessionManager.requireSession(identity); }
                 connection.commit();
                 return result;
             } catch (SQLException | RuntimeException error) {
@@ -92,6 +134,105 @@ public class ResultService {
         } catch (SQLException error) {
             throw systemError(save ? "save the result" : "calculate the result", error);
         }
+    }
+
+    /** UI hint only. publishResult independently enforces authorization under the transaction. */
+    public boolean canPublishResult(int offeringId) {
+        User user = SessionManager.getCurrentUser();
+        return offeringId > 0 && user != null && user.isActive() && publicationAuthority.permits(user, offeringId);
+    }
+
+    public CourseResult publishResult(int offeringId, PublicationSnapshot reviewed) {
+        SessionIdentity identity = SessionManager.requireSession();
+        requirePublicationAuthority(SessionManager.getCurrentUser(), offeringId);
+        requirePositive(offeringId, "Course offering");
+        if (reviewed == null || reviewed.resultId() <= 0 || reviewed.enrollmentId() <= 0) {
+            throw new ResultCalculationException("Save and review a draft before publishing.");
+        }
+        try (Connection connection = connections.open()) {
+            // InnoDB SERIALIZABLE also locks the input/rule ranges read below, including missing marks.
+            // An enrollment lock alone does not prevent concurrent assessment, mark or grade-rule edits.
+            connection.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
+            connection.setAutoCommit(false);
+            try {
+                User actor = requireActiveActor(connection, identity);
+                requirePublicationAuthority(actor, offeringId);
+                if ("LECTURER".equals(actor.getRole())
+                        && !resultDAO.lockLecturerAssignment(connection, identity.userId(), offeringId)) {
+                    throw new SecurityException("You are not assigned to this course offering.");
+                }
+                if (!resultDAO.lockPublicationContext(connection, reviewed.enrollmentId(), offeringId)) {
+                    throw new ResultCalculationException("Enrollment and offering must match and must not be withdrawn or cancelled.");
+                }
+                CourseResult saved = resultDAO.getByEnrollmentId(connection, reviewed.enrollmentId(), true);
+                requirePublishableDraft(saved);
+                if (!saved.publicationSnapshot().equals(reviewed)) {
+                    throw new ResultCalculationException("The saved draft has changed. Refresh and review it before publishing.");
+                }
+                CalculationData data = resultDAO.loadCalculationData(connection, reviewed.enrollmentId(), true);
+                if (data == null || data.enrollmentId() != reviewed.enrollmentId()) {
+                    throw new ResultCalculationException("The enrollment is no longer available.");
+                }
+                CourseResult current = calculate(data, connection);
+                if (!sameCalculatedResult(saved, current)) {
+                    throw new ResultCalculationException("The draft is stale. Recalculate, save and review the current result before publishing.");
+                }
+                CourseResult published = resultDAO.publishDraft(connection, reviewed.enrollmentId(), reviewed.resultId());
+                SessionManager.requireSession(identity);
+                connection.commit();
+                return published;
+            } catch (SQLException | RuntimeException error) {
+                try { connection.rollback(); } catch (SQLException rollbackError) { error.addSuppressed(rollbackError); }
+                throw error;
+            }
+        } catch (SQLException error) { throw systemError("publish the result", error); }
+    }
+
+    private User requireActiveActor(Connection connection, SessionIdentity identity) throws SQLException {
+        SessionManager.requireSession(identity);
+        User actor = resultDAO.lockActiveActor(connection, identity.userId());
+        User sessionUser = SessionManager.getCurrentUser();
+        if (actor == null || !actor.isActive() || sessionUser == null
+                || !Objects.equals(actor.getRole(), sessionUser.getRole())) {
+            throw new SecurityException("Your account is inactive or its role has changed. Sign in again.");
+        }
+        SessionManager.requireSession(identity);
+        return actor;
+    }
+
+    private void requirePublicationAuthority(User user, int offeringId) {
+        if (user == null || !user.isActive() || !publicationAuthority.permits(user, offeringId)) {
+            throw new SecurityException(PUBLICATION_POLICY_PENDING);
+        }
+    }
+
+    private void requirePublishableDraft(CourseResult saved) {
+        if (saved == null) { throw new ResultCalculationException("No saved draft exists for this enrollment."); }
+        if (saved.isPublished()) { throw new ResultCalculationException("This result is already published. Refresh to view it."); }
+        if (saved.getPublishedAt() != null || saved.getCalculatedAt() == null || saved.getCalculatedBy() == null
+                || saved.getCalculatedBy() <= 0 || saved.getResultId() <= 0
+                || !(saved.getResultStatus() == ResultStatus.PASS || saved.getResultStatus() == ResultStatus.FAIL)
+                || saved.getOverallMark() == null || saved.getOverallMark().signum() < 0
+                || saved.getOverallMark().compareTo(HUNDRED) > 0 || saved.getGradeRuleId() == null
+                || saved.getGradeRuleId() <= 0 || saved.getGradeLetter() == null || saved.getGradeLetter().isBlank()
+                || saved.getGradePoint() == null || saved.getGradePoint().signum() < 0) {
+            throw new ResultCalculationException("Only a complete, audited PASS or FAIL draft can be published. Recalculate and save it first.");
+        }
+    }
+
+    private boolean sameCalculatedResult(CourseResult saved, CourseResult current) {
+        return saved.getEnrollmentId() == current.getEnrollmentId()
+                && saved.getResultStatus() == current.getResultStatus()
+                && Objects.equals(saved.getGradeRuleId(), current.getGradeRuleId())
+                && Objects.equals(saved.getGradeLetter(), current.getGradeLetter())
+                && sameDecimal(saved.getCaMark(), current.getCaMark())
+                && sameDecimal(saved.getFinalExamMark(), current.getFinalExamMark())
+                && sameDecimal(saved.getOverallMark(), current.getOverallMark())
+                && sameDecimal(saved.getGradePoint(), current.getGradePoint());
+    }
+
+    private boolean sameDecimal(BigDecimal a, BigDecimal b) {
+        return a == null ? b == null : b != null && a.compareTo(b) == 0;
     }
 
     /** Package-visible calculation seam for deterministic tests without a live database. */
