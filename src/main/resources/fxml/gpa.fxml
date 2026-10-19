@@ -13,7 +13,7 @@
 <?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.VBox?>
 
-<BorderPane xmlns="http://javafx.com/javafx"
+<BorderPane minWidth="0" minHeight="0" xmlns="http://javafx.com/javafx"
             xmlns:fx="http://javafx.com/fxml"
             fx:controller="lk.ac.ruhuna.ftms.controller.GPAController"
             prefWidth="1200.0"
@@ -27,8 +27,7 @@
               style="-fx-background-color: #1f2937;
                      -fx-padding: 18;">
 
-            <Button fx:id="backButton"
-                    text="← Back"
+            <Button fx:id="backButton" id="dashboardButton" minWidth="-Infinity" text="&#8592; Back to Dashboard"
                     onAction="#handleBack"
                     style="-fx-background-color: #374151;
                            -fx-text-fill: white;
@@ -265,6 +264,7 @@
                                -fx-font-weight: bold;
                                -fx-background-radius: 6;"/>
 
+                <Button text="Reports" onAction="#handleReports"/>
                 <Button fx:id="refreshButton"
                         text="Refresh"
                         onAction="#handleRefresh"

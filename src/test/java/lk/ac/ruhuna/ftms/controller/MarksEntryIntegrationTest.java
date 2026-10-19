@@ -29,6 +29,13 @@ public final class MarksEntryIntegrationTest {
         if (!List.of(args).contains("--rollback-write"))
             throw new IllegalArgumentException("Run explicitly with --rollback-write on the local test database.");
 
+        try (var academicFixture=new lk.ac.ruhuna.ftms.service.AcademicDatabaseFixture()) {
+            academicFixture.login(1,"LECTURER");new MarkService().saveMark(new Mark(100,10,40.0,1));
+            academicFixture.login(2,"LECTURER");new MarkService().saveMark(new Mark(300,30,50.0,1));
+            runChecks();
+        }
+    }
+    private static void runChecks() throws Exception {
         try (Connection database = DBConnection.getConnection()) {
             Map<String, List<List<String>>> before = snapshot(database);
             try (RollbackConnections fixture = new RollbackConnections(database)) {
@@ -134,7 +141,7 @@ public final class MarksEntryIntegrationTest {
         }
         try (var ps = database.prepareStatement("SELECT COUNT(*) FROM course_results WHERE enrollment_id=? AND published=TRUE")) {
             ps.setInt(1, own.getEnrollmentId());
-            try (var rs = ps.executeQuery()) { rs.next(); check(rs.getInt(1) == 0, "changed marks invalidate published results"); }
+            try (var rs = ps.executeQuery()) { rs.next(); check(rs.getInt(1) == 0, "ordinary mark edits leave no published result"); }
         }
         SessionManager.startSession(lecturer);
         denied(service::getAllMarks);
@@ -172,6 +179,7 @@ public final class MarksEntryIntegrationTest {
                 table.getSelectionModel().selectFirst();
                 Mark selected = table.getSelectionModel().getSelectedItem();
                 check(field("enrollmentIdField").getText().equals(String.valueOf(selected.getEnrollmentId())), "selection fills original form");
+                ((ComboBox<String>)scene.getRoot().lookup("#markStatusCombo")).setValue("PRESENT");
                 field("markField").setText("0");
                 fireAndDismiss("Save / Update", "Mark saved successfully.");
                 check(field("enrollmentIdField").getText().isEmpty(), "save clears the form");
@@ -186,9 +194,9 @@ public final class MarksEntryIntegrationTest {
                 fx(() -> { button(entry).fire(); return null; });
                 awaitWorkspace();
                 fx(() -> {
-                    check(scene.getRoot().getId().equals("workspaceRoot"), "authorized academic integration: " + entry);
-                    check(!scene.getRoot().lookup("#markEditor").isVisible(), "academic view is read-only");
-                    check(!((ComboBox<?>) scene.getRoot().lookup("#offering")).getItems().isEmpty(), "academic view loads assigned offerings");
+                    check(scene.getRoot().lookup("#batchTable")!=null, "authorized academic integration: " + entry);
+                    check(scene.getRoot().lookup("#calculateButton")!=null, "academic calculation is available to lecturer");
+                    check(!((ComboBox<?>) scene.getRoot().lookup("#offeringCombo")).getItems().isEmpty(), "academic view loads assigned offerings");
                     button("\u2190 Back to Dashboard").fire(); button("Upload Marks").fire(); return null;
                 });
             }
@@ -204,7 +212,7 @@ public final class MarksEntryIntegrationTest {
 
     private static void awaitWorkspace() throws Exception {
         for (int i = 0; i < 200; i++) {
-            if (fx(() -> !scene.getRoot().lookup("#refresh").isDisabled())) return;
+            if (fx(() -> {scene.getRoot().applyCss();scene.getRoot().layout();var refresh=scene.getRoot().lookup("#refreshButton");return refresh!=null && !refresh.isDisabled();})) return;
             Thread.sleep(50);
         }
         throw new AssertionError("Academic workspace load timed out");
@@ -287,7 +295,7 @@ public final class MarksEntryIntegrationTest {
             database.setAutoCommit(false);
             borrowed = (Connection) Proxy.newProxyInstance(Connection.class.getClassLoader(), new Class<?>[]{Connection.class},
                     (proxy, method, args) -> {
-                        if (method.getName().equals("close")) return null;
+                        if (method.getName().equals("close") || method.getName().equals("setTransactionIsolation")) return null;
                         if (method.getName().equals("commit")) { commits++; return null; }
                         if (method.getName().equals("setAutoCommit") && Boolean.TRUE.equals(args[0]))
                             throw new SQLException("Test connection must remain rollback-only");

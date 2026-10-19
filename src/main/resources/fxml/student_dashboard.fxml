@@ -41,9 +41,10 @@
                         <Button text="My Courses" onAction="#handleCourses" maxWidth="Infinity" styleClass="nav-button">
                             <graphic><SVGPath styleClass="nav-icon" content="M12 5 C8 2 3 3 2 4 V20 C5 18 9 19 12 21 C15 19 19 18 22 20 V4 C18 2 14 3 12 5 V21"/></graphic>
                         </Button>
-                        <Button text="My Grades and GPA" onAction="#handleGrades" maxWidth="Infinity" styleClass="nav-button">
+                        <Button id="studentResultsNav" text="My Published Results" onAction="#handleGrades" maxWidth="Infinity" styleClass="nav-button">
                             <graphic><SVGPath styleClass="nav-icon" content="M3 3 V21 H22 M7 17 V12 H10 V17 M13 17 V8 H16 V17 M19 17 V4 H22 V17"/></graphic>
                         </Button>
+                        <Button id="studentGpaNav" text="My SGPA / CGPA" onAction="#handleGPA" maxWidth="Infinity" styleClass="nav-button"/>
                         <Button text="My Timetable" onAction="#handleTimetable" maxWidth="Infinity" styleClass="nav-button">
                             <graphic><SVGPath styleClass="nav-icon" content="M3 5 H21 V21 H3 Z M7 2 V8 M17 2 V8 M3 11 H21 M7 15 H10 M14 15 H17"/></graphic>
                         </Button>
@@ -153,11 +154,12 @@
                         <VBox spacing="12" minWidth="0" maxWidth="Infinity" styleClass="feature-card,grades-card" GridPane.columnIndex="1" GridPane.rowIndex="1">
                             <HBox alignment="CENTER_LEFT" spacing="6">
                                 <StackPane styleClass="card-icon"><SVGPath content="M3 3 V21 H22 M7 17 V12 H10 V17 M13 17 V8 H16 V17 M19 17 V4 H22 V17"/></StackPane>
-                                <Region HBox.hgrow="ALWAYS"/><Label text="COMING SOON" styleClass="coming-soon"/>
+                                <Region HBox.hgrow="ALWAYS"/>
                             </HBox>
                             <Label text="Grades and GPA" wrapText="true" styleClass="card-title"/>
                             <Label text="View published grades, SGPA and CGPA" wrapText="true" styleClass="card-description" VBox.vgrow="ALWAYS" maxHeight="Infinity"/>
-                            <Button text="View Results" onAction="#handleGrades" maxWidth="Infinity" styleClass="card-button"/>
+                            <Button id="studentResultsCard" text="View Results" onAction="#handleGrades" maxWidth="Infinity" styleClass="card-button"/>
+                            <Button id="studentGpaCard" text="View SGPA / CGPA" onAction="#handleGPA" maxWidth="Infinity" styleClass="card-button"/>
                         </VBox>
                         <VBox spacing="12" minWidth="0" maxWidth="Infinity" styleClass="feature-card,timetable-card" GridPane.columnIndex="2" GridPane.rowIndex="1">
                             <HBox alignment="CENTER_LEFT" spacing="6">

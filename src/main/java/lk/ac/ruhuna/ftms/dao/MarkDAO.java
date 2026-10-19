@@ -13,7 +13,7 @@ public class MarkDAO {
     /** Only marks whose enrollment and assessment belong to this lecturer's assigned offerings. */
     public List<Mark> findByLecturer(int lecturerId) throws SQLException {
         String sql = """
-                SELECT m.mark_id, m.enrollment_id, m.assessment_id, m.marks_obtained, e.attempt_no
+                SELECT DISTINCT m.mark_id, m.enrollment_id, m.assessment_id, m.marks_obtained, m.mark_status, e.attempt_no
                 FROM marks m
                 JOIN enrollments e ON e.enrollment_id=m.enrollment_id
                 JOIN assessments a ON a.assessment_id=m.assessment_id AND a.offering_id=e.offering_id
@@ -29,9 +29,11 @@ public class MarkDAO {
             ps.setInt(1, lecturerId);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
-                    marks.add(new Mark(rs.getInt("mark_id"), rs.getInt("enrollment_id"),
+                    Mark mark = new Mark(rs.getInt("mark_id"), rs.getInt("enrollment_id"),
                             rs.getInt("assessment_id"), rs.getObject("marks_obtained") == null
-                                    ? null : rs.getDouble("marks_obtained"), rs.getInt("attempt_no")));
+                                    ? null : rs.getDouble("marks_obtained"), rs.getInt("attempt_no"));
+                    mark.setMarkStatus(rs.getString("mark_status"));
+                    marks.add(mark);
                 }
             }
         }
@@ -41,9 +43,15 @@ public class MarkDAO {
     /** Lock the authorization and assessment rows with the write to prevent stale assignment/maxima checks. */
     public void saveLecturerMark(Mark mark, lk.ac.ruhuna.ftms.util.SessionManager.SessionIdentity identity)
             throws SQLException {
+        mark.validateState();
         try (Connection con = DBConnection.getConnection()) {
+            con.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
             con.setAutoCommit(false);
             try {
+                var access = new AcademicAccessDAO();
+                int offering = access.enrollment(con, mark.getEnrollmentId());
+                access.offering(con, identity, offering);
+                access.unpublished(con, mark.getEnrollmentId());
                 String permission = """
                     SELECT a.max_mark FROM enrollments e
                     JOIN assessments a ON a.offering_id=e.offering_id
@@ -73,14 +81,10 @@ public class MarkDAO {
                     ps.setInt(1, mark.getEnrollmentId()); ps.setInt(2, mark.getAssessmentId());
                     if (mark.getMarksObtained() == null) ps.setNull(3, Types.DECIMAL);
                     else ps.setDouble(3, mark.getMarksObtained());
-                    ps.setString(4, mark.getMarksObtained() == null ? "PENDING" : "PRESENT");
+                    ps.setString(4, mark.getMarkStatus());
                     ps.setInt(5, identity.userId()); ps.executeUpdate();
                 }
-                // A changed source mark cannot leave an obsolete grade visible as an official result.
-                try (PreparedStatement ps = con.prepareStatement(
-                        "UPDATE course_results SET published=FALSE,published_at=NULL WHERE enrollment_id=?")) {
-                    ps.setInt(1, mark.getEnrollmentId()); ps.executeUpdate();
-                }
+                access.invalidate(con, mark.getEnrollmentId());
                 lk.ac.ruhuna.ftms.util.SessionManager.requireSession(identity);
                 con.commit();
             } catch (SQLException | RuntimeException error) {
@@ -93,34 +97,8 @@ public class MarkDAO {
     // SAVE OR UPDATE MARK
     // ---------------------------------------------------------
     public void saveOrUpdate(Mark mark) throws SQLException {
-
-        String sql = """
-                INSERT INTO marks
-                (enrollment_id, assessment_id, marks_obtained, mark_status)
-                VALUES (?, ?, ?, ?)
-                ON DUPLICATE KEY UPDATE
-                    marks_obtained = VALUES(marks_obtained),
-                    mark_status = VALUES(mark_status)
-                """;
-
-        try (Connection con = DBConnection.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql)) {
-
-            ps.setInt(1, mark.getEnrollmentId());
-            ps.setInt(2, mark.getAssessmentId());
-
-            if (mark.getMarksObtained() == null) {
-                ps.setNull(3, Types.DECIMAL);
-                ps.setString(4, "PENDING");
-            } else {
-                ps.setDouble(3, mark.getMarksObtained());
-                ps.setString(4, "PRESENT");
-            }
-
-            ps.executeUpdate();
-        }
+        saveLecturerMark(mark, lk.ac.ruhuna.ftms.util.SessionManager.requireSession());
     }
-
     // ---------------------------------------------------------
     // GET ALL MARKS
     // ---------------------------------------------------------
@@ -134,6 +112,7 @@ public class MarkDAO {
                     m.enrollment_id,
                     m.assessment_id,
                     m.marks_obtained,
+                    m.mark_status,
                     e.attempt_no
                 FROM marks m
                 JOIN enrollments e
@@ -161,6 +140,7 @@ public class MarkDAO {
                 );
 
                 marks.add(mark);
+                mark.setMarkStatus(rs.getString("mark_status"));
             }
         }
 
@@ -223,16 +203,20 @@ public class MarkDAO {
     // DELETE MARK
     // ---------------------------------------------------------
     public void delete(int markId) throws SQLException {
-
-        String sql =
-                "DELETE FROM marks WHERE mark_id = ?";
-
-        try (Connection con = DBConnection.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql)) {
-
-            ps.setInt(1, markId);
-
-            ps.executeUpdate();
+        var identity=lk.ac.ruhuna.ftms.util.SessionManager.requireSession();
+        try(var c=DBConnection.getConnection()) {
+            c.setAutoCommit(false);
+            try {
+                var access=new AcademicAccessDAO();
+                if(!"ADMIN".equals(access.actor(c,identity).getRole()))throw new SecurityException("Only the existing administrator delete operation is supported.");
+                int enrollment;
+                try(var p=c.prepareStatement("SELECT enrollment_id FROM marks WHERE mark_id=? FOR UPDATE")){
+                    p.setInt(1,markId);try(var r=p.executeQuery()){if(!r.next())throw new IllegalArgumentException("Mark is unavailable.");enrollment=r.getInt(1);}
+                }
+                access.enrollment(c,enrollment);access.unpublished(c,enrollment);
+                try(var p=c.prepareStatement("DELETE FROM marks WHERE mark_id=?")){p.setInt(1,markId);p.executeUpdate();}
+                access.invalidate(c,enrollment);lk.ac.ruhuna.ftms.util.SessionManager.requireSession(identity);c.commit();
+            }catch(SQLException|RuntimeException e){c.rollback();throw e;}
         }
     }
 }
