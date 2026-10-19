@@ -43,6 +43,24 @@ public class AttendanceService {
         }
     }
 
+    public record StudentSummary(lk.ac.ruhuna.ftms.dao.EnrollmentDAO.StudentCourse course,
+                                 AttendanceSummary attendance) {}
+    public record StudentSession(String courseCode, String courseName, String semester, int attempt,
+                                 java.time.LocalDate date, String type, String topic, String status) {}
+    public record StudentAttendance(List<StudentSummary> summaries, List<StudentSession> sessions) {}
+
+    /** Reuses the existing summary query and percentage rules; exposes no attendance mutations. */
+    public StudentAttendance getMyAttendance() throws SQLException {
+        return new StudentAccessService(identity).read((connection, studentId) -> {
+            var summaries = new java.util.ArrayList<StudentSummary>();
+            for (var course : new lk.ac.ruhuna.ftms.dao.EnrollmentDAO().findByStudent(connection, studentId)) {
+                summaries.add(new StudentSummary(course,
+                        summaryDAO.findByEnrollmentId(connection, course.enrollmentId())));
+            }
+            return new StudentAttendance(List.copyOf(summaries), recordDAO.findStudentSessions(connection, studentId));
+        });
+    }
+
     @FunctionalInterface
     private interface DepartmentOperation<T> {
         T run(Connection connection, int departmentId) throws SQLException;

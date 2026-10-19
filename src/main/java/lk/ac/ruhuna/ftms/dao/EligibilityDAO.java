@@ -85,6 +85,10 @@ public class EligibilityDAO {
             EligibilityResult result,
             Integer calculatedBy) throws SQLException {
 
+        try (Connection c = DBConnection.getConnection()) { saveOrUpdateEligibility(c, result, calculatedBy); }
+    }
+
+    public void saveOrUpdateEligibility(Connection con, EligibilityResult result, Integer calculatedBy) throws SQLException {
         String sql = """
                 INSERT INTO eligibility_records
                 (enrollment_id, ca_score, ca_eligible, attendance_percentage,
@@ -102,16 +106,15 @@ public class EligibilityDAO {
                     calculated_by = VALUES(calculated_by)
                 """;
 
-        try (Connection con = DBConnection.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql)) {
+        try (PreparedStatement ps = con.prepareStatement(sql)) {
 
             ps.setInt(1, result.getEnrollmentId());
             // The model's normalized CA percentage is stored in ca_score.
-            ps.setDouble(2, result.getCaPercentage());
-            ps.setBoolean(3, result.isCaEligible());
-            ps.setDouble(4, result.getAttendancePercentage());
-            ps.setBoolean(5, result.isAttendanceEligible());
-            ps.setBoolean(6, result.isOverallEligible());
+            ps.setObject(2, result.getCaPercentage(), Types.DECIMAL);
+            ps.setObject(3, result.isCaEligible(), Types.BOOLEAN);
+            ps.setObject(4, result.getAttendancePercentage(), Types.DECIMAL);
+            ps.setObject(5, result.isAttendanceEligible(), Types.BOOLEAN);
+            ps.setObject(6, result.isOverallEligible(), Types.BOOLEAN);
             ps.setString(7, result.getReason());
 
             if (calculatedBy == null) {
@@ -143,11 +146,11 @@ public class EligibilityDAO {
                 if (rs.next()) {
                     return new EligibilityResult(
                             rs.getInt("enrollment_id"),
-                            rs.getDouble("ca_score"),
-                            rs.getBoolean("ca_eligible"),
-                            rs.getDouble("attendance_percentage"),
-                            rs.getBoolean("attendance_eligible"),
-                            rs.getBoolean("overall_eligible"),
+                            nullableDouble(rs, "ca_score"),
+                            nullableBoolean(rs, "ca_eligible"),
+                            nullableDouble(rs, "attendance_percentage"),
+                            nullableBoolean(rs, "attendance_eligible"),
+                            nullableBoolean(rs, "overall_eligible"),
                             rs.getString("reason")
                     );
                 }

@@ -18,7 +18,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 
-/** Presentation only: academic features deliberately have no service or DAO connection. */
+/** Student portal navigation; academic screens enforce student self-only access. */
 public class StudentDashboardController {
     @FXML private BorderPane studentRoot;
     @FXML private ScrollPane contentScroll;
@@ -94,13 +94,36 @@ public class StudentDashboardController {
         }
     }
 
-    @FXML private void handleProfile() { showComingSoon("My Profile"); }
-    @FXML private void handleAttendance() { showComingSoon("My Attendance"); }
-    @FXML private void handleMedical() { showComingSoon("My Medical"); }
-    @FXML private void handleCourses() { showComingSoon("My Courses"); }
-    @FXML private void handleGrades() { showComingSoon("Grades and GPA"); }
+    @FXML private void handleProfile() { openAcademicScreen("/fxml/profile.fxml", "My Profile"); }
+    @FXML private void handleAttendance() { openAcademicScreen("/fxml/student_attendance.fxml", "My Attendance"); }
+    @FXML private void handleMedical() { openAcademicScreen("/fxml/student_medical.fxml", "My Medical"); }
+    @FXML private void handleCourses() { openAcademicScreen("/fxml/student_courses.fxml", "My Courses"); }
+    @FXML private void handleGrades() { openAcademicScreen("/fxml/student_results.fxml", "My Grades and GPA"); }
+    @FXML private void handleGPA() { openAcademicScreen("/fxml/student_results.fxml", "My Grades and GPA"); }
     @FXML private void handleTimetable() { showComingSoon("My Timetable"); }
-    @FXML private void handleNotices() { showComingSoon("Notices"); }
+
+    private void openAcademicScreen(String resource, String title) {
+        try {
+            requireStudent();
+            NavigationUtil.navigate(studentRoot, resource, "FTMS - " + title);
+        } catch (SecurityException error) {
+            showSessionError(error);
+        } catch (IOException error) {
+            statusLabel.setText("Unable to open " + title + ". Please try again.");
+            contentScroll.setVvalue(1);
+        }
+    }
+    @FXML private void handleNotices() {
+        try {
+            requireStudent();
+            NavigationUtil.navigate(studentRoot, "/fxml/view_notices.fxml", "FTMS - Faculty Notices");
+        } catch (SecurityException error) {
+            showSessionError(error);
+        } catch (IOException error) {
+            statusLabel.setText("Unable to open Faculty Notices. Please try again.");
+            contentScroll.setVvalue(1);
+        }
+    }
 
     private void showComingSoon(String feature) {
         try {

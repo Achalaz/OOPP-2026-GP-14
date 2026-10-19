@@ -136,8 +136,8 @@ public final class TechnicalOfficerDashboardSmokeTest {
                 var identity = SessionManager.requireSession();
                 List<Button> placeholders = root.lookupAll(".button").stream().filter(Button.class::isInstance)
                         .map(Button.class::cast).filter(button -> !List.of("Dashboard", "Logout", "My Profile",
-                                "Attendance Management", "Manage Attendance").contains(button.getText())).toList();
-                check(placeholders.size() == 6, "three sidebar and three card placeholder actions");
+                                "Attendance Management", "Manage Attendance", "Notices", "View Notices").contains(button.getText())).toList();
+                check(placeholders.size() == 4, "two sidebar and two card placeholder actions");
                 for (Button button : placeholders) {
                     AtomicReference<Throwable> failure = new AtomicReference<>();
                     Platform.runLater(() -> {
