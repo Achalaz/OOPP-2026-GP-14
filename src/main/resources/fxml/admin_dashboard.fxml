@@ -4,7 +4,7 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
-<BorderPane xmlns:fx="http://javafx.com/fxml"
+<BorderPane fx:id="adminRoot" xmlns:fx="http://javafx.com/fxml"
             fx:controller="lk.ac.ruhuna.ftms.controller.AdminDashboardController"
             stylesheets="@../css/admin_dashboard.css"
             prefWidth="1200"
@@ -46,7 +46,7 @@
 
             <Region VBox.vgrow="ALWAYS"/>
 
-            <Button text="My Profile"
+            <Button fx:id="profileButton" text="My Profile"
                     maxWidth="Infinity"
                     styleClass="nav-button"
                     onAction="#handleProfile"/>
@@ -71,7 +71,7 @@
                     <Label text="Admin Dashboard"
                            styleClass="page-title"/>
 
-                    <Label text="Welcome back, Administrator!"
+                    <Label fx:id="nameLabel" text="Welcome back, Administrator!"
                            styleClass="subtitle"/>
 
                     <GridPane hgap="20" vgap="20">

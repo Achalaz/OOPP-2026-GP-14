@@ -151,7 +151,7 @@ public class LoginController {
             try {
                 NavigationUtil.navigate(
                         loginRoot,
-                        "/fxml/dashboard.fxml",
+                        NavigationUtil.dashboardResource(),
                         "FTMS - Dashboard"
                 );
 

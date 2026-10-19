@@ -10,6 +10,12 @@ import java.util.List;
 public class AttendanceRecordDAO {
 
     public void saveOrUpdate(AttendanceRecord record) throws SQLException {
+        try (Connection connection = DBConnection.getConnection()) {
+            saveOrUpdate(connection, record);
+        }
+    }
+
+    public void saveOrUpdate(Connection connection, AttendanceRecord record) throws SQLException {
 
         String sql = """
                 INSERT INTO attendance_records
@@ -21,8 +27,7 @@ public class AttendanceRecordDAO {
                     marked_at = CURRENT_TIMESTAMP
                 """;
 
-        try (Connection connection = DBConnection.getConnection();
-             PreparedStatement statement = connection.prepareStatement(sql)) {
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
 
             statement.setInt(1, record.getSessionId());
             statement.setInt(2, record.getEnrollmentId());
@@ -38,20 +43,26 @@ public class AttendanceRecordDAO {
         }
     }
 
-    public List<AttendanceRecord> findBySessionId(int sessionId)
-            throws SQLException {
+    public List<AttendanceRecord> findBySessionId(int sessionId) throws SQLException {
+        try (Connection connection = DBConnection.getConnection()) {
+            return findBySessionId(connection, sessionId);
+        }
+    }
+
+    public List<AttendanceRecord> findBySessionId(Connection connection, int sessionId) throws SQLException {
 
         List<AttendanceRecord> records = new ArrayList<>();
 
         String sql = """
-                SELECT *
-                FROM attendance_records
-                WHERE session_id = ?
-                ORDER BY enrollment_id
+                SELECT ar.*
+                FROM attendance_records ar
+                JOIN attendance_sessions s ON s.session_id = ar.session_id
+                JOIN enrollments e ON e.enrollment_id = ar.enrollment_id AND e.offering_id = s.offering_id
+                WHERE ar.session_id = ?
+                ORDER BY ar.enrollment_id
                 """;
 
-        try (Connection connection = DBConnection.getConnection();
-             PreparedStatement statement = connection.prepareStatement(sql)) {
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
 
             statement.setInt(1, sessionId);
 
@@ -66,20 +77,26 @@ public class AttendanceRecordDAO {
         return records;
     }
 
-    public List<AttendanceRecord> findByEnrollmentId(int enrollmentId)
-            throws SQLException {
+    public List<AttendanceRecord> findByEnrollmentId(int enrollmentId) throws SQLException {
+        try (Connection connection = DBConnection.getConnection()) {
+            return findByEnrollmentId(connection, enrollmentId);
+        }
+    }
+
+    public List<AttendanceRecord> findByEnrollmentId(Connection connection, int enrollmentId) throws SQLException {
 
         List<AttendanceRecord> records = new ArrayList<>();
 
         String sql = """
-                SELECT *
-                FROM attendance_records
-                WHERE enrollment_id = ?
+                SELECT ar.*
+                FROM attendance_records ar
+                JOIN attendance_sessions s ON s.session_id = ar.session_id
+                JOIN enrollments e ON e.enrollment_id = ar.enrollment_id AND e.offering_id = s.offering_id
+                WHERE ar.enrollment_id = ?
                 ORDER BY marked_at DESC
                 """;
 
-        try (Connection connection = DBConnection.getConnection();
-             PreparedStatement statement = connection.prepareStatement(sql)) {
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
 
             statement.setInt(1, enrollmentId);
 
@@ -95,8 +112,13 @@ public class AttendanceRecordDAO {
     }
 
     // Existing method - keep this
-    public int countPresentByEnrollment(int enrollmentId)
-            throws SQLException {
+    public int countPresentByEnrollment(int enrollmentId) throws SQLException {
+        try (Connection connection = DBConnection.getConnection()) {
+            return countPresentByEnrollment(connection, enrollmentId);
+        }
+    }
+
+    public int countPresentByEnrollment(Connection connection, int enrollmentId) throws SQLException {
 
         String sql = """
                 SELECT COUNT(*) AS attended_sessions
@@ -105,8 +127,7 @@ public class AttendanceRecordDAO {
                   AND attendance_status = 'PRESENT'
                 """;
 
-        try (Connection connection = DBConnection.getConnection();
-             PreparedStatement statement = connection.prepareStatement(sql)) {
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
 
             statement.setInt(1, enrollmentId);
 
@@ -121,19 +142,24 @@ public class AttendanceRecordDAO {
         return 0;
     }
 
-    public AttendanceRecord findBySessionAndEnrollment(
-            int sessionId,
-            int enrollmentId) throws SQLException {
+    public AttendanceRecord findBySessionAndEnrollment(int sessionId, int enrollmentId) throws SQLException {
+        try (Connection connection = DBConnection.getConnection()) {
+            return findBySessionAndEnrollment(connection, sessionId, enrollmentId);
+        }
+    }
+
+    public AttendanceRecord findBySessionAndEnrollment(Connection connection, int sessionId, int enrollmentId) throws SQLException {
 
         String sql = """
-                SELECT *
-                FROM attendance_records
-                WHERE session_id = ?
-                  AND enrollment_id = ?
+                SELECT ar.*
+                FROM attendance_records ar
+                JOIN attendance_sessions s ON s.session_id = ar.session_id
+                JOIN enrollments e ON e.enrollment_id = ar.enrollment_id AND e.offering_id = s.offering_id
+                WHERE ar.session_id = ?
+                  AND ar.enrollment_id = ?
                 """;
 
-        try (Connection connection = DBConnection.getConnection();
-             PreparedStatement statement = connection.prepareStatement(sql)) {
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
 
             statement.setInt(1, sessionId);
             statement.setInt(2, enrollmentId);
@@ -150,14 +176,19 @@ public class AttendanceRecordDAO {
     }
 
     public void delete(int attendanceRecordId) throws SQLException {
+        try (Connection connection = DBConnection.getConnection()) {
+            delete(connection, attendanceRecordId);
+        }
+    }
+
+    public void delete(Connection connection, int attendanceRecordId) throws SQLException {
 
         String sql = """
                 DELETE FROM attendance_records
                 WHERE attendance_record_id = ?
                 """;
 
-        try (Connection connection = DBConnection.getConnection();
-             PreparedStatement statement = connection.prepareStatement(sql)) {
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
 
             statement.setInt(1, attendanceRecordId);
             statement.executeUpdate();
