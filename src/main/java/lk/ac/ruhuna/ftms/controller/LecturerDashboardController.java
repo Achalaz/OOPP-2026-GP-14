@@ -157,10 +157,7 @@ public class LecturerDashboardController {
 
     @FXML
     private void handleNotices() {
-        showPending(
-                "Notices",
-                "Coming Soon"
-        );
+        openScreen("/fxml/view_notices.fxml", "FTMS - Faculty Notices");
     }
 
     @FXML
