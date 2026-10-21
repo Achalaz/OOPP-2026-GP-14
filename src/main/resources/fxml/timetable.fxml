@@ -1,14 +1,179 @@
-<?xml version="1.0" encoding="UTF-8"?>
 
-<?import java.lang.*?>
-<?import java.util.*?>
-<?import javafx.scene.*?>
-<?import javafx.scene.control.*?>
-<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
 
-<AnchorPane xmlns="http://javafx.com/javafx"
-            xmlns:fx="http://javafx.com/fxml"
-            fx:controller="CONTROLLER_NAME"
-            prefHeight="400.0" prefWidth="600.0">
+<BorderPane xmlns:fx="http://javafx.com/fxml"
+            fx:id="timetableRoot"
+            fx:controller="lk.ac.ruhuna.ftms.controller.TimetableController"
+            prefWidth="1280.0"
+            prefHeight="800.0"
+            minWidth="900.0"
+            minHeight="600.0"
+            style="-fx-background-color: #F3F6FB;">
 
-</AnchorPane>
+    <!-- Technical Officer Timetable Header -->
+    <top>
+        <HBox alignment="CENTER_LEFT"
+              spacing="16"
+              style="-fx-background-color: #102C4C; -fx-padding: 20 26;">
+
+            <VBox spacing="5">
+
+                <Label text="FTMS / TECHNICAL OFFICER PORTAL"
+                       style="-fx-text-fill: #B5CAE3; -fx-font-size: 12; -fx-font-weight: bold;"/>
+
+                <Label text="Department Timetable"
+                       style="-fx-text-fill: white; -fx-font-size: 25; -fx-font-weight: bold;"/>
+
+                <Label fx:id="officerNameLabel"
+                       text="Department Timetable"
+                       style="-fx-text-fill: #DEEAF8; -fx-font-size: 13;"/>
+
+            </VBox>
+
+            <Region HBox.hgrow="ALWAYS"/>
+
+            <Button fx:id="backButton"
+                    text="Back to Dashboard"
+                    onAction="#handleBack"
+                    style="-fx-background-color: #2E5279; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 7; -fx-padding: 11 17;"/>
+
+        </HBox>
+    </top>
+
+    <!-- Main Content -->
+    <center>
+        <VBox spacing="18"
+              style="-fx-padding: 24;">
+
+            <!-- Course Filter -->
+            <VBox spacing="13"
+                  style="-fx-background-color: white; -fx-background-radius: 10; -fx-border-color: #E0E8F2; -fx-border-radius: 10; -fx-padding: 18;">
+
+                <Label text="Filter Timetable"
+                       style="-fx-text-fill: #102C4C; -fx-font-size: 18; -fx-font-weight: bold;"/>
+
+                <HBox alignment="CENTER_LEFT"
+                      spacing="12">
+
+                    <Label text="Course offering:"
+                           style="-fx-text-fill: #334155; -fx-font-size: 13; -fx-font-weight: bold;"/>
+
+                    <ComboBox fx:id="offeringComboBox"
+                              promptText="All Department Courses"
+                              prefWidth="360"
+                              maxWidth="420"/>
+
+                    <Button fx:id="allCoursesButton"
+                            text="All Courses"
+                            onAction="#handleAllCourses"
+                            style="-fx-background-color: #E8F1FC; -fx-text-fill: #102C4C; -fx-font-weight: bold; -fx-background-radius: 7; -fx-padding: 10 16;"/>
+
+                    <Button fx:id="refreshButton"
+                            text="Refresh"
+                            onAction="#handleRefresh"
+                            style="-fx-background-color: #2E5279; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 7; -fx-padding: 10 16;"/>
+
+                </HBox>
+
+                <Label
+                        text="Select a course to view its schedule, or choose All Courses to view the department timetable."
+                        wrapText="true"
+                        style="-fx-text-fill: #64748B; -fx-font-size: 12;"/>
+
+            </VBox>
+
+            <!-- Timetable Table -->
+            <VBox spacing="12"
+                  VBox.vgrow="ALWAYS"
+                  style="-fx-background-color: white; -fx-background-radius: 10; -fx-border-color: #E0E8F2; -fx-border-radius: 10; -fx-padding: 18;">
+
+                <Label text="Weekly Timetable"
+                       style="-fx-text-fill: #102C4C; -fx-font-size: 19; -fx-font-weight: bold;"/>
+
+                <Label fx:id="summaryLabel"
+                       text="Loading department timetable..."
+                       wrapText="true"
+                       style="-fx-background-color: #EEF4FA; -fx-background-radius: 6; -fx-padding: 10 12; -fx-text-fill: #274766; -fx-font-weight: bold; -fx-font-size: 13;"/>
+
+                <TableView fx:id="timetableTable"
+                           prefHeight="440"
+                           minHeight="230"
+                           VBox.vgrow="ALWAYS">
+
+                    <columns>
+
+                        <TableColumn fx:id="dayColumn"
+                                     text="Day"
+                                     prefWidth="115"/>
+
+                        <TableColumn fx:id="timeColumn"
+                                     text="Time"
+                                     prefWidth="120"/>
+
+                        <TableColumn fx:id="courseColumn"
+                                     text="Course"
+                                     prefWidth="265"/>
+
+                        <TableColumn fx:id="groupColumn"
+                                     text="Group"
+                                     prefWidth="100"/>
+
+                        <TableColumn fx:id="sessionTypeColumn"
+                                     text="Session Type"
+                                     prefWidth="120"/>
+
+                        <TableColumn fx:id="roomColumn"
+                                     text="Room"
+                                     prefWidth="105"/>
+
+                        <TableColumn fx:id="lecturerColumn"
+                                     text="Lecturer"
+                                     prefWidth="175"/>
+
+                        <TableColumn fx:id="effectiveColumn"
+                                     text="Effective Dates"
+                                     prefWidth="220"/>
+
+                    </columns>
+
+                </TableView>
+
+                <Label
+                        text="View-only timetable. Changes must be performed through an authorized timetable management workflow."
+                        wrapText="true"
+                        style="-fx-text-fill: #64748B; -fx-font-size: 12;"/>
+
+            </VBox>
+
+        </VBox>
+    </center>
+
+    <!-- Bottom Status Bar -->
+    <bottom>
+
+        <HBox alignment="CENTER_LEFT"
+              style="-fx-background-color: #E8EFF7; -fx-padding: 12 24;">
+
+            <Label fx:id="statusLabel"
+                   text="Loading timetable..."
+                   wrapText="true"
+                   style="-fx-text-fill: #334155; -fx-font-size: 12;"/>
+
+            <Region HBox.hgrow="ALWAYS"/>
+
+            <Label text="DEPARTMENT VIEW"
+                   style="-fx-text-fill: #64748B; -fx-font-size: 11; -fx-font-weight: bold;"/>
+
+        </HBox>
+
+    </bottom>
+
+</BorderPane>
