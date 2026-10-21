@@ -37,12 +37,13 @@ public class AdminDashboardController {
 
     @FXML
     private void handleCourses() {
-        showInfo("Course Management will be connected after CRUD implementation.");
+        navigate("courses.fxml");
     }
 
     @FXML
     private void handleNotices() {
-        showInfo("Notice Management will be connected after CRUD implementation.");
+        navigate("notices.fxml");
+
     }
 
     @FXML
@@ -69,3 +70,4 @@ public class AdminDashboardController {
         new Alert(Alert.AlertType.ERROR, message).showAndWait();
     }
 }
+
