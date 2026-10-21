@@ -39,8 +39,10 @@ public final class NavigationUtil {
                 || !user.isActive()
                 || user.getRole() == null
                 || !Set.of(
-                "ADMIN", "LECTURER",
-                "STUDENT", "TECHNICAL_OFFICER"
+                "ADMIN",
+                "LECTURER",
+                "STUDENT",
+                "TECHNICAL_OFFICER"
         ).contains(user.getRole()))) {
 
             throw new SecurityException(
@@ -48,6 +50,8 @@ public final class NavigationUtil {
             );
         }
     }
+
+    // Route users to their original dashboards
 
     public static String dashboardResource() {
 
@@ -58,18 +62,25 @@ public final class NavigationUtil {
         }
 
         return switch (user.getRole()) {
+
             case "LECTURER" ->
                     "/fxml/lecturer_dashboard.fxml";
+
             case "ADMIN" ->
                     "/fxml/admin_dashboard.fxml";
+
             case "STUDENT" ->
                     "/fxml/student_dashboard.fxml";
+
             case "TECHNICAL_OFFICER" ->
                     "/fxml/technical_officer_dashboard.fxml";
+
             default ->
                     "/fxml/dashboard.fxml";
         };
     }
+
+    // Open an authorized JavaFX screen
 
     public static void navigate(
             Node source,
@@ -82,7 +93,8 @@ public final class NavigationUtil {
 
         requireNoticeAccess(resource);
 
-        // Preserve Admin Course Management
+        // Preserve administrator course management
+
         if ("/fxml/courses.fxml".equals(resource)
                 && !CourseService.isCurrentUserAdmin()) {
 
@@ -93,7 +105,8 @@ public final class NavigationUtil {
 
         var user = SessionManager.getCurrentUser();
 
-        // Technical Officer attendance management
+        // Technical Officer attendance access
+
         if ("/fxml/attendance.fxml".equals(resource)
                 && (user == null
                 || !user.isActive()
@@ -104,7 +117,20 @@ public final class NavigationUtil {
             );
         }
 
-        // Student-only screens
+        // NEW: Technical Officer timetable access
+
+        if ("/fxml/timetable.fxml".equals(resource)
+                && (user == null
+                || !user.isActive()
+                || !"TECHNICAL_OFFICER".equals(user.getRole()))) {
+
+            throw new SecurityException(
+                    "An active Technical Officer session is required for the timetable."
+            );
+        }
+
+        // Preserve Student-only pages
+
         Set<String> studentViews = Set.of(
                 "/fxml/student_dashboard.fxml",
                 "/fxml/student_attendance.fxml",
@@ -114,7 +140,6 @@ public final class NavigationUtil {
                 "/fxml/student_results.fxml"
         );
 
-        // Protect Student Portal
         if (studentViews.contains(resource)
                 && (user == null
                 || !user.isActive()
@@ -124,6 +149,8 @@ public final class NavigationUtil {
                     "An active student session is required."
             );
         }
+
+        // Students may access only student screens
 
         if (user != null
                 && "STUDENT".equals(user.getRole())
@@ -141,6 +168,7 @@ public final class NavigationUtil {
         }
 
         // Preserve Lecturer access
+
         if (user != null
                 && "LECTURER".equals(user.getRole())
                 && !Set.of(
@@ -157,12 +185,14 @@ public final class NavigationUtil {
             );
         }
 
-        // Preserve Technical Officer access
+        // Preserve Technical Officer access restrictions
+
         if (user != null
                 && "TECHNICAL_OFFICER".equals(user.getRole())
                 && !Set.of(
                 "/fxml/technical_officer_dashboard.fxml",
                 "/fxml/attendance.fxml",
+                "/fxml/timetable.fxml",
                 "/fxml/profile.fxml",
                 "/fxml/view_notices.fxml",
                 "/fxml/login.fxml"
@@ -173,19 +203,24 @@ public final class NavigationUtil {
             );
         }
 
+        // Load FXML
+
         URL location =
                 NavigationUtil.class.getResource(resource);
 
         if (location == null) {
+
             throw new IOException(
                     "Screen not found: " + resource
             );
         }
 
         FXMLLoader loader = new FXMLLoader(location);
+
         Parent root = loader.load();
 
         // Preserve CourseService dependency injection
+
         if ("/fxml/courses.fxml".equals(resource)) {
 
             CourseController controller =
@@ -201,24 +236,33 @@ public final class NavigationUtil {
 
         Scene scene = source.getScene();
 
-        // Preserve responsive window dimensions
+        // Keep responsive window size
+
         boolean preserveWindowSize =
                 studentViews.contains(resource)
+
                         || "/fxml/admin_dashboard.fxml".equals(resource)
                         || "/fxml/courses.fxml".equals(resource)
                         || "coursesRoot".equals(scene.getRoot().getId())
+
                         || "/fxml/technical_officer_dashboard.fxml".equals(resource)
                         || "/fxml/attendance.fxml".equals(resource)
+                        || "/fxml/timetable.fxml".equals(resource)
                         || "/fxml/login.fxml".equals(resource)
+
                         || "/fxml/notices.fxml".equals(resource)
                         || "/fxml/view_notices.fxml".equals(resource)
+
                         || "noticesRoot".equals(scene.getRoot().getId())
                         || "viewNoticesRoot".equals(scene.getRoot().getId())
+
                         || "studentRoot".equals(scene.getRoot().getId())
                         || "studentEligibilityRoot".equals(scene.getRoot().getId())
                         || "studentAttendanceRoot".equals(scene.getRoot().getId())
+
                         || "technicalOfficerRoot".equals(scene.getRoot().getId())
-                        || "attendanceRoot".equals(scene.getRoot().getId());
+                        || "attendanceRoot".equals(scene.getRoot().getId())
+                        || "timetableRoot".equals(scene.getRoot().getId());
 
         scene.setRoot(root);
 
