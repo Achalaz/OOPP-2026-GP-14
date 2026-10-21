@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns="http://javafx.com/javafx/25"
+            xmlns:fx="http://javafx.com/fxml/1"
+            fx:id="studentTimetableRoot"
+            fx:controller="lk.ac.ruhuna.ftms.controller.StudentTimetableController"
+            prefWidth="1110.0" prefHeight="740.0"
+            minWidth="720.0" minHeight="500.0"
+            style="-fx-background-color: #F3F6FB;">
+
+    <top>
+        <VBox spacing="0">
+            <HBox alignment="CENTER_LEFT" spacing="18"
+                  style="-fx-background-color: #102C4C; -fx-padding: 20 26;">
+                <VBox spacing="6">
+                    <Label text="FTMS  /  STUDENT PORTAL"
+                           style="-fx-text-fill: #B6CCE5; -fx-font-weight: bold; -fx-font-size: 12;"/>
+                    <Label text="My Weekly Timetable"
+                           style="-fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 24;"/>
+                    <Label fx:id="studentNameLabel" text="My Timetable"
+                           style="-fx-text-fill: #DEEAF8; -fx-font-size: 13;"/>
+                </VBox>
+                <Region HBox.hgrow="ALWAYS"/>
+                <Button fx:id="backButton" text="Back to Dashboard"
+                        onAction="#handleBack"
+                        style="-fx-background-color: #325778; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 11 15; -fx-background-radius: 7;"/>
+            </HBox>
+        </VBox>
+    </top>
+
+    <center>
+        <VBox spacing="16" style="-fx-padding: 24;">
+            <VBox spacing="11"
+                  style="-fx-background-color: white; -fx-background-radius: 11; -fx-padding: 18; -fx-border-color: #E0E7F0; -fx-border-radius: 11;">
+                <Label text="Enrolled Course Schedule"
+                       style="-fx-text-fill: #102C4C; -fx-font-size: 18; -fx-font-weight: bold;"/>
+                <Label text="Only timetable entries for your enrolled or repeat course offerings are shown. This page is view-only."
+                       wrapText="true"
+                       style="-fx-text-fill: #64748B; -fx-font-size: 12;"/>
+                <HBox alignment="CENTER_LEFT" spacing="12">
+                    <Label text="Day" style="-fx-text-fill: #334155; -fx-font-weight: bold;"/>
+                    <ComboBox fx:id="dayFilterComboBox" prefWidth="195"
+                              promptText="All Days"/>
+                    <Button fx:id="refreshButton" text="Refresh"
+                            onAction="#handleRefresh"
+                            style="-fx-background-color: #285A86; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 7; -fx-padding: 9 17;"/>
+                    <Region HBox.hgrow="ALWAYS"/>
+                </HBox>
+                <Label fx:id="summaryLabel" text="Loading timetable..."
+                       wrapText="true"
+                       style="-fx-background-color: #EDF4FA; -fx-background-radius: 7; -fx-padding: 10 12; -fx-text-fill: #234667; -fx-font-weight: bold;"/>
+            </VBox>
+
+            <VBox spacing="12" VBox.vgrow="ALWAYS"
+                  style="-fx-background-color: white; -fx-background-radius: 11; -fx-padding: 18; -fx-border-color: #E0E7F0; -fx-border-radius: 11;">
+                <Label text="Timetable Entries"
+                       style="-fx-text-fill: #102C4C; -fx-font-size: 18; -fx-font-weight: bold;"/>
+                <TableView fx:id="timetableTable" VBox.vgrow="ALWAYS"
+                           prefHeight="400" minHeight="240">
+                    <columns>
+                        <TableColumn fx:id="dayColumn" text="Day" prefWidth="110"/>
+                        <TableColumn fx:id="timeColumn" text="Time" prefWidth="115"/>
+                        <TableColumn fx:id="courseColumn" text="Course" prefWidth="255"/>
+                        <TableColumn fx:id="groupColumn" text="Group" prefWidth="80"/>
+                        <TableColumn fx:id="typeColumn" text="Type" prefWidth="105"/>
+                        <TableColumn fx:id="roomColumn" text="Room" prefWidth="85"/>
+                        <TableColumn fx:id="lecturerColumn" text="Lecturer" prefWidth="160"/>
+                        <TableColumn fx:id="dateColumn" text="Effective Dates" prefWidth="195"/>
+                    </columns>
+                </TableView>
+            </VBox>
+        </VBox>
+    </center>
+
+    <bottom>
+        <HBox alignment="CENTER_LEFT"
+              style="-fx-background-color: #E8EFF7; -fx-padding: 12 25;">
+            <Label fx:id="statusLabel" text="Loading your timetable..."
+                   wrapText="true"
+                   style="-fx-text-fill: #334155; -fx-font-size: 12;"/>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Label text="STUDENT VIEW ONLY"
+                   style="-fx-text-fill: #60758D; -fx-font-weight: bold; -fx-font-size: 11;"/>
+        </HBox>
+    </bottom>
+</BorderPane>
