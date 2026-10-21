@@ -1,0 +1,128 @@
+
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="lk.ac.ruhuna.ftms.controller.CourseOfferingController"
+      spacing="16"
+      prefWidth="1100"
+      prefHeight="720">
+
+    <padding>
+        <Insets top="24" right="24" bottom="24" left="24"/>
+    </padding>
+
+    <Label text="Course Offering Management"
+           style="-fx-font-size: 25px; -fx-font-weight: bold;"/>
+
+    <Label text="Create and manage courses offered in each semester."
+           style="-fx-text-fill: #666666;"/>
+
+    <Separator/>
+
+    <GridPane hgap="12" vgap="12">
+        <columnConstraints>
+            <ColumnConstraints minWidth="120"/>
+            <ColumnConstraints hgrow="ALWAYS" minWidth="200"/>
+            <ColumnConstraints minWidth="100"/>
+            <ColumnConstraints hgrow="ALWAYS" minWidth="160"/>
+        </columnConstraints>
+
+        <Label text="Course:" GridPane.rowIndex="0"
+               GridPane.columnIndex="0"/>
+
+        <ComboBox fx:id="courseCombo"
+                  promptText="Select course"
+                  maxWidth="Infinity"
+                  GridPane.rowIndex="0"
+                  GridPane.columnIndex="1"/>
+
+        <Label text="Semester:" GridPane.rowIndex="0"
+               GridPane.columnIndex="2"/>
+
+        <ComboBox fx:id="semesterCombo"
+                  promptText="Select semester"
+                  maxWidth="Infinity"
+                  GridPane.rowIndex="0"
+                  GridPane.columnIndex="3"/>
+
+        <Label text="Offering Group:" GridPane.rowIndex="1"
+               GridPane.columnIndex="0"/>
+
+        <TextField fx:id="groupField"
+                   promptText="e.g. A or B"
+                   GridPane.rowIndex="1"
+                   GridPane.columnIndex="1"/>
+
+        <Label text="Status:" GridPane.rowIndex="1"
+               GridPane.columnIndex="2"/>
+
+        <ComboBox fx:id="statusCombo"
+                  maxWidth="Infinity"
+                  GridPane.rowIndex="1"
+                  GridPane.columnIndex="3"/>
+    </GridPane>
+
+    <HBox spacing="10">
+        <Button text="Save Offering"
+                onAction="#handleSave"
+                defaultButton="true"/>
+
+        <Button text="Clear Form"
+                onAction="#handleClear"/>
+
+        <Button text="Delete Selected"
+                onAction="#handleDelete"/>
+    </HBox>
+
+    <Separator/>
+
+    <HBox spacing="10" alignment="CENTER_LEFT">
+        <TextField fx:id="searchField"
+                   promptText="Search course, semester, group or status"
+                   HBox.hgrow="ALWAYS"
+                   onAction="#handleSearch"/>
+
+        <Button text="Search" onAction="#handleSearch"/>
+        <Button text="Refresh" onAction="#handleRefresh"/>
+    </HBox>
+
+    <TableView fx:id="offeringTable"
+               VBox.vgrow="ALWAYS">
+
+        <columns>
+            <TableColumn fx:id="codeColumn"
+                         text="Course Code"
+                         prefWidth="110"/>
+
+            <TableColumn fx:id="nameColumn"
+                         text="Course Name"
+                         prefWidth="200"/>
+
+            <TableColumn fx:id="creditsColumn"
+                         text="Credits"
+                         prefWidth="75"/>
+
+            <TableColumn fx:id="semesterColumn"
+                         text="Semester"
+                         prefWidth="120"/>
+
+            <TableColumn fx:id="yearColumn"
+                         text="Academic Year"
+                         prefWidth="110"/>
+
+            <TableColumn fx:id="groupColumn"
+                         text="Group"
+                         prefWidth="75"/>
+
+            <TableColumn fx:id="statusColumn"
+                         text="Status"
+                         prefWidth="110"/>
+        </columns>
+    </TableView>
+
+</VBox>
