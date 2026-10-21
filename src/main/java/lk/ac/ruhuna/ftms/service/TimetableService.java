@@ -16,11 +16,8 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Read-only department timetable access
- * for Technical Officers.
- *
- * Uses the same department authorization
- * checks as AttendanceService.
+ * Read-only timetable access for Technical Officers.
+ * Officers can view only their department timetable.
  */
 public final class TimetableService {
 
@@ -28,16 +25,13 @@ public final class TimetableService {
     private final AttendanceAccessDAO accessDAO;
     private final SessionIdentity loginIdentity;
 
-    // Default constructor
     public TimetableService() {
-
         this(
                 new TimetableDAO(),
                 new AttendanceAccessDAO()
         );
     }
 
-    // Dependency injection constructor
     public TimetableService(
             TimetableDAO timetableDAO,
             AttendanceAccessDAO accessDAO) {
@@ -52,20 +46,14 @@ public final class TimetableService {
                 "AttendanceAccessDAO is required."
         );
 
-        // Capture original login session
         this.loginIdentity =
                 SessionManager.requireSession();
 
-        // Verify Technical Officer
         requireTechnicalOfficer();
     }
 
-    /**
-     * Get course offerings belonging to
-     * the logged-in officer's department.
-     */
-    public List<AttendanceOffering>
-    getAuthorizedOfferings() {
+    // Load department course offerings
+    public List<AttendanceOffering> getAuthorizedOfferings() {
 
         return inDepartment(
                 (connection, departmentId) ->
@@ -78,12 +66,8 @@ public final class TimetableService {
         );
     }
 
-    /**
-     * Get all timetable entries belonging
-     * to the authorized department.
-     */
-    public List<TimetableEntry>
-    getDepartmentTimetable() {
+    // View department timetable
+    public List<TimetableEntry> getDepartmentTimetable() {
 
         return inDepartment(
                 (connection, departmentId) ->
@@ -94,12 +78,9 @@ public final class TimetableService {
         );
     }
 
-    /**
-     * Get timetable entries for
-     * one authorized course offering.
-     */
-    public List<TimetableEntry>
-    getOfferingTimetable(int offeringId) {
+    // View selected course timetable
+    public List<TimetableEntry> getOfferingTimetable(
+            int offeringId) {
 
         if (offeringId <= 0) {
             throw new IllegalArgumentException(
@@ -110,7 +91,6 @@ public final class TimetableService {
         return inDepartment(
                 (connection, departmentId) -> {
 
-                    // Check department ownership
                     accessDAO.requireOffering(
                             connection,
                             departmentId,
@@ -126,39 +106,24 @@ public final class TimetableService {
         );
     }
 
-    /**
-     * Verify logged-in user is an
-     * active Technical Officer.
-     */
+    // Verify original Technical Officer login
     private void requireTechnicalOfficer() {
 
-        // Prevent use after logout or account switch
-        SessionManager.requireSession(
-                loginIdentity
-        );
+        SessionManager.requireSession(loginIdentity);
 
-        User user =
-                SessionManager.getCurrentUser();
+        User user = SessionManager.getCurrentUser();
 
         if (user == null
                 || !user.isActive()
-                || !"TECHNICAL_OFFICER".equals(
-                user.getRole()
-        )
-                || user.getUserId()
-                != loginIdentity.userId()) {
+                || !"TECHNICAL_OFFICER".equals(user.getRole())
+                || user.getUserId() != loginIdentity.userId()) {
 
             throw new SecurityException(
-                    "An active Technical Officer "
-                            + "session is required."
+                    "An active Technical Officer session is required."
             );
         }
     }
 
-    /**
-     * Database operation scoped
-     * to an authorized department.
-     */
     @FunctionalInterface
     private interface DepartmentQuery<T> {
 
@@ -168,61 +133,42 @@ public final class TimetableService {
         ) throws SQLException;
     }
 
-    /**
-     * Execute database queries using
-     * the officer's verified department.
-     */
+    // Run authorized read-only department query
     private <T> T inDepartment(
             DepartmentQuery<T> query) {
 
-        // Check session before database access
         requireTechnicalOfficer();
 
-        try (
-                Connection connection =
-                        DBConnection.getConnection()
-        ) {
+        try (Connection connection =
+                     DBConnection.getConnection()) {
 
-            // Keep department authorization
-            // valid during the query
             connection.setAutoCommit(false);
 
             try {
 
-                // Department ID comes from database,
-                // never from the GUI
                 int departmentId =
                         accessDAO.requireOfficerDepartment(
                                 connection,
                                 loginIdentity.userId()
                         );
 
-                // Run authorized query
                 T result = query.run(
                         connection,
                         departmentId
                 );
 
-                // Prevent returning data after
-                // logout or account switch
                 requireTechnicalOfficer();
 
                 connection.commit();
 
                 return result;
 
-            } catch (
-                    SQLException | RuntimeException error
-            ) {
+            } catch (SQLException | RuntimeException error) {
 
                 try {
                     connection.rollback();
-
                 } catch (SQLException rollbackError) {
-
-                    error.addSuppressed(
-                            rollbackError
-                    );
+                    error.addSuppressed(rollbackError);
                 }
 
                 throw error;
