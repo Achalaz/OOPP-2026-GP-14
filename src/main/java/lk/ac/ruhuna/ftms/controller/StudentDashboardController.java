@@ -21,8 +21,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 
 /**
- * Student portal navigation.
- * Academic screens must enforce student self-only access.
+ * Student Dashboard with read-only academic views.
  */
 public class StudentDashboardController {
 
@@ -39,8 +38,6 @@ public class StudentDashboardController {
     private SessionIdentity identity;
     private int columns;
 
-    // Initialize original Student Dashboard
-
     @FXML
     public void initialize() {
 
@@ -56,10 +53,7 @@ public class StudentDashboardController {
 
         name = name.strip();
 
-        nameLabel.setText(
-                "Welcome back, " + name + "!"
-        );
-
+        nameLabel.setText("Welcome back, " + name + "!");
         studentNameLabel.setText(name);
 
         avatarLabel.setText(
@@ -78,20 +72,14 @@ public class StudentDashboardController {
                 )
         );
 
-        // Preserve responsive dashboard cards
         contentScroll.viewportBoundsProperty()
-                .addListener(
-                        (observable, oldBounds, bounds) ->
-                                arrangeCards(bounds.getWidth())
-                );
+                .addListener((observable, oldBounds, bounds) ->
+                        arrangeCards(bounds.getWidth()));
 
-        arrangeCards(
-                contentScroll.getPrefViewportWidth()
-        );
+        arrangeCards(contentScroll.getPrefViewportWidth());
     }
 
-    // Verify logged-in Student
-
+    // Verify original Student login session
     private User requireStudent() {
 
         SessionManager.requireSession(identity);
@@ -111,13 +99,11 @@ public class StudentDashboardController {
         return user;
     }
 
-    // Preserve original responsive dashboard layout
-
+    // Keep original responsive card layout
     private void arrangeCards(double viewportWidth) {
 
         double available = Math.max(
-                0,
-                viewportWidth - 56
+                0, viewportWidth - 56
         );
 
         int count = available >= 738
@@ -139,42 +125,30 @@ public class StudentDashboardController {
             ColumnConstraints constraint =
                     new ColumnConstraints();
 
-            constraint.setPercentWidth(
-                    100.0 / count
-            );
-
+            constraint.setPercentWidth(100.0 / count);
             constraint.setMinWidth(0);
+            constraint.setHgrow(Priority.ALWAYS);
 
-            constraint.setHgrow(
-                    Priority.ALWAYS
-            );
-
-            featureGrid.getColumnConstraints()
-                    .add(constraint);
+            featureGrid.getColumnConstraints().add(constraint);
         }
 
         for (int index = 0;
              index < featureGrid.getChildren().size();
              index++) {
 
-            var card = featureGrid
-                    .getChildren()
-                    .get(index);
+            var card = featureGrid.getChildren().get(index);
 
             GridPane.setColumnIndex(
-                    card,
-                    index % count
+                    card, index % count
             );
 
             GridPane.setRowIndex(
-                    card,
-                    index / count
+                    card, index / count
             );
         }
     }
 
     // Dashboard Home
-
     @FXML
     private void handleDashboard() {
 
@@ -189,38 +163,40 @@ public class StudentDashboardController {
             );
 
         } catch (SecurityException error) {
-
             showSessionError(error);
         }
     }
 
     // My Profile
-
     @FXML
     private void handleProfile() {
-
         openAcademicScreen(
                 "/fxml/profile.fxml",
                 "My Profile"
         );
     }
 
-    // My Attendance - NEW V2 MODULE
-
+    // My Attendance
     @FXML
     private void handleAttendance() {
-
         openAcademicScreen(
                 "/fxml/student_attendance.fxml",
                 "My Attendance"
         );
     }
 
-    // My Medical
+    // NEW: My Eligibility
+    @FXML
+    private void handleEligibility() {
+        openAcademicScreen(
+                "/fxml/student_eligibility.fxml",
+                "My Eligibility"
+        );
+    }
 
+    // My Medical
     @FXML
     private void handleMedical() {
-
         openAcademicScreen(
                 "/fxml/student_medical.fxml",
                 "My Medical"
@@ -228,30 +204,26 @@ public class StudentDashboardController {
     }
 
     // My Courses
-
     @FXML
     private void handleCourses() {
-
         openAcademicScreen(
                 "/fxml/student_courses.fxml",
                 "My Courses"
         );
     }
 
-    // My Grades and GPA
-
+    // My Grades
     @FXML
     private void handleGrades() {
-
         openAcademicScreen(
                 "/fxml/student_results.fxml",
                 "My Grades and GPA"
         );
     }
 
+    // My GPA
     @FXML
     private void handleGPA() {
-
         openAcademicScreen(
                 "/fxml/student_results.fxml",
                 "My Grades and GPA"
@@ -259,26 +231,21 @@ public class StudentDashboardController {
     }
 
     // My Timetable
-
     @FXML
     private void handleTimetable() {
-
         showComingSoon("My Timetable");
     }
 
-    // Notices
-
+    // Faculty Notices
     @FXML
     private void handleNotices() {
-
         openAcademicScreen(
                 "/fxml/view_notices.fxml",
                 "Faculty Notices"
         );
     }
 
-    // Common Student Page Navigation
-
+    // Common navigation for student pages
     private void openAcademicScreen(
             String resource,
             String title) {
@@ -334,7 +301,6 @@ public class StudentDashboardController {
     }
 
     // Coming Soon Message
-
     private void showComingSoon(String feature) {
 
         try {
@@ -345,10 +311,7 @@ public class StudentDashboardController {
                     Alert.AlertType.INFORMATION
             );
 
-            alert.setTitle(
-                    "FTMS - " + feature
-            );
-
+            alert.setTitle("FTMS - " + feature);
             alert.setHeaderText(feature);
 
             alert.setContentText(
@@ -366,18 +329,15 @@ public class StudentDashboardController {
             alert.showAndWait();
 
         } catch (SecurityException error) {
-
             showSessionError(error);
         }
     }
 
-    // Logout Student
-
+    // Student Logout
     @FXML
     private void handleLogout() {
 
-        // An old dashboard must not end a newer session
-
+        // Old dashboard cannot end a newer session
         if (SessionManager.isCurrentSession(identity)) {
 
             SessionManager.logout();
@@ -415,10 +375,8 @@ public class StudentDashboardController {
         }
     }
 
-    // Handle session errors
-
-    private void showSessionError(
-            SecurityException error) {
+    // Session Error
+    private void showSessionError(SecurityException error) {
 
         statusLabel.setText(
                 error.getMessage()
