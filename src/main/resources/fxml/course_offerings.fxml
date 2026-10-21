@@ -1,4 +1,3 @@
-
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.geometry.Insets?>
@@ -68,6 +67,9 @@
     </GridPane>
 
     <HBox spacing="10">
+        <Button text="Course Offerings"
+                onAction="#handleCourseOfferings"/>
+
         <Button text="Save Offering"
                 onAction="#handleSave"
                 defaultButton="true"/>
