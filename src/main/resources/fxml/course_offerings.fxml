@@ -4,31 +4,39 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
-<VBox xmlns="http://javafx.com/javafx"
+<ScrollPane fx:id="courseOfferingsRoot" xmlns="http://javafx.com/javafx"
       xmlns:fx="http://javafx.com/fxml"
       fx:controller="lk.ac.ruhuna.ftms.controller.CourseOfferingController"
-      spacing="16"
+      stylesheets="@../css/admin_dashboard.css"
+      fitToWidth="true" fitToHeight="true" pannable="true"
       prefWidth="1100"
-      prefHeight="720">
+      prefHeight="700">
+
+    <content>
+    <VBox spacing="16" minWidth="640">
 
     <padding>
         <Insets top="24" right="24" bottom="24" left="24"/>
     </padding>
 
-    <Label text="Course Offering Management"
-           style="-fx-font-size: 25px; -fx-font-weight: bold;"/>
+    <FlowPane hgap="20" vgap="12" alignment="CENTER_LEFT">
+        <Label text="Course Offering Management" styleClass="page-title"/>
+        <Button text="Back to Admin Dashboard"
+                styleClass="card-button"
+                onAction="#handleBackToDashboard"/>
+    </FlowPane>
 
-    <Label text="Create and manage courses offered in each semester."
-           style="-fx-text-fill: #666666;"/>
+    <Label text="Manage semester course offerings, groups and offering statuses."
+           styleClass="subtitle" wrapText="true"/>
 
-    <Separator/>
+    <VBox styleClass="dashboard-card">
 
     <GridPane hgap="12" vgap="12">
         <columnConstraints>
-            <ColumnConstraints minWidth="120"/>
-            <ColumnConstraints hgrow="ALWAYS" minWidth="200"/>
-            <ColumnConstraints minWidth="100"/>
-            <ColumnConstraints hgrow="ALWAYS" minWidth="160"/>
+            <ColumnConstraints percentWidth="16"/>
+            <ColumnConstraints percentWidth="34" minWidth="0" hgrow="ALWAYS"/>
+            <ColumnConstraints percentWidth="16"/>
+            <ColumnConstraints percentWidth="34" minWidth="0" hgrow="ALWAYS"/>
         </columnConstraints>
 
         <Label text="Course:" GridPane.rowIndex="0"
@@ -36,6 +44,7 @@
 
         <ComboBox fx:id="courseCombo"
                   promptText="Select course"
+                  minWidth="0"
                   maxWidth="Infinity"
                   GridPane.rowIndex="0"
                   GridPane.columnIndex="1"/>
@@ -45,15 +54,17 @@
 
         <ComboBox fx:id="semesterCombo"
                   promptText="Select semester"
+                  minWidth="0"
                   maxWidth="Infinity"
                   GridPane.rowIndex="0"
                   GridPane.columnIndex="3"/>
 
-        <Label text="Offering Group:" GridPane.rowIndex="1"
+        <Label text="Offering Group:" wrapText="true" GridPane.rowIndex="1"
                GridPane.columnIndex="0"/>
 
         <TextField fx:id="groupField"
                    promptText="e.g. A or B"
+                   minWidth="0"
                    GridPane.rowIndex="1"
                    GridPane.columnIndex="1"/>
 
@@ -61,16 +72,15 @@
                GridPane.columnIndex="2"/>
 
         <ComboBox fx:id="statusCombo"
+                  minWidth="0"
                   maxWidth="Infinity"
                   GridPane.rowIndex="1"
                   GridPane.columnIndex="3"/>
     </GridPane>
 
-    <HBox spacing="10">
-        <Button text="Course Offerings"
-                onAction="#handleCourseOfferings"/>
-
+    <FlowPane hgap="10" vgap="10">
         <Button text="Save Offering"
+                styleClass="card-button"
                 onAction="#handleSave"
                 defaultButton="true"/>
 
@@ -78,13 +88,16 @@
                 onAction="#handleClear"/>
 
         <Button text="Delete Selected"
+                styleClass="logout-button"
                 onAction="#handleDelete"/>
-    </HBox>
+    </FlowPane>
+    </VBox>
 
     <Separator/>
 
     <HBox spacing="10" alignment="CENTER_LEFT">
         <TextField fx:id="searchField"
+                   minWidth="100"
                    promptText="Search course, semester, group or status"
                    HBox.hgrow="ALWAYS"
                    onAction="#handleSearch"/>
@@ -94,7 +107,10 @@
     </HBox>
 
     <TableView fx:id="offeringTable"
+               minHeight="220" prefHeight="320"
                VBox.vgrow="ALWAYS">
+
+        <placeholder><Label text="No course offerings found."/></placeholder>
 
         <columns>
             <TableColumn fx:id="codeColumn"
@@ -127,4 +143,48 @@
         </columns>
     </TableView>
 
-</VBox>
+    <VBox styleClass="dashboard-card" minWidth="0">
+        <Label text="Assigned Lecturers" styleClass="card-title"/>
+        <Label fx:id="assignmentOfferingLabel"
+               text="Select a course offering above to manage its lecturers."
+               styleClass="card-description" wrapText="true"/>
+
+        <VBox fx:id="assignmentEditor" spacing="12" minWidth="0">
+            <GridPane hgap="12" vgap="8">
+                <columnConstraints>
+                    <ColumnConstraints percentWidth="65" minWidth="0" hgrow="ALWAYS"/>
+                    <ColumnConstraints percentWidth="35" minWidth="0" hgrow="ALWAYS"/>
+                </columnConstraints>
+                <Label text="Lecturer" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+                <Label text="Assignment Type" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+                <ComboBox fx:id="lecturerComboBox" promptText="Select an active lecturer"
+                          minWidth="0" maxWidth="Infinity" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+                <ComboBox fx:id="assignmentTypeComboBox" promptText="Select assignment type"
+                          minWidth="0" maxWidth="Infinity" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+            </GridPane>
+            <FlowPane hgap="10" vgap="10">
+                <Button text="Assign Lecturer" styleClass="card-button" onAction="#handleAssignLecturer"/>
+                <Button fx:id="updateAssignmentButton" text="Update Assignment Type" onAction="#handleUpdateAssignmentType"/>
+                <Button fx:id="removeAssignmentButton" text="Remove Assignment"
+                        styleClass="logout-button" onAction="#handleRemoveAssignment"/>
+            </FlowPane>
+        </VBox>
+
+        <Button fx:id="refreshAssignmentsButton" text="Refresh Assignments" onAction="#handleRefreshAssignments"/>
+        <Label fx:id="assignmentStatusLabel" wrapText="true" minHeight="20"/>
+        <TableView fx:id="assignedLecturerTable" minHeight="180" prefHeight="220">
+            <placeholder><Label text="No lecturers assigned to the selected offering."/></placeholder>
+            <columns>
+                <TableColumn fx:id="lecturerNameColumn" text="Lecturer Name" prefWidth="190"/>
+                <TableColumn fx:id="lecturerStaffColumn" text="Staff Number" prefWidth="115"/>
+                <TableColumn fx:id="assignmentTypeColumn" text="Assignment Type" prefWidth="135"/>
+                <TableColumn fx:id="assignmentCourseColumn" text="Course Code" prefWidth="100"/>
+                <TableColumn fx:id="assignmentGroupColumn" text="Group" prefWidth="65"/>
+                <TableColumn fx:id="assignmentSemesterColumn" text="Semester / Year" prefWidth="200"/>
+            </columns>
+        </TableView>
+    </VBox>
+
+    </VBox>
+    </content>
+</ScrollPane>

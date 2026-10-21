@@ -6,8 +6,13 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 import lk.ac.ruhuna.ftms.controller.CourseController;
+import lk.ac.ruhuna.ftms.controller.CourseOfferingController;
 import lk.ac.ruhuna.ftms.dao.CourseDAO;
+import lk.ac.ruhuna.ftms.dao.CourseOfferingDAO;
+import lk.ac.ruhuna.ftms.dao.LecturerCourseAssignmentDAO;
 import lk.ac.ruhuna.ftms.service.CourseService;
+import lk.ac.ruhuna.ftms.service.CourseOfferingService;
+import lk.ac.ruhuna.ftms.service.LecturerAssignmentService;
 
 import java.io.IOException;
 import java.net.URL;
@@ -48,6 +53,9 @@ public final class NavigationUtil {
         if ("/fxml/courses.fxml".equals(resource) && !CourseService.isCurrentUserAdmin()) {
             throw new SecurityException("Active administrator access is required to manage courses.");
         }
+        if ("/fxml/course_offerings.fxml".equals(resource) && !CourseService.isCurrentUserAdmin()) {
+            throw new SecurityException("Active administrator access is required to manage course offerings.");
+        }
         var user = SessionManager.getCurrentUser();
         if ("/fxml/attendance.fxml".equals(resource)
                 && (user == null || !user.isActive() || !"TECHNICAL_OFFICER".equals(user.getRole()))) {
@@ -56,6 +64,8 @@ public final class NavigationUtil {
         if (user != null && "LECTURER".equals(user.getRole())
                 && !java.util.Set.of("/fxml/lecturer_dashboard.fxml", "/fxml/lecturer_workspace.fxml",
                     "/fxml/marks_entry.fxml", "/fxml/profile.fxml", "/fxml/view_notices.fxml",
+                    "/fxml/assessments.fxml", "/fxml/results.fxml", "/fxml/eligibility.fxml",
+                    "/fxml/reports.fxml", "/fxml/gpa.fxml",
                     "/fxml/login.fxml").contains(resource)) {
             throw new SecurityException("Use the lecturer workspace for authorized course records.");
         }
@@ -64,6 +74,13 @@ public final class NavigationUtil {
                     "/fxml/attendance.fxml", "/fxml/profile.fxml", "/fxml/view_notices.fxml",
                     "/fxml/login.fxml").contains(resource)) {
             throw new SecurityException("Use the Technical Officer workspace for authorized department features.");
+        }
+        if (user != null && "STUDENT".equals(user.getRole())
+                && !java.util.Set.of("/fxml/student_dashboard.fxml", "/fxml/student_courses.fxml",
+                    "/fxml/student_attendance.fxml", "/fxml/student_medical.fxml",
+                    "/fxml/student_results.fxml", "/fxml/profile.fxml", "/fxml/view_notices.fxml",
+                    "/fxml/login.fxml").contains(resource)) {
+            throw new SecurityException("Use the student dashboard for authorized academic records.");
         }
         URL location = NavigationUtil.class.getResource(resource);
         if (location == null) {
@@ -76,11 +93,19 @@ public final class NavigationUtil {
             CourseController controller = loader.getController();
             controller.setCourseService(new CourseService(new CourseDAO(), CourseService::isCurrentUserAdmin));
         }
+        if ("/fxml/course_offerings.fxml".equals(resource)) {
+            CourseOfferingController controller = loader.getController();
+            controller.setCourseOfferingService(new CourseOfferingService(
+                    new CourseOfferingDAO(), CourseService::isCurrentUserAdmin));
+            controller.setLecturerAssignmentService(new LecturerAssignmentService(new LecturerCourseAssignmentDAO()));
+        }
         Scene scene = source.getScene();
         // Responsive portals and logout retain MainApp's screen-bounded window size.
         boolean preserveWindowSize = "/fxml/student_dashboard.fxml".equals(resource)
                 || "/fxml/admin_dashboard.fxml".equals(resource)
                 || "/fxml/courses.fxml".equals(resource)
+                || "/fxml/course_offerings.fxml".equals(resource)
+                || "courseOfferingsRoot".equals(scene.getRoot().getId())
                 || "coursesRoot".equals(scene.getRoot().getId())
                 || "/fxml/technical_officer_dashboard.fxml".equals(resource)
                 || "/fxml/attendance.fxml".equals(resource)

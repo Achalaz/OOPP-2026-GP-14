@@ -5,17 +5,6 @@ import javafx.scene.control.Alert;
 
 import java.io.IOException;
 
-import javafx.fxml.FXML;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.Parent;
-import javafx.scene.control.Alert;
-
-import lk.ac.ruhuna.ftms.controller.CourseOfferingController;
-import lk.ac.ruhuna.ftms.dao.CourseOfferingDAO;
-import lk.ac.ruhuna.ftms.service.CourseOfferingService;
-
-import java.io.IOException;
-
 public class AdminDashboardController {
 
     @FXML private javafx.scene.layout.BorderPane adminRoot;
@@ -84,33 +73,7 @@ public class AdminDashboardController {
 
     @FXML
     private void handleCourseOfferings() {
-        try {
-            FXMLLoader loader = new FXMLLoader(
-                    getClass().getResource(
-                            "/fxml/course_offerings.fxml"
-                    )
-            );
-
-            Parent root = loader.load();
-
-            CourseOfferingController controller =
-                    loader.getController();
-
-            // Inject the configured service here.
-            // Use your existing admin-session check.
-
-            // Display the screen using your dashboard's
-            // existing navigation container.
-
-        } catch (IOException e) {
-            e.printStackTrace();
-
-            Alert alert = new Alert(Alert.AlertType.ERROR);
-            alert.setTitle("Navigation Error");
-            alert.setHeaderText("Unable to open Course Offerings");
-            alert.setContentText(e.getMessage());
-            alert.showAndWait();
-        }
+        navigate("course_offerings.fxml");
     }
 
 }

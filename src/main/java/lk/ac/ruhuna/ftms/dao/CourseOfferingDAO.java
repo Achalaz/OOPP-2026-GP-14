@@ -10,6 +10,10 @@ import java.util.List;
 
 public class CourseOfferingDAO {
 
+    protected Connection openConnection() throws SQLException {
+        return DBConnection.getConnection();
+    }
+
     public record CourseOption(
             int courseId,
             String courseCode,
@@ -68,7 +72,7 @@ public class CourseOfferingDAO {
 
         List<CourseOffering> offerings = new ArrayList<>();
 
-        try (Connection conn = DBConnection.getConnection();
+        try (Connection conn = openConnection();
              PreparedStatement stmt = conn.prepareStatement(sql);
              ResultSet rs = stmt.executeQuery()) {
 
@@ -97,7 +101,7 @@ public class CourseOfferingDAO {
         List<CourseOffering> offerings = new ArrayList<>();
         String value = "%" + keyword.trim() + "%";
 
-        try (Connection conn = DBConnection.getConnection();
+        try (Connection conn = openConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             for (int i = 1; i <= 6; i++) {
@@ -160,7 +164,7 @@ public class CourseOfferingDAO {
             VALUES (?, ?, ?, ?)
             """;
 
-        try (Connection conn = DBConnection.getConnection();
+        try (Connection conn = openConnection();
              PreparedStatement stmt = conn.prepareStatement(
                      sql, Statement.RETURN_GENERATED_KEYS)) {
 
@@ -195,7 +199,7 @@ public class CourseOfferingDAO {
             WHERE offering_id = ?
             """;
 
-        try (Connection conn = DBConnection.getConnection();
+        try (Connection conn = openConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setInt(1, offering.getCourseId());
@@ -225,11 +229,54 @@ public class CourseOfferingDAO {
             WHERE offering_id = ?
             """;
 
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+        try (Connection conn = openConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                // Lock the parent before checking references. InnoDB FK checks then
+                // prevent concurrent child inserts until this transaction completes.
+                try (PreparedStatement lock = conn.prepareStatement(
+                        "SELECT offering_id FROM course_offerings WHERE offering_id = ? FOR UPDATE")) {
+                    lock.setInt(1, offeringId);
+                    try (ResultSet row = lock.executeQuery()) {
+                        if (!row.next()) {
+                            conn.rollback();
+                            return false;
+                        }
+                    }
+                }
+                requireUnlinkedOffering(conn, offeringId);
+                try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                    stmt.setInt(1, offeringId);
+                    boolean deleted = stmt.executeUpdate() > 0;
+                    conn.commit();
+                    return deleted;
+                }
+            } catch (SQLException | RuntimeException error) {
+                try {
+                    conn.rollback();
+                } catch (SQLException rollbackError) {
+                    error.addSuppressed(rollbackError);
+                }
+                throw error;
+            }
+        }
+    }
 
-            stmt.setInt(1, offeringId);
-            return stmt.executeUpdate() > 0;
+    private void requireUnlinkedOffering(Connection conn, int offeringId) throws SQLException {
+        // Verified against ftms_group14: these FKs use CASCADE or SET NULL.
+        // Refuse deletion instead of allowing MySQL to remove/rewrite academic records.
+        for (String table : List.of("assessments", "lecturer_course_assignments",
+                "attendance_sessions", "enrollments", "course_materials", "medicals", "timetable_entries")) {
+            try (PreparedStatement stmt = conn.prepareStatement(
+                    "SELECT 1 FROM " + table + " WHERE offering_id = ? LIMIT 1")) {
+                stmt.setInt(1, offeringId);
+                try (ResultSet rows = stmt.executeQuery()) {
+                    if (rows.next()) {
+                        throw new SQLIntegrityConstraintViolationException(
+                                "This offering is linked to academic records and cannot be deleted.", "23000", 1451);
+                    }
+                }
+            }
         }
     }
 
@@ -246,7 +293,7 @@ public class CourseOfferingDAO {
 
         List<CourseOption> courses = new ArrayList<>();
 
-        try (Connection conn = DBConnection.getConnection();
+        try (Connection conn = openConnection();
              PreparedStatement stmt = conn.prepareStatement(sql);
              ResultSet rs = stmt.executeQuery()) {
 
@@ -283,7 +330,7 @@ public class CourseOfferingDAO {
 
         List<SemesterOption> semesters = new ArrayList<>();
 
-        try (Connection conn = DBConnection.getConnection();
+        try (Connection conn = openConnection();
              PreparedStatement stmt = conn.prepareStatement(sql);
              ResultSet rs = stmt.executeQuery()) {
 
