@@ -1,0 +1,341 @@
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.DatePicker?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.layout.FlowPane?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
+
+<BorderPane xmlns:fx="http://javafx.com/fxml"
+            fx:id="adminTimetableRoot"
+            fx:controller="lk.ac.ruhuna.ftms.controller.AdminTimetableController"
+            prefWidth="1350.0"
+            prefHeight="850.0"
+            minWidth="900.0"
+            minHeight="620.0"
+            style="-fx-background-color: #F3F6FB;">
+
+    <!-- HEADER -->
+    <top>
+        <HBox alignment="CENTER_LEFT" spacing="14.0"
+              style="-fx-background-color: #102C4C; -fx-padding: 18 24;">
+
+            <VBox spacing="5.0">
+                <Label text="FTMS / ADMIN PORTAL"
+                       style="-fx-text-fill: #B5CAE3; -fx-font-size: 12; -fx-font-weight: bold;" />
+
+                <Label text="Timetable Management"
+                       style="-fx-text-fill: white; -fx-font-size: 25; -fx-font-weight: bold;" />
+
+                <Label fx:id="adminNameLabel"
+                       text="Admin Timetable"
+                       style="-fx-text-fill: #DEEAF8; -fx-font-size: 13;" />
+            </VBox>
+
+            <Region HBox.hgrow="ALWAYS" />
+
+            <Button fx:id="backButton"
+                    text="Back to Admin Dashboard"
+                    onAction="#handleBack"
+                    style="-fx-background-color: #2E5279; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 7; -fx-padding: 11 16;" />
+
+        </HBox>
+    </top>
+
+    <!-- MAIN CONTENT -->
+    <center>
+        <ScrollPane fitToWidth="true"
+                    hbarPolicy="NEVER"
+                    vbarPolicy="AS_NEEDED"
+                    style="-fx-background: #F3F6FB; -fx-background-color: transparent;">
+
+            <content>
+                <VBox spacing="18.0"
+                      style="-fx-padding: 22;">
+
+                    <!-- COURSE FILTER -->
+                    <VBox spacing="12.0"
+                          style="-fx-background-color: white; -fx-background-radius: 10; -fx-padding: 18; -fx-border-color: #DFE7F0; -fx-border-radius: 10;">
+
+                        <Label text="Find Timetable Entries"
+                               style="-fx-font-size: 18; -fx-font-weight: bold; -fx-text-fill: #102C4C;" />
+
+                        <FlowPane hgap="10.0"
+                                  vgap="10.0"
+                                  alignment="CENTER_LEFT">
+
+                            <Label text="Filter by course:"
+                                   style="-fx-text-fill: #334155; -fx-font-weight: bold;" />
+
+                            <ComboBox fx:id="filterOfferingComboBox"
+                                      promptText="All course offerings"
+                                      prefWidth="370.0" />
+
+                            <Button fx:id="allCoursesButton"
+                                    text="All Courses"
+                                    onAction="#handleAllCourses"
+                                    style="-fx-background-color: #E8F1FC; -fx-text-fill: #102C4C; -fx-font-weight: bold; -fx-background-radius: 7; -fx-padding: 10 15;" />
+
+                            <Button fx:id="refreshButton"
+                                    text="Refresh"
+                                    onAction="#handleRefresh"
+                                    style="-fx-background-color: #2E5279; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 7; -fx-padding: 10 15;" />
+                        </FlowPane>
+                    </VBox>
+
+                    <!-- TIMETABLE TABLE -->
+                    <VBox spacing="10.0"
+                          style="-fx-background-color: white; -fx-background-radius: 10; -fx-padding: 18; -fx-border-color: #DFE7F0; -fx-border-radius: 10;">
+
+                        <Label text="Weekly Timetable"
+                               style="-fx-font-size: 18; -fx-font-weight: bold; -fx-text-fill: #102C4C;" />
+
+                        <Label fx:id="summaryLabel"
+                               text="Loading timetable..."
+                               wrapText="true"
+                               style="-fx-background-color: #EEF4FA; -fx-padding: 10 12; -fx-background-radius: 7; -fx-text-fill: #274766; -fx-font-size: 13; -fx-font-weight: bold;" />
+
+                        <TableView fx:id="timetableTable"
+                                   prefHeight="300.0"
+                                   minHeight="225.0">
+
+                            <columns>
+                                <TableColumn fx:id="idColumn"
+                                             text="ID"
+                                             prefWidth="65.0" />
+
+                                <TableColumn fx:id="dayColumn"
+                                             text="Day"
+                                             prefWidth="115.0" />
+
+                                <TableColumn fx:id="timeColumn"
+                                             text="Time"
+                                             prefWidth="115.0" />
+
+                                <TableColumn fx:id="courseColumn"
+                                             text="Course"
+                                             prefWidth="260.0" />
+
+                                <TableColumn fx:id="groupColumn"
+                                             text="Group"
+                                             prefWidth="100.0" />
+
+                                <TableColumn fx:id="sessionTypeColumn"
+                                             text="Session Type"
+                                             prefWidth="130.0" />
+
+                                <TableColumn fx:id="roomColumn"
+                                             text="Room"
+                                             prefWidth="100.0" />
+
+                                <TableColumn fx:id="lecturerColumn"
+                                             text="Lecturer"
+                                             prefWidth="165.0" />
+
+                                <TableColumn fx:id="effectiveColumn"
+                                             text="Effective Dates"
+                                             prefWidth="210.0" />
+                            </columns>
+                        </TableView>
+
+                        <Label text="Select a timetable row to populate the edit form below."
+                               wrapText="true"
+                               style="-fx-text-fill: #64748B; -fx-font-size: 12;" />
+
+                    </VBox>
+
+                    <!-- ADD / UPDATE / DELETE FORM -->
+                    <VBox spacing="14.0"
+                          style="-fx-background-color: white; -fx-background-radius: 10; -fx-padding: 18; -fx-border-color: #DFE7F0; -fx-border-radius: 10;">
+
+                        <Label text="Add or Edit Timetable Entry"
+                               style="-fx-font-size: 18; -fx-font-weight: bold; -fx-text-fill: #102C4C;" />
+
+                        <Label fx:id="selectedEntryLabel"
+                               text="Select a row to edit or delete an entry."
+                               wrapText="true"
+                               style="-fx-text-fill: #475569; -fx-font-size: 13;" />
+
+                        <GridPane hgap="12.0" vgap="12.0">
+
+                            <columnConstraints>
+                                <ColumnConstraints minWidth="95.0"
+                                                   prefWidth="140.0" />
+
+                                <ColumnConstraints minWidth="175.0"
+                                                   hgrow="ALWAYS" />
+
+                                <ColumnConstraints minWidth="95.0"
+                                                   prefWidth="145.0" />
+
+                                <ColumnConstraints minWidth="175.0"
+                                                   hgrow="ALWAYS" />
+                            </columnConstraints>
+
+                            <!-- Course Offering -->
+                            <Label text="Course Offering *"
+                                   GridPane.columnIndex="0"
+                                   GridPane.rowIndex="0" />
+
+                            <ComboBox fx:id="entryOfferingComboBox"
+                                      promptText="Select course offering"
+                                      maxWidth="Infinity"
+                                      GridPane.columnIndex="1"
+                                      GridPane.rowIndex="0"
+                                      GridPane.columnSpan="3" />
+
+                            <!-- Day -->
+                            <Label text="Day *"
+                                   GridPane.columnIndex="0"
+                                   GridPane.rowIndex="1" />
+
+                            <ComboBox fx:id="dayComboBox"
+                                      promptText="Select day"
+                                      maxWidth="Infinity"
+                                      GridPane.columnIndex="1"
+                                      GridPane.rowIndex="1" />
+
+                            <!-- Session Type -->
+                            <Label text="Session Type *"
+                                   GridPane.columnIndex="2"
+                                   GridPane.rowIndex="1" />
+
+                            <ComboBox fx:id="sessionTypeComboBox"
+                                      promptText="Select session type"
+                                      maxWidth="Infinity"
+                                      GridPane.columnIndex="3"
+                                      GridPane.rowIndex="1" />
+
+                            <!-- Start Time -->
+                            <Label text="Start Time *"
+                                   GridPane.columnIndex="0"
+                                   GridPane.rowIndex="2" />
+
+                            <TextField fx:id="startTimeField"
+                                       promptText="09:00 (HH:mm)"
+                                       GridPane.columnIndex="1"
+                                       GridPane.rowIndex="2" />
+
+                            <!-- End Time -->
+                            <Label text="End Time *"
+                                   GridPane.columnIndex="2"
+                                   GridPane.rowIndex="2" />
+
+                            <TextField fx:id="endTimeField"
+                                       promptText="11:00 (HH:mm)"
+                                       GridPane.columnIndex="3"
+                                       GridPane.rowIndex="2" />
+
+                            <!-- Room -->
+                            <Label text="Room"
+                                   GridPane.columnIndex="0"
+                                   GridPane.rowIndex="3" />
+
+                            <TextField fx:id="roomField"
+                                       promptText="e.g. LT-01"
+                                       GridPane.columnIndex="1"
+                                       GridPane.rowIndex="3" />
+
+                            <!-- Lecturer ID -->
+                            <Label text="Lecturer ID"
+                                   GridPane.columnIndex="2"
+                                   GridPane.rowIndex="3" />
+
+                            <TextField fx:id="lecturerIdField"
+                                       promptText="Optional (e.g. 2)"
+                                       GridPane.columnIndex="3"
+                                       GridPane.rowIndex="3" />
+
+                            <!-- Effective From -->
+                            <Label text="Effective From"
+                                   GridPane.columnIndex="0"
+                                   GridPane.rowIndex="4" />
+
+                            <DatePicker fx:id="effectiveFromPicker"
+                                        promptText="Optional start date"
+                                        maxWidth="Infinity"
+                                        GridPane.columnIndex="1"
+                                        GridPane.rowIndex="4" />
+
+                            <!-- Effective To -->
+                            <Label text="Effective To"
+                                   GridPane.columnIndex="2"
+                                   GridPane.rowIndex="4" />
+
+                            <DatePicker fx:id="effectiveToPicker"
+                                        promptText="Optional end date"
+                                        maxWidth="Infinity"
+                                        GridPane.columnIndex="3"
+                                        GridPane.rowIndex="4" />
+
+                        </GridPane>
+
+                        <Label text="* Required. Times use 24-hour HH:mm. The lecturer must be assigned to the selected offering."
+                               wrapText="true"
+                               style="-fx-text-fill: #64748B; -fx-font-size: 12;" />
+
+                        <!-- Action Buttons -->
+                        <FlowPane hgap="10.0"
+                                  vgap="10.0"
+                                  alignment="CENTER_LEFT">
+
+                            <Button fx:id="addButton"
+                                    text="Add Entry"
+                                    onAction="#handleAdd"
+                                    style="-fx-background-color: #18794E; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 22; -fx-background-radius: 7;" />
+
+                            <Button fx:id="updateButton"
+                                    text="Update Selected"
+                                    onAction="#handleUpdate"
+                                    style="-fx-background-color: #2E5279; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20; -fx-background-radius: 7;" />
+
+                            <Button fx:id="deleteButton"
+                                    text="Delete Selected"
+                                    onAction="#handleDelete"
+                                    style="-fx-background-color: #B93838; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20; -fx-background-radius: 7;" />
+
+                            <Button fx:id="clearButton"
+                                    text="Clear Form"
+                                    onAction="#handleClear"
+                                    style="-fx-background-color: #E8F1FC; -fx-text-fill: #102C4C; -fx-font-weight: bold; -fx-padding: 10 19; -fx-background-radius: 7;" />
+
+                        </FlowPane>
+
+                        <Label text="ADMIN ONLY: timetable changes are validated and saved through the AdminTimetableService."
+                               wrapText="true"
+                               style="-fx-text-fill: #64748B; -fx-font-size: 12;" />
+
+                    </VBox>
+                </VBox>
+            </content>
+        </ScrollPane>
+    </center>
+
+    <!-- STATUS BAR -->
+    <bottom>
+        <HBox alignment="CENTER_LEFT"
+              style="-fx-padding: 12 24; -fx-background-color: #E8EFF7;">
+
+            <Label fx:id="statusLabel"
+                   text="Loading timetable..."
+                   wrapText="true"
+                   style="-fx-text-fill: #334155; -fx-font-size: 12;" />
+
+            <Region HBox.hgrow="ALWAYS" />
+
+            <Label text="ADMIN MANAGEMENT"
+                   style="-fx-text-fill: #64748B; -fx-font-weight: bold; -fx-font-size: 11;" />
+
+        </HBox>
+    </bottom>
+
+</BorderPane>
