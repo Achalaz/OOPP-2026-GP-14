@@ -5,6 +5,9 @@ import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
+import lk.ac.ruhuna.ftms.controller.CourseController;
+import lk.ac.ruhuna.ftms.dao.CourseDAO;
+import lk.ac.ruhuna.ftms.service.CourseService;
 
 import java.io.IOException;
 import java.net.URL;
@@ -42,26 +45,17 @@ public final class NavigationUtil {
     public static void navigate(Node source, String resource, String title) throws IOException {
         if ("/fxml/dashboard.fxml".equals(resource)) resource = dashboardResource();
         requireNoticeAccess(resource);
+        if ("/fxml/courses.fxml".equals(resource) && !CourseService.isCurrentUserAdmin()) {
+            throw new SecurityException("Active administrator access is required to manage courses.");
+        }
         var user = SessionManager.getCurrentUser();
         if ("/fxml/attendance.fxml".equals(resource)
                 && (user == null || !user.isActive() || !"TECHNICAL_OFFICER".equals(user.getRole()))) {
             throw new SecurityException("Active Technical Officer access is required for attendance management.");
         }
-        var studentViews = java.util.Set.of("/fxml/student_dashboard.fxml", "/fxml/student_attendance.fxml",
-                "/fxml/student_medical.fxml", "/fxml/student_courses.fxml", "/fxml/student_results.fxml");
-        if (studentViews.contains(resource)
-                && (user == null || !user.isActive() || !"STUDENT".equals(user.getRole()))) {
-            throw new SecurityException("An active student session is required.");
-        }
-        if (user != null && "STUDENT".equals(user.getRole()) && !studentViews.contains(resource)
-                && !java.util.Set.of("/fxml/profile.fxml", "/fxml/view_notices.fxml", "/fxml/login.fxml").contains(resource)) {
-            throw new SecurityException("Use your student workspace to access your own records.");
-        }
         if (user != null && "LECTURER".equals(user.getRole())
                 && !java.util.Set.of("/fxml/lecturer_dashboard.fxml", "/fxml/lecturer_workspace.fxml",
                     "/fxml/marks_entry.fxml", "/fxml/profile.fxml", "/fxml/view_notices.fxml",
-                    "/fxml/assessments.fxml", "/fxml/eligibility.fxml", "/fxml/results.fxml",
-                    "/fxml/gpa.fxml", "/fxml/reports.fxml",
                     "/fxml/login.fxml").contains(resource)) {
             throw new SecurityException("Use the lecturer workspace for authorized course records.");
         }
@@ -76,10 +70,18 @@ public final class NavigationUtil {
             throw new IOException("Screen not found: " + resource);
         }
 
-        Parent root = new FXMLLoader(location).load();
+        FXMLLoader loader = new FXMLLoader(location);
+        Parent root = loader.load();
+        if ("/fxml/courses.fxml".equals(resource)) {
+            CourseController controller = loader.getController();
+            controller.setCourseService(new CourseService(new CourseDAO(), CourseService::isCurrentUserAdmin));
+        }
         Scene scene = source.getScene();
         // Responsive portals and logout retain MainApp's screen-bounded window size.
-        boolean preserveWindowSize = studentViews.contains(resource)
+        boolean preserveWindowSize = "/fxml/student_dashboard.fxml".equals(resource)
+                || "/fxml/admin_dashboard.fxml".equals(resource)
+                || "/fxml/courses.fxml".equals(resource)
+                || "coursesRoot".equals(scene.getRoot().getId())
                 || "/fxml/technical_officer_dashboard.fxml".equals(resource)
                 || "/fxml/attendance.fxml".equals(resource)
                 || "/fxml/login.fxml".equals(resource)
