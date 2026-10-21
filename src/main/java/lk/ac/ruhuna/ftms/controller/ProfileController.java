@@ -50,6 +50,10 @@ public class ProfileController {
     @FXML private TextField roleField;
     @FXML private TextField fullNameField;
     @FXML private TextField emailField;
+    @FXML private TextField phoneField;
+    @FXML private VBox studentContactBox;
+    @FXML private Label nameHintLabel;
+    @FXML private Label detailsHintLabel;
     @FXML private Button saveButton;
     @FXML private Button resetButton;
     @FXML private Button refreshButton;
@@ -78,8 +82,17 @@ public class ProfileController {
     @FXML
     public void initialize() {
         SessionManager.requireSession(identity);
+        boolean student = "STUDENT".equals(SessionManager.getCurrentUser().getRole());
+        fullNameField.setEditable(!student);
+        studentContactBox.setVisible(student);
+        studentContactBox.setManaged(student);
+        if (student) {
+            nameHintLabel.setText("Your full name and registration number are managed by your administrator.");
+            detailsHintLabel.setText("Update your email, phone number and profile picture.");
+        }
         fullNameField.disableProperty().bind(busy.or(loaded.not()));
         emailField.disableProperty().bind(busy.or(loaded.not()));
+        phoneField.disableProperty().bind(busy.or(loaded.not()));
         saveButton.disableProperty().bind(busy.or(loaded.not()));
         resetButton.disableProperty().bind(busy.or(loaded.not()));
         changePictureButton.disableProperty().bind(busy.or(loaded.not()));
@@ -125,7 +138,11 @@ public class ProfileController {
         // Copy field values on the FX thread; the worker never reads JavaFX controls.
         String fullName = fullNameField.getText();
         String email = emailField.getText();
-        runTask("Saving your changes...", () -> profileService.updateMyProfile(fullName, email),
+        String phone = phoneField.getText();
+        boolean student = "STUDENT".equals(savedProfile.getRole());
+        runTask("Saving your changes...", () -> student
+                        ? profileService.updateMyStudentProfile(fullName, email, phone)
+                        : profileService.updateMyProfile(fullName, email),
                 "Your profile was saved successfully.");
     }
 
@@ -176,9 +193,16 @@ public class ProfileController {
 
     private void navigate(String resource, String title, boolean logout) {
         try {
-            if (logout) { SessionManager.logout(); }
+            if (logout) {
+                if (SessionManager.isLoggedIn()) {
+                    SessionManager.requireSession(identity);
+                    SessionManager.logout();
+                }
+            } else {
+                SessionManager.requireSession(identity);
+            }
             NavigationUtil.navigate(profileRoot, resource, title);
-        } catch (IOException error) {
+        } catch (IOException | SecurityException error) {
             showMessage("Cannot open the requested screen. Please retry.", "error");
             error.printStackTrace();
         }
@@ -258,6 +282,7 @@ public class ProfileController {
         roleField.setText(user.getRole());
         fullNameField.setText(user.getFullName());
         emailField.setText(user.getEmail());
+        phoneField.setText(user.getPhone());
         displaySummary(user);
     }
 

@@ -3,6 +3,7 @@ package lk.ac.ruhuna.ftms.model;
 import java.time.LocalDate;
 
 public class Assessment {
+    @Override public String toString() { return assessmentId + " - " + assessmentName + " (max " + maxMark + ")"; }
 
     private int assessmentId;
     private int offeringId;

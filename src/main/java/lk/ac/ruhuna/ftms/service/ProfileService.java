@@ -116,6 +116,11 @@ public class ProfileService {
 
     public User updateMyProfile(String fullName, String email) throws SQLException {
         requireSession();
+        if ("STUDENT".equals(SessionManager.getCurrentUser().getRole())) {
+            User profile = profileDAO.getProfile(identity);
+            requireAvailable(profile);
+            return updateMyStudentProfile(fullName, email, profile.getPhone());
+        }
         if (fullName != null && fullName.codePoints().anyMatch(Character::isISOControl)) {
             throw new IllegalArgumentException("Full name cannot contain control characters or line breaks.");
         }
@@ -149,6 +154,29 @@ public class ProfileService {
         return profile;
     }
 
+    public User updateMyStudentProfile(String fullName, String email, String phone) throws SQLException {
+        requireSession();
+        if (!"STUDENT".equals(SessionManager.getCurrentUser().getRole()))
+            throw new SecurityException("A student session is required.");
+        User profile = profileDAO.getProfile(identity);
+        requireAvailable(profile);
+        if (!Objects.equals(fullName, profile.getFullName()))
+            throw new SecurityException("Your full name is managed by your administrator.");
+        String address = email == null ? "" : email.strip();
+        if (address.length() > EMAIL_LIMIT || !EMAIL.matcher(address).matches())
+            throw new IllegalArgumentException("Enter a valid email address of 150 characters or fewer.");
+        String contact = phone == null || phone.isBlank() ? null : phone.strip();
+        if (contact != null && (length(contact) > 30 || contact.codePoints().anyMatch(Character::isISOControl)))
+            throw new IllegalArgumentException("Phone must be 30 characters or fewer without control characters.");
+        requireSession();
+        if (!profileDAO.updateStudentContact(identity, profile.getFullName(), address, contact))
+            throw new SecurityException("Your profile has changed or is no longer available. Refresh and try again.");
+        SessionManager.updateProfile(identity, profile.getFullName(), address);
+        profile.setEmail(address);
+        profile.setPhone(contact);
+        return profile;
+    }
+
     private void requireSession() {
         SessionManager.requireSession(identity);
         User user = SessionManager.getCurrentUser();
@@ -158,8 +186,10 @@ public class ProfileService {
     }
 
     private void requireAvailable(User profile) {
+        requireSession();
         if (profile == null || !profile.isActive() || profile.getUserId() != identity.userId()
-                || !ROLES.contains(profile.getRole())) {
+                || !ROLES.contains(profile.getRole())
+                || !Objects.equals(profile.getRole(), SessionManager.getCurrentUser().getRole())) {
             throw new SecurityException("Your account is no longer available. Please sign in again.");
         }
     }

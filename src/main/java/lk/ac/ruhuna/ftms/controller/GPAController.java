@@ -94,6 +94,7 @@ public class GPAController {
     @FXML
     private Button backButton;
 
+    private final lk.ac.ruhuna.ftms.util.SessionManager.SessionIdentity identity = lk.ac.ruhuna.ftms.util.SessionManager.requireSession();
     private final GPAService gpaService;
 
     private final ObservableList<GpaCourseRow> courseRows =
@@ -186,6 +187,8 @@ public class GPAController {
                                 )
                 );
 
+        saveButton.setVisible("LECTURER".equals(lk.ac.ruhuna.ftms.util.SessionManager.getCurrentUser().getRole()));
+        saveButton.setManaged(saveButton.isVisible());
         clearResultDisplay();
 
         loadStudents();
@@ -290,6 +293,9 @@ public class GPAController {
                         statusLabel.setText(
                                 "Select a student."
                         );
+                        if ("STUDENT".equals(lk.ac.ruhuna.ftms.util.SessionManager.getCurrentUser().getRole())) {
+                            studentCombo.getSelectionModel().selectFirst();
+                        }
                     }
                 }
         );
@@ -357,6 +363,9 @@ public class GPAController {
                         statusLabel.setText(
                                 "Select a semester."
                         );
+                        if ("STUDENT".equals(lk.ac.ruhuna.ftms.util.SessionManager.getCurrentUser().getRole())) {
+                            semesterCombo.getSelectionModel().selectLast();
+                        }
                     }
                 }
         );
@@ -434,7 +443,7 @@ public class GPAController {
                     } else if (data.result() != null) {
 
                         statusLabel.setText(
-                                "Stored GPA result loaded."
+                                "Current published GPA loaded. Missing/unpublished results are excluded; repeat decisions remain pending."
                         );
 
                     } else {
@@ -549,7 +558,7 @@ public class GPAController {
                                     result
                             );
 
-                    return result;
+                    return gpaService.getSemesterResult(student.studentId(),semester.semesterId());
                 },
 
                 result -> {
@@ -628,7 +637,7 @@ public class GPAController {
 
             NavigationUtil.navigate(
                     courseTable,
-                    "/fxml/results.fxml",
+                    NavigationUtil.dashboardResource(),
                     "FTMS - Results Management"
             );
 
@@ -641,6 +650,7 @@ public class GPAController {
         }
     }
 
+    @FXML private void handleReports() throws IOException { NavigationUtil.navigate(courseTable,"/fxml/reports.fxml","FTMS - Reports"); }
     private void displayResult(
             SemesterResult result
     ) {
@@ -700,20 +710,7 @@ public class GPAController {
             GpaCourseRow row
     ) {
 
-        if (row == null
-                || !row.published()
-                || row.gradePoint() == null
-                || !isCompletedResult(
-                row.resultStatus()
-        )) {
-
-            return "--";
-        }
-
-        return formatNumber(
-                row.credits()
-                        * row.gradePoint()
-        );
+        return formatNumber(GPAService.qualityPoints(row));
     }
 
     private boolean isCompletedResult(
@@ -810,6 +807,7 @@ public class GPAController {
                     protected T call()
                             throws Exception {
 
+                        lk.ac.ruhuna.ftms.util.SessionManager.requireSession(identity);
                         return work.call();
                     }
                 };
@@ -819,6 +817,7 @@ public class GPAController {
 
                     busy.set(false);
 
+                    if (!lk.ac.ruhuna.ftms.util.SessionManager.isCurrentSession(identity)) { courseRows.clear(); clearResultDisplay(); return; }
                     onSuccess.accept(
                             task.getValue()
                     );
@@ -832,6 +831,7 @@ public class GPAController {
 
                     calculatedResult.set(null);
 
+                    courseRows.clear(); clearResultDisplay();
                     Throwable error =
                             task.getException();
 
