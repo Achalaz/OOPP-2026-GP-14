@@ -76,7 +76,8 @@ public class AttendanceAccessDAO {
         String sql = """
                 SELECT o.offering_id, c.course_code, c.course_name, o.semester_id, o.offering_group
                 FROM course_offerings o JOIN courses c ON c.course_id = o.course_id
-                WHERE c.department_id = ? ORDER BY c.course_code, o.semester_id DESC, o.offering_group
+                WHERE c.department_id = ? AND o.status = 'ACTIVE'
+                ORDER BY c.course_code, o.semester_id DESC, o.offering_group
                 FOR SHARE
                 """;
         List<AttendanceOffering> choices = new ArrayList<>();

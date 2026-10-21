@@ -21,6 +21,18 @@ public class CourseResult {
     private LocalDateTime publishedAt;
     private Integer calculatedBy;
 
+    /** Immutable copy of the saved row the user actually reviewed before confirming publication. */
+    public record PublicationSnapshot(int resultId, int enrollmentId, BigDecimal caMark,
+            BigDecimal finalExamMark, BigDecimal overallMark, Integer gradeRuleId, String gradeLetter,
+            BigDecimal gradePoint, ResultStatus resultStatus, boolean published,
+            LocalDateTime calculatedAt, LocalDateTime publishedAt, Integer calculatedBy) { }
+
+    public PublicationSnapshot publicationSnapshot() {
+        return new PublicationSnapshot(resultId, enrollmentId, caMark, finalExamMark, overallMark,
+                gradeRuleId, gradeLetter, gradePoint, resultStatus, published,
+                calculatedAt, publishedAt, calculatedBy);
+    }
+
     public int getResultId() { return resultId; }
     public void setResultId(int resultId) { this.resultId = resultId; }
     public int getEnrollmentId() { return enrollmentId; }
