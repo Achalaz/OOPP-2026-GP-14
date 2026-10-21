@@ -4,12 +4,6 @@ import javafx.fxml.FXML;
 import javafx.scene.control.Alert;
 
 import java.io.IOException;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.Parent;
-import lk.ac.ruhuna.ftms.controller.CourseController;
-import lk.ac.ruhuna.ftms.dao.CourseDAO;
-import lk.ac.ruhuna.ftms.service.CourseService;
-import java.io.IOException;
 
 public class AdminDashboardController {
 
@@ -43,23 +37,7 @@ public class AdminDashboardController {
 
     @FXML
     private void handleCourses() {
-        try {
-            FXMLLoader loader = new FXMLLoader(
-                    getClass().getResource("/fxml/courses.fxml"));
-
-            Parent root = loader.load();
-
-            CourseController controller = loader.getController();
-
-            // Connect the CourseService here using your
-            // existing admin session/role check.
-            // Do not hardcode the admin check to true.
-
-            // Display root using your existing dashboard navigation.
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        navigate("courses.fxml");
     }
 
     @FXML

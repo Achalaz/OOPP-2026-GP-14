@@ -2,10 +2,12 @@ package lk.ac.ruhuna.ftms.service;
 
 import lk.ac.ruhuna.ftms.dao.CourseDAO;
 import lk.ac.ruhuna.ftms.model.Course;
+import lk.ac.ruhuna.ftms.util.SessionManager;
 
 import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.function.BooleanSupplier;
 
@@ -13,6 +15,12 @@ public class CourseService {
 
     private final CourseDAO courseDAO;
     private final BooleanSupplier isAdmin;
+
+    /** Re-evaluated for every operation; never capture the user at screen creation. */
+    public static boolean isCurrentUserAdmin() {
+        var user = SessionManager.getCurrentUser();
+        return user != null && user.isActive() && "ADMIN".equals(user.getRole());
+    }
 
     public CourseService(
             CourseDAO courseDAO,
@@ -56,7 +64,7 @@ public class CourseService {
     public boolean updateCourse(Course course) throws SQLException {
         requireAdmin();
 
-        if (course.getCourseId() <= 0) {
+        if (course == null || course.getCourseId() <= 0) {
             throw new IllegalArgumentException(
                     "Select a valid course to update.");
         }
@@ -108,7 +116,7 @@ public class CourseService {
                 || course.getCredits().stripTrailingZeros().scale() > 1) {
 
             throw new IllegalArgumentException(
-                    "Credits must be positive and have at most one decimal place.");
+                    "Credits must be between 0.1 and 999.9 and have at most one decimal place.");
         }
 
         if (course.getDepartmentId() <= 0) {
@@ -118,7 +126,7 @@ public class CourseService {
 
         String type = course.getCourseType() == null
                 ? ""
-                : course.getCourseType().trim().toUpperCase();
+                : course.getCourseType().trim().toUpperCase(Locale.ROOT);
 
         if (!type.equals("CORE")
                 && !type.equals("ELECTIVE")

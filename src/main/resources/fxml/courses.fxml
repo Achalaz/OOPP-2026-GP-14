@@ -1,10 +1,9 @@
-
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
-<BorderPane xmlns="http://javafx.com/javafx"
+<BorderPane fx:id="coursesRoot" xmlns="http://javafx.com/javafx"
             xmlns:fx="http://javafx.com/fxml"
             fx:controller="lk.ac.ruhuna.ftms.controller.CourseController"
             prefWidth="1100"
@@ -12,12 +11,18 @@
 
     <top>
         <VBox spacing="10" style="-fx-padding: 16;">
-            <Label text="Course Management"
-                   style="-fx-font-size: 22px; -fx-font-weight: bold;"/>
+            <HBox spacing="12" alignment="CENTER_LEFT">
+                <Label text="Course Management"
+                       style="-fx-font-size: 22px; -fx-font-weight: bold;"/>
+                <Region HBox.hgrow="ALWAYS"/>
+                <Button fx:id="dashboardButton" text="Back to Dashboard"
+                        onAction="#handleBackToDashboard"/>
+            </HBox>
 
             <HBox spacing="8">
                 <TextField fx:id="searchField"
                            promptText="Search by course code or name"
+                           onAction="#handleSearch"
                            HBox.hgrow="ALWAYS"/>
 
                 <Button text="Search"
@@ -30,7 +35,7 @@
     </top>
 
     <center>
-        <TableView fx:id="courseTable">
+        <TableView fx:id="courseTable" minHeight="120">
             <columns>
                 <TableColumn fx:id="idColumn"
                              text="ID"
@@ -69,6 +74,12 @@
                    style="-fx-font-size: 16px; -fx-font-weight: bold;"/>
 
             <GridPane hgap="10" vgap="10">
+                <columnConstraints>
+                    <ColumnConstraints percentWidth="15"/>
+                    <ColumnConstraints percentWidth="35"/>
+                    <ColumnConstraints percentWidth="15"/>
+                    <ColumnConstraints percentWidth="35"/>
+                </columnConstraints>
                 <Label text="Course Code:"
                        GridPane.columnIndex="0"
                        GridPane.rowIndex="0"/>
@@ -124,7 +135,7 @@
                           GridPane.rowIndex="2"/>
             </GridPane>
 
-            <HBox spacing="10">
+            <FlowPane hgap="10" vgap="8">
                 <Button text="Add Course"
                         onAction="#handleAdd"/>
 
@@ -136,7 +147,7 @@
 
                 <Button text="Clear Form"
                         onAction="#handleClear"/>
-            </HBox>
+            </FlowPane>
         </VBox>
     </bottom>
 

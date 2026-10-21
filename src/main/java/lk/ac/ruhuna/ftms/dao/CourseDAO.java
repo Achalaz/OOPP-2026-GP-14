@@ -9,6 +9,10 @@ import java.util.List;
 
 public class CourseDAO {
 
+    protected Connection openConnection() throws SQLException {
+        return DBConnection.getConnection();
+    }
+
     private static final String SELECT_SQL =
             "SELECT course_id, course_code, course_name, credits, " +
                     "department_id, course_type, is_active, created_at " +
@@ -19,7 +23,7 @@ public class CourseDAO {
 
         List<Course> courses = new ArrayList<>();
 
-        try (Connection connection = DBConnection.getConnection();
+        try (Connection connection = openConnection();
              PreparedStatement statement =
                      connection.prepareStatement(sql);
              ResultSet resultSet = statement.executeQuery()) {
@@ -40,7 +44,7 @@ public class CourseDAO {
         List<Course> courses = new ArrayList<>();
         String searchValue = "%" + keyword.trim() + "%";
 
-        try (Connection connection = DBConnection.getConnection();
+        try (Connection connection = openConnection();
              PreparedStatement statement =
                      connection.prepareStatement(sql)) {
 
@@ -64,7 +68,7 @@ public class CourseDAO {
                         "course_type, is_active) " +
                         "VALUES (?, ?, ?, ?, ?, ?)";
 
-        try (Connection connection = DBConnection.getConnection();
+        try (Connection connection = openConnection();
              PreparedStatement statement = connection.prepareStatement(
                      sql, Statement.RETURN_GENERATED_KEYS)) {
 
@@ -99,7 +103,7 @@ public class CourseDAO {
                         "credits = ?, department_id = ?, course_type = ?, " +
                         "is_active = ? WHERE course_id = ?";
 
-        try (Connection connection = DBConnection.getConnection();
+        try (Connection connection = openConnection();
              PreparedStatement statement =
                      connection.prepareStatement(sql)) {
 
@@ -118,7 +122,7 @@ public class CourseDAO {
     public boolean delete(int courseId) throws SQLException {
         String sql = "DELETE FROM courses WHERE course_id = ?";
 
-        try (Connection connection = DBConnection.getConnection();
+        try (Connection connection = openConnection();
              PreparedStatement statement =
                      connection.prepareStatement(sql)) {
 
