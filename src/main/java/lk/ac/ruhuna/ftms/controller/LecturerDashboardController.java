@@ -52,7 +52,7 @@ public class LecturerDashboardController {
         );
 
         usernameLabel.setText(
-                lecturer.getFullName() + "  •  LECTURER"
+                lecturer.getFullName() + "  \u2022  LECTURER"
         );
 
         dateLabel.setText(
@@ -118,6 +118,16 @@ public class LecturerDashboardController {
     }
 
     @FXML
+    private void handleAssessments() {
+        openScreen("/fxml/assessments.fxml", "FTMS - Assessment Management");
+    }
+
+    @FXML
+    private void handleResults() {
+        openScreen("/fxml/results.fxml", "FTMS - Result Publication");
+    }
+
+    @FXML
     private void handleUploadMarks() {
         openScreen(
                 "/fxml/marks_entry.fxml",
@@ -132,17 +142,17 @@ public class LecturerDashboardController {
 
     @FXML
     private void handleEligibility() {
-        openWorkspace("eligibility", "Undergraduate Eligibility");
+        openScreen("/fxml/eligibility.fxml", "FTMS - Eligibility");
     }
 
     @FXML
     private void handleAcademicReports() {
-        openWorkspace("results", "Published Marks and Grades");
+        openScreen("/fxml/reports.fxml", "FTMS - Academic Reports");
     }
 
     @FXML
     private void handleGPA() {
-        openWorkspace("gpa", "Saved SGPA and CGPA");
+        openScreen("/fxml/gpa.fxml", "FTMS - SGPA / CGPA");
     }
 
     @FXML
@@ -157,10 +167,7 @@ public class LecturerDashboardController {
 
     @FXML
     private void handleNotices() {
-        showPending(
-                "Notices",
-                "Coming Soon"
-        );
+        openScreen("/fxml/view_notices.fxml", "FTMS - Faculty Notices");
     }
 
     @FXML

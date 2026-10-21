@@ -42,7 +42,7 @@ public class AdminDashboardController {
 
     @FXML
     private void handleNotices() {
-        showInfo("Notice Management will be connected after CRUD implementation.");
+        navigate("notices.fxml");
     }
 
     @FXML

@@ -29,13 +29,20 @@ public final class ProfileServiceTest {
                 MemoryDAO dao = new MemoryDAO(role);
                 ProfileService service = new ProfileService(dao);
                 equal(7, service.getMyProfile().getUserId(), "load authenticated owner for " + role);
-                User updated = service.updateMyProfile("  Amara   Perera Silva  ", " amara@example.com ");
-                equal("Amara Perera Silva", updated.getFullName(), "normalize name");
+                boolean student = "STUDENT".equals(role);
+                if (student) {
+                    expect(SecurityException.class, () -> service.updateMyProfile("Changed Name", "amara@example.com"));
+                    expect(SecurityException.class, () -> new ProfileDAO().updateProfile(7,"Changed Name","amara@example.com"));
+                    expect(IllegalArgumentException.class, () -> service.updateMyStudentProfile("Original Name","amara@example.com","1".repeat(31)));
+                }
+                User updated = service.updateMyProfile(student ? "Original Name" : "  Amara   Perera Silva  ", " amara@example.com ");
+                String expectedName = student ? "Original Name" : "Amara Perera Silva";
+                equal(expectedName, updated.getFullName(), "student name preserved; staff name normalized");
                 equal("amara@example.com", updated.getEmail(), "trim email");
                 equal(7, dao.owner, "DAO receives authenticated ID");
                 equal(role, updated.getRole(), "role preserved");
                 equal("owner", updated.getUsername(), "username preserved");
-                equal("Amara Perera Silva", SessionManager.getCurrentUser().getFullName(), "dashboard session refreshed");
+                equal(expectedName, SessionManager.getCurrentUser().getFullName(), "dashboard session refreshed");
                 updated.setUserId(99);
                 equal(7, SessionManager.getCurrentUserIdOrNull(), "returned profile cannot mutate session");
             }
@@ -146,6 +153,11 @@ public final class ProfileServiceTest {
             profile.setFullName(name);
             profile.setEmail(email);
             return writeSucceeds;
+        }
+
+        @Override public boolean updateStudentContact(SessionIdentity identity, String name, String email, String phone)
+                throws SQLException {
+            return updateProfile(identity, name, email);
         }
 
         @Override protected Connection openConnection() {

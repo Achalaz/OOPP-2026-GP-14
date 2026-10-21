@@ -2,405 +2,88 @@ package lk.ac.ruhuna.ftms.dao;
 
 import lk.ac.ruhuna.ftms.database.DBConnection;
 import lk.ac.ruhuna.ftms.model.ResultReportRow;
-
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.List;
+import java.sql.*;
+import java.util.*;
 
 public class ReportDAO {
-
-    // Student ComboBox item
-    public record StudentOption(
-            int studentId,
-            String registrationNo,
-            String studentName
-    ) {
-        @Override
-        public String toString() {
-            return registrationNo + " - " + studentName;
-        }
+    public record StudentOption(int studentId,String registrationNo,String studentName) {
+        public String toString(){return registrationNo+" - "+studentName;}
     }
-
-    // Course Offering ComboBox item
-    public record OfferingOption(
-            int offeringId,
-            String courseCode,
-            String courseName,
-            int semesterId
-    ) {
-        @Override
-        public String toString() {
-            return courseCode + " - " + courseName;
-        }
+    public record OfferingOption(int offeringId,String courseCode,String courseName,int semesterId){
+        public String toString(){return courseCode+" - "+courseName+" (semester "+semesterId+", offering "+offeringId+")";}
     }
-
-    // ---------------------------------------------------------
-    // LOAD STUDENTS
-    // ---------------------------------------------------------
-
-    public List<StudentOption> getStudents()
-            throws SQLException {
-
-        String sql = """
-                SELECT
-                    s.student_id,
-                    s.registration_no,
-                    CONCAT(
-                        u.first_name,
-                        ' ',
-                        u.last_name
-                    ) AS student_name
-                FROM students s
-                JOIN users u
-                    ON u.user_id = s.student_id
-                ORDER BY s.registration_no
-                """;
-
-        List<StudentOption> students =
-                new ArrayList<>();
-
-        try (Connection connection =
-                     DBConnection.getConnection();
-
-             PreparedStatement statement =
-                     connection.prepareStatement(sql);
-
-             ResultSet resultSet =
-                     statement.executeQuery()) {
-
-            while (resultSet.next()) {
-
-                students.add(
-                        new StudentOption(
-                                resultSet.getInt(
-                                        "student_id"
-                                ),
-                                resultSet.getString(
-                                        "registration_no"
-                                ),
-                                resultSet.getString(
-                                        "student_name"
-                                )
-                        )
-                );
-            }
-        }
-
-        return students;
+    public record MarkDetail(String assessment,String type,Double mark,double maximum,double weight,String status) {}
+    private static final String SCOPE="""
+        AND (?=0 OR EXISTS(SELECT 1 FROM lecturer_course_assignments a WHERE a.offering_id=e.offering_id
+             AND a.lecturer_id=? AND a.assignment_type IN ('PRIMARY','ASSISTANT','PRACTICAL')))
+        """;
+    public List<StudentOption> students(Connection c,int lecturer,int self)throws SQLException {
+        var rows=new ArrayList<StudentOption>();
+        try(var p=c.prepareStatement("""
+            SELECT DISTINCT s.student_id,s.registration_no,CONCAT(u.first_name,' ',u.last_name)
+            FROM students s JOIN users u ON u.user_id=s.student_id JOIN enrollments e ON e.student_id=s.student_id
+            WHERE e.status<>'WITHDRAWN' AND (?=0 OR s.student_id=?)
+            """+SCOPE+" ORDER BY s.registration_no")) {
+            p.setInt(1,self);p.setInt(2,self);p.setInt(3,lecturer);p.setInt(4,lecturer);
+            try(var r=p.executeQuery()){while(r.next())rows.add(new StudentOption(r.getInt(1),r.getString(2),r.getString(3)));}
+        }return rows;
     }
-
-    // ---------------------------------------------------------
-    // LOAD COURSE OFFERINGS
-    // ---------------------------------------------------------
-
-    public List<OfferingOption> getCourseOfferings()
-            throws SQLException {
-
-        String sql = """
-                SELECT
-                    co.offering_id,
-                    co.semester_id,
-                    c.course_code,
-                    c.course_name
-                FROM course_offerings co
-                JOIN courses c
-                    ON c.course_id = co.course_id
-                ORDER BY
-                    co.semester_id,
-                    c.course_code
-                """;
-
-        List<OfferingOption> offerings =
-                new ArrayList<>();
-
-        try (Connection connection =
-                     DBConnection.getConnection();
-
-             PreparedStatement statement =
-                     connection.prepareStatement(sql);
-
-             ResultSet resultSet =
-                     statement.executeQuery()) {
-
-            while (resultSet.next()) {
-
-                offerings.add(
-                        new OfferingOption(
-                                resultSet.getInt(
-                                        "offering_id"
-                                ),
-                                resultSet.getString(
-                                        "course_code"
-                                ),
-                                resultSet.getString(
-                                        "course_name"
-                                ),
-                                resultSet.getInt(
-                                        "semester_id"
-                                )
-                        )
-                );
-            }
-        }
-
-        return offerings;
+    public List<OfferingOption> offerings(Connection c,int lecturer)throws SQLException {
+        var rows=new ArrayList<OfferingOption>();
+        try(var p=c.prepareStatement("""
+            SELECT DISTINCT o.offering_id,c.course_code,c.course_name,o.semester_id FROM course_offerings o
+            JOIN courses c ON c.course_id=o.course_id JOIN lecturer_course_assignments a ON a.offering_id=o.offering_id
+            WHERE a.lecturer_id=? AND o.status<>'CANCELLED'
+            AND a.assignment_type IN ('PRIMARY','ASSISTANT','PRACTICAL') ORDER BY o.semester_id,c.course_code,o.offering_id
+            """)){
+            p.setInt(1,lecturer);try(var r=p.executeQuery()){while(r.next())rows.add(new OfferingOption(r.getInt(1),r.getString(2),r.getString(3),r.getInt(4)));}
+        }return rows;
     }
-
-    // ---------------------------------------------------------
-    // INDIVIDUAL STUDENT RESULT REPORT
-    // ---------------------------------------------------------
-
-    public List<ResultReportRow> getStudentResultReport(
-            int studentId
-    ) throws SQLException {
-
-        String sql = """
-                SELECT
-                    e.enrollment_id,
-                    s.registration_no,
-
-                    CONCAT(
-                        u.first_name,
-                        ' ',
-                        u.last_name
-                    ) AS student_name,
-
-                    c.course_code,
-                    c.course_name,
-                    c.credits,
-
-                    cr.ca_mark,
-                    cr.final_exam_mark,
-                    cr.overall_mark,
-                    cr.grade_letter,
-                    cr.grade_point,
-                    cr.result_status
-
-                FROM enrollments e
-
-                JOIN students s
-                    ON s.student_id = e.student_id
-
-                JOIN users u
-                    ON u.user_id = s.student_id
-
-                JOIN course_offerings co
-                    ON co.offering_id = e.offering_id
-
-                JOIN courses c
-                    ON c.course_id = co.course_id
-
-                LEFT JOIN course_results cr
-                    ON cr.enrollment_id = e.enrollment_id
-
-                WHERE e.student_id = ?
-
-                ORDER BY
-                    co.semester_id,
-                    c.course_code,
-                    e.attempt_no
-                """;
-
-        List<ResultReportRow> rows =
-                new ArrayList<>();
-
-        try (Connection connection =
-                     DBConnection.getConnection();
-
-             PreparedStatement statement =
-                     connection.prepareStatement(sql)) {
-
-            statement.setInt(
-                    1,
-                    studentId
-            );
-
-            try (ResultSet resultSet =
-                         statement.executeQuery()) {
-
-                while (resultSet.next()) {
-
-                    rows.add(
-                            mapReportRow(
-                                    resultSet
-                            )
-                    );
-                }
-            }
-        }
-
-        return rows;
+    public List<Integer> batches(Connection c,int lecturer)throws SQLException {
+        var rows=new ArrayList<Integer>();
+        try(var p=c.prepareStatement("""
+            SELECT DISTINCT s.intake_year FROM students s JOIN enrollments e ON e.student_id=s.student_id
+            WHERE e.status<>'WITHDRAWN'
+            """+SCOPE+" ORDER BY s.intake_year")){
+            p.setInt(1,lecturer);p.setInt(2,lecturer);try(var r=p.executeQuery()){while(r.next())rows.add(r.getInt(1));}
+        }return rows;
     }
-
-    // ---------------------------------------------------------
-    // BATCH / COURSE OFFERING RESULT REPORT
-    // ---------------------------------------------------------
-
-    public List<ResultReportRow> getOfferingResultReport(
-            int offeringId
-    ) throws SQLException {
-
-        String sql = """
-                SELECT
-                    e.enrollment_id,
-                    s.registration_no,
-
-                    CONCAT(
-                        u.first_name,
-                        ' ',
-                        u.last_name
-                    ) AS student_name,
-
-                    c.course_code,
-                    c.course_name,
-                    c.credits,
-
-                    cr.ca_mark,
-                    cr.final_exam_mark,
-                    cr.overall_mark,
-                    cr.grade_letter,
-                    cr.grade_point,
-                    cr.result_status
-
-                FROM enrollments e
-
-                JOIN students s
-                    ON s.student_id = e.student_id
-
-                JOIN users u
-                    ON u.user_id = s.student_id
-
-                JOIN course_offerings co
-                    ON co.offering_id = e.offering_id
-
-                JOIN courses c
-                    ON c.course_id = co.course_id
-
-                LEFT JOIN course_results cr
-                    ON cr.enrollment_id = e.enrollment_id
-
-                WHERE e.offering_id = ?
-
-                ORDER BY
-                    s.registration_no,
-                    e.attempt_no
-                """;
-
-        List<ResultReportRow> rows =
-                new ArrayList<>();
-
-        try (Connection connection =
-                     DBConnection.getConnection();
-
-             PreparedStatement statement =
-                     connection.prepareStatement(sql)) {
-
-            statement.setInt(
-                    1,
-                    offeringId
-            );
-
-            try (ResultSet resultSet =
-                         statement.executeQuery()) {
-
-                while (resultSet.next()) {
-
-                    rows.add(
-                            mapReportRow(
-                                    resultSet
-                            )
-                    );
-                }
-            }
-        }
-
-        return rows;
+    /** LEFT JOIN hides all unpublished marks/grades while retaining pending enrollment counts. */
+    public List<ResultReportRow> report(Connection c,int student,int offering,int intake,int lecturer)throws SQLException {
+        var rows=new ArrayList<ResultReportRow>();
+        try(var p=c.prepareStatement("""
+            SELECT e.enrollment_id,s.registration_no,CONCAT(u.first_name,' ',u.last_name),c.course_code,c.course_name,
+            c.credits,r.ca_mark,r.final_exam_mark,r.overall_mark,r.grade_letter,r.grade_point,
+            COALESCE(r.result_status,'PENDING')
+            FROM enrollments e JOIN students s ON s.student_id=e.student_id JOIN users u ON u.user_id=s.student_id
+            JOIN course_offerings o ON o.offering_id=e.offering_id JOIN courses c ON c.course_id=o.course_id
+            JOIN semesters sem ON sem.semester_id=o.semester_id JOIN academic_years ay ON ay.academic_year_id=sem.academic_year_id
+            LEFT JOIN course_results r ON r.enrollment_id=e.enrollment_id AND r.published=TRUE
+            WHERE e.status<>'WITHDRAWN' AND o.status<>'CANCELLED'
+            AND (?=0 OR e.student_id=?) AND (?=0 OR e.offering_id=?) AND (?=0 OR s.intake_year=?)
+            """+SCOPE+" ORDER BY s.registration_no,ay.start_date,ay.academic_year_name,sem.semester_no,c.course_code,e.attempt_no")) {
+            p.setInt(1,student);p.setInt(2,student);p.setInt(3,offering);p.setInt(4,offering);
+            p.setInt(5,intake);p.setInt(6,intake);p.setInt(7,lecturer);p.setInt(8,lecturer);
+            try(var r=p.executeQuery()){while(r.next())rows.add(new ResultReportRow(r.getInt(1),r.getString(2),r.getString(3),
+                r.getString(4),r.getString(5),r.getDouble(6),number(r,7),number(r,8),number(r,9),r.getString(10),number(r,11),r.getString(12)));}
+        }return rows;
     }
-
-    // ---------------------------------------------------------
-    // RESULTSET -> REPORT ROW
-    // ---------------------------------------------------------
-
-    private ResultReportRow mapReportRow(
-            ResultSet resultSet
-    ) throws SQLException {
-
-        return new ResultReportRow(
-                resultSet.getInt(
-                        "enrollment_id"
-                ),
-
-                resultSet.getString(
-                        "registration_no"
-                ),
-
-                resultSet.getString(
-                        "student_name"
-                ),
-
-                resultSet.getString(
-                        "course_code"
-                ),
-
-                resultSet.getString(
-                        "course_name"
-                ),
-
-                resultSet.getDouble(
-                        "credits"
-                ),
-
-                getNullableDouble(
-                        resultSet,
-                        "ca_mark"
-                ),
-
-                getNullableDouble(
-                        resultSet,
-                        "final_exam_mark"
-                ),
-
-                getNullableDouble(
-                        resultSet,
-                        "overall_mark"
-                ),
-
-                resultSet.getString(
-                        "grade_letter"
-                ),
-
-                getNullableDouble(
-                        resultSet,
-                        "grade_point"
-                ),
-
-                resultSet.getString(
-                        "result_status"
-                )
-        );
+    public List<MarkDetail> details(Connection c,int enrollment,int lecturer,int self)throws SQLException {
+        var rows=new ArrayList<MarkDetail>();
+        try(var p=c.prepareStatement("""
+            SELECT a.assessment_name,a.assessment_type,m.marks_obtained,a.max_mark,a.weight_percentage,m.mark_status
+            FROM enrollments e JOIN course_results r ON r.enrollment_id=e.enrollment_id AND r.published=TRUE
+            JOIN assessments a ON a.offering_id=e.offering_id
+            LEFT JOIN marks m ON m.assessment_id=a.assessment_id AND m.enrollment_id=e.enrollment_id
+            WHERE e.enrollment_id=? AND (?=0 OR e.student_id=?)
+            """+SCOPE+" ORDER BY a.assessment_id")){
+            p.setInt(1,enrollment);p.setInt(2,self);p.setInt(3,self);p.setInt(4,lecturer);p.setInt(5,lecturer);
+            try(var r=p.executeQuery()){while(r.next())rows.add(new MarkDetail(r.getString(1),r.getString(2),number(r,3),r.getDouble(4),r.getDouble(5),r.getString(6)));}
+        }return rows;
     }
-
-    // ---------------------------------------------------------
-    // NULLABLE DECIMAL HELPER
-    // ---------------------------------------------------------
-
-    private Double getNullableDouble(
-            ResultSet resultSet,
-            String columnName
-    ) throws SQLException {
-
-        double value =
-                resultSet.getDouble(
-                        columnName
-                );
-
-        if (resultSet.wasNull()) {
-            return null;
-        }
-
-        return value;
-    }
+    private Double number(ResultSet r,int column)throws SQLException{return r.getObject(column)==null?null:r.getDouble(column);}
+    public List<StudentOption> getStudents()throws SQLException{try(var c=DBConnection.getConnection()){return students(c,0,0);}}
+    public List<OfferingOption> getCourseOfferings()throws SQLException{try(var c=DBConnection.getConnection()){return offerings(c,0);}}
+    public List<ResultReportRow> getStudentResultReport(int student)throws SQLException{try(var c=DBConnection.getConnection()){return report(c,student,0,0,0);}}
+    public List<ResultReportRow> getOfferingResultReport(int offering)throws SQLException{try(var c=DBConnection.getConnection()){return report(c,0,offering,0,0);}}
 }

@@ -1,201 +1,81 @@
 <?xml version="1.0" encoding="UTF-8"?>
-
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
-<BorderPane xmlns:fx="http://javafx.com/fxml"
+<BorderPane xmlns:fx="http://javafx.com/fxml/1" fx:id="attendanceRoot"
             fx:controller="lk.ac.ruhuna.ftms.controller.AttendanceController"
-            prefWidth="1000"
-            prefHeight="720">
-
+            prefWidth="1100" prefHeight="700" minWidth="0"
+            style="-fx-background-color: #f4f8fc; -fx-font-family: 'Segoe UI';">
     <top>
-        <VBox spacing="5"
-              style="-fx-background-color: #1f2937;">
-
-            <padding>
-                <Insets top="20" right="25" bottom="20" left="25"/>
-            </padding>
-
-            <Label text="Attendance Management"
-                   style="-fx-text-fill: white;
-                          -fx-font-size: 24px;
-                          -fx-font-weight: bold;"/>
-
-            <Label text="FTMS - Attendance Session and Student Attendance"
-                   style="-fx-text-fill: #d1d5db;
-                          -fx-font-size: 13px;"/>
+        <VBox spacing="10" style="-fx-background-color: #102b4e; -fx-padding: 18 24;">
+            <FlowPane hgap="12" vgap="8">
+                <Button text="Back to Dashboard" onAction="#handleBack"/>
+                <Button text="Logout" onAction="#handleLogout"/>
+            </FlowPane>
+            <Label text="Attendance Management" wrapText="true"
+                   style="-fx-text-fill: white; -fx-font-size: 24px; -fx-font-weight: bold;"/>
+            <Label text="Technical Officer Portal · Your department's course offerings"
+                   wrapText="true" style="-fx-text-fill: #cbdcf0;"/>
+            <Label fx:id="statusLabel" text="Loading authorized course offerings..."
+                   wrapText="true" style="-fx-text-fill: #ffffff;"/>
         </VBox>
     </top>
-
     <center>
-        <ScrollPane fitToWidth="true">
-
-            <VBox spacing="20">
-
-                <padding>
-                    <Insets top="25" right="30"
-                            bottom="25" left="30"/>
-                </padding>
-
-                <!-- Attendance Session -->
-                <VBox spacing="12"
-                      style="-fx-border-color: #d1d5db;
-                             -fx-border-radius: 5;
-                             -fx-padding: 15;">
-
-                    <Label text="Attendance Session"
-                           style="-fx-font-size: 17px;
-                                  -fx-font-weight: bold;"/>
-
-                    <GridPane hgap="15" vgap="12">
-
-                        <columnConstraints>
-                            <ColumnConstraints minWidth="150"/>
-                            <ColumnConstraints minWidth="250"
-                                               hgrow="ALWAYS"/>
-                            <ColumnConstraints minWidth="150"/>
-                            <ColumnConstraints minWidth="250"
-                                               hgrow="ALWAYS"/>
-                        </columnConstraints>
-
-                        <Label text="Offering ID"
-                               GridPane.columnIndex="0"
-                               GridPane.rowIndex="0"/>
-
-                        <TextField fx:id="offeringIdField"
-                                   promptText="Enter offering ID"
-                                   GridPane.columnIndex="1"
-                                   GridPane.rowIndex="0"/>
-
-                        <Label text="Session Date"
-                               GridPane.columnIndex="2"
-                               GridPane.rowIndex="0"/>
-
-                        <DatePicker fx:id="sessionDatePicker"
-                                    maxWidth="Infinity"
-                                    GridPane.columnIndex="3"
-                                    GridPane.rowIndex="0"/>
-
-                        <Label text="Start Time"
-                               GridPane.columnIndex="0"
-                               GridPane.rowIndex="1"/>
-
-                        <TextField fx:id="startTimeField"
-                                   promptText="Example: 09:00"
-                                   GridPane.columnIndex="1"
-                                   GridPane.rowIndex="1"/>
-
-                        <Label text="End Time"
-                               GridPane.columnIndex="2"
-                               GridPane.rowIndex="1"/>
-
-                        <TextField fx:id="endTimeField"
-                                   promptText="Example: 11:00"
-                                   GridPane.columnIndex="3"
-                                   GridPane.rowIndex="1"/>
-
-                        <Label text="Session Type"
-                               GridPane.columnIndex="0"
-                               GridPane.rowIndex="2"/>
-
-                        <ComboBox fx:id="sessionTypeCombo"
-                                  promptText="Select session type"
-                                  maxWidth="Infinity"
-                                  GridPane.columnIndex="1"
-                                  GridPane.rowIndex="2"/>
-
-                        <Label text="Conducted By"
-                               GridPane.columnIndex="2"
-                               GridPane.rowIndex="2"/>
-
-                        <TextField fx:id="conductedByField"
-                                   promptText="User ID (optional)"
-                                   GridPane.columnIndex="3"
-                                   GridPane.rowIndex="2"/>
-
-                        <Label text="Topic"
-                               GridPane.columnIndex="0"
-                               GridPane.rowIndex="3"/>
-
-                        <TextField fx:id="topicField"
-                                   promptText="Session topic"
-                                   GridPane.columnIndex="1"
-                                   GridPane.rowIndex="3"
-                                   GridPane.columnSpan="3"/>
-                    </GridPane>
-
-                    <Button text="Save Session"
-                            onAction="#handleSaveSession"
-                            prefWidth="140"/>
+        <ScrollPane fitToWidth="true" hbarPolicy="NEVER" minWidth="0">
+            <VBox fx:id="workspace" spacing="20" minWidth="0">
+                <padding><Insets top="24" right="24" bottom="24" left="24"/></padding>
+                <VBox spacing="10" minWidth="0">
+                    <Label text="1. Select a course offering" style="-fx-font-size: 17px; -fx-font-weight: bold;"/>
+                    <ComboBox fx:id="offeringCombo" promptText="Choose an authorized course offering"
+                              maxWidth="Infinity" minWidth="0"/>
                 </VBox>
-
-                <!-- Student Attendance Entry -->
-                <VBox spacing="12"
-                      style="-fx-border-color: #d1d5db;
-                             -fx-border-radius: 5;
-                             -fx-padding: 15;">
-
-                    <Label text="Student Attendance"
-                           style="-fx-font-size: 17px;
-                                  -fx-font-weight: bold;"/>
-
-                    <GridPane hgap="15" vgap="12">
-
-                        <columnConstraints>
-                            <ColumnConstraints minWidth="150"/>
-                            <ColumnConstraints minWidth="220"
-                                               hgrow="ALWAYS"/>
-                            <ColumnConstraints minWidth="150"/>
-                            <ColumnConstraints minWidth="220"
-                                               hgrow="ALWAYS"/>
-                        </columnConstraints>
-
-                        <Label text="Session ID"
-                               GridPane.columnIndex="0"
-                               GridPane.rowIndex="0"/>
-
-                        <TextField fx:id="sessionIdField"
-                                   promptText="Session ID"
-                                   GridPane.columnIndex="1"
-                                   GridPane.rowIndex="0"/>
-
-                        <Label text="Enrollment ID"
-                               GridPane.columnIndex="2"
-                               GridPane.rowIndex="0"/>
-
-                        <TextField fx:id="enrollmentIdField"
-                                   promptText="Enrollment ID"
-                                   GridPane.columnIndex="3"
-                                   GridPane.rowIndex="0"/>
-
-                        <Label text="Attendance Status"
-                               GridPane.columnIndex="0"
-                               GridPane.rowIndex="1"/>
-
-                        <ComboBox fx:id="attendanceStatusCombo"
-                                  promptText="Select status"
-                                  maxWidth="Infinity"
-                                  GridPane.columnIndex="1"
-                                  GridPane.rowIndex="1"/>
-                    </GridPane>
-
-                    <HBox spacing="10">
-
-                        <Button text="Save / Update Attendance"
-                                onAction="#handleSaveAttendance"
-                                prefWidth="190"/>
-
-                        <Button text="Load Attendance"
-                                onAction="#handleLoadAttendance"
-                                prefWidth="150"/>
-
-                        <Button text="Clear"
-                                onAction="#handleClear"
-                                prefWidth="100"/>
-                    </HBox>
+                <!-- Reuses the existing Attendance Session workflow. -->
+                <VBox spacing="12" minWidth="0"
+                      style="-fx-background-color: white; -fx-background-radius: 12; -fx-padding: 18;">
+                    <Label text="2. Create an attendance session"
+                           style="-fx-font-size: 17px; -fx-font-weight: bold;"/>
+                    <FlowPane hgap="16" vgap="12">
+                        <VBox spacing="6" prefWidth="190">
+                            <Label text="Session date"/>
+                            <DatePicker fx:id="sessionDatePicker" maxWidth="Infinity"/>
+                        </VBox>
+                        <VBox spacing="6" prefWidth="190">
+                            <Label text="Start time"/>
+                            <TextField fx:id="startTimeField" promptText="09:00 (HH:mm)"/>
+                        </VBox>
+                        <VBox spacing="6" prefWidth="190">
+                            <Label text="End time"/>
+                            <TextField fx:id="endTimeField" promptText="11:00 (HH:mm)"/>
+                        </VBox>
+                        <VBox spacing="6" prefWidth="190">
+                            <Label text="Session type"/>
+                            <ComboBox fx:id="sessionTypeCombo" promptText="Select session type" maxWidth="Infinity"/>
+                        </VBox>
+                    </FlowPane>
+                    <Label text="Topic (optional)"/>
+                    <TextField fx:id="topicField" promptText="Session topic" minWidth="0"/>
+                    <Button fx:id="saveSessionButton" text="Save Session" onAction="#handleSaveSession" prefWidth="160"/>
                 </VBox>
-
+                <VBox spacing="12" minWidth="0"
+                      style="-fx-background-color: white; -fx-background-radius: 12; -fx-padding: 18;">
+                    <Label text="3. Mark or update student attendance"
+                           wrapText="true" style="-fx-font-size: 17px; -fx-font-weight: bold;"/>
+                    <Label text="Existing session"/>
+                    <ComboBox fx:id="sessionCombo" promptText="Select a saved attendance session"
+                              maxWidth="Infinity" minWidth="0"/>
+                    <Label text="Undergraduate enrollment"/>
+                    <ComboBox fx:id="enrollmentCombo" promptText="Select an enrolled undergraduate"
+                              maxWidth="Infinity" minWidth="0"/>
+                    <Label text="Attendance status"/>
+                    <ComboBox fx:id="attendanceStatusCombo" promptText="Select status"
+                              maxWidth="Infinity" minWidth="0"/>
+                    <FlowPane hgap="10" vgap="10">
+                        <Button fx:id="saveAttendanceButton" text="Save / Update Attendance" onAction="#handleSaveAttendance"/>
+                        <Button fx:id="loadAttendanceButton" text="Load Attendance" onAction="#handleLoadAttendance"/>
+                        <Button text="Clear" onAction="#handleClear"/>
+                    </FlowPane>
+                </VBox>
                 <!-- Attendance Records -->
                 <VBox spacing="10">
 
@@ -204,7 +84,7 @@
                                   -fx-font-weight: bold;"/>
 
                     <TableView fx:id="attendanceTable"
-                               prefHeight="250">
+                               prefHeight="250" minWidth="0">
 
                         <columns>
                             <TableColumn fx:id="enrollmentColumn"
@@ -225,14 +105,14 @@
                              -fx-border-radius: 5;
                              -fx-padding: 15;">
 
-                    <Label text="Attendance Summary - Theory / Practical / Combined"
+                    <Label text="Attendance Summary - Theory / Practical / Combined" wrapText="true"
                            style="-fx-font-size: 17px;
                                   -fx-font-weight: bold;"/>
 
-                    <Label text="Enter the Offering ID above, then select Load Batch Summary. Click a row to view an individual. Only PRESENT currently counts as attended."
+                    <Label text="Select a course offering above, then select Load Batch Summary. Click a row to view an individual. Only PRESENT currently counts as attended."
                            wrapText="true"/>
 
-                    <Button text="Load Batch Summary"
+                    <Button fx:id="loadSummaryButton" text="Load Batch Summary"
                             onAction="#handleLoadSummary"
                             prefWidth="180"/>
 
@@ -282,14 +162,8 @@
 
                 </VBox>
 
-                <Label fx:id="statusLabel"
-                       text=""
-                       wrapText="true"
-                       style="-fx-font-weight: bold;"/>
 
             </VBox>
-
         </ScrollPane>
     </center>
-
 </BorderPane>

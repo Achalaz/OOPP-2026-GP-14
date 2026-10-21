@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.shape.SVGPath?>
+
+<!-- Open this file directly in Scene Builder for a design preview. The real controller
+     requires an authenticated STUDENT session; no preview login is built into the app. -->
+<BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="lk.ac.ruhuna.ftms.controller.StudentDashboardController"
+            fx:id="studentRoot" styleClass="student-dashboard" stylesheets="@../css/student_dashboard.css"
+            prefWidth="1100" prefHeight="690" minWidth="0" minHeight="0">
+    <left>
+        <VBox prefWidth="224" minWidth="224" maxWidth="224" styleClass="student-sidebar">
+            <HBox spacing="12" alignment="CENTER_LEFT" styleClass="sidebar-brand">
+                <StackPane styleClass="brand-mark" minWidth="40" minHeight="40" maxWidth="40" maxHeight="40">
+                    <SVGPath styleClass="brand-symbol" content="M2 9 L12 3 L22 9 Z M5 11 V20 M10 11 V20 M15 11 V20 M20 11 V20 M2 22 H22"/>
+                </StackPane>
+                <VBox spacing="1">
+                    <Label text="FTMS" styleClass="brand-title"/>
+                    <Label text="Student Portal" styleClass="brand-subtitle"/>
+                </VBox>
+            </HBox>
+            <Separator styleClass="sidebar-divider"/>
+            <ScrollPane fitToWidth="true" hbarPolicy="NEVER" VBox.vgrow="ALWAYS" minHeight="0"
+                        styleClass="sidebar-scroll">
+                <content>
+                    <VBox spacing="5" styleClass="sidebar-navigation">
+                        <Label text="WORKSPACE" styleClass="sidebar-caption"/>
+                        <Button text="Dashboard" onAction="#handleDashboard" maxWidth="Infinity" styleClass="nav-button,nav-active">
+                            <graphic><SVGPath styleClass="nav-icon" content="M3 3 H10 V10 H3 Z M14 3 H21 V10 H14 Z M3 14 H10 V21 H3 Z M14 14 H21 V21 H14 Z"/></graphic>
+                        </Button>
+                        <Button text="My Profile" onAction="#handleProfile" maxWidth="Infinity" styleClass="nav-button">
+                            <graphic><SVGPath styleClass="nav-icon" content="M16 7 A4 4 0 1 1 8 7 A4 4 0 1 1 16 7 M4 21 V19 C4 12 20 12 20 19 V21"/></graphic>
+                        </Button>
+                        <Button text="My Attendance" onAction="#handleAttendance" maxWidth="Infinity" styleClass="nav-button">
+                            <graphic><SVGPath styleClass="nav-icon" content="M7 4 H4 V22 H20 V4 H17 M8 2 H16 V6 H8 Z M8 14 L11 17 L16 11"/></graphic>
+                        </Button>
+                        <Button text="My Medical" onAction="#handleMedical" maxWidth="Infinity" styleClass="nav-button">
+                            <graphic><SVGPath styleClass="nav-icon" content="M9 3 H15 V9 H21 V15 H15 V21 H9 V15 H3 V9 H9 Z"/></graphic>
+                        </Button>
+                        <Button text="My Courses" onAction="#handleCourses" maxWidth="Infinity" styleClass="nav-button">
+                            <graphic><SVGPath styleClass="nav-icon" content="M12 5 C8 2 3 3 2 4 V20 C5 18 9 19 12 21 C15 19 19 18 22 20 V4 C18 2 14 3 12 5 V21"/></graphic>
+                        </Button>
+                        <Button id="studentResultsNav" text="My Published Results" onAction="#handleGrades" maxWidth="Infinity" styleClass="nav-button">
+                            <graphic><SVGPath styleClass="nav-icon" content="M3 3 V21 H22 M7 17 V12 H10 V17 M13 17 V8 H16 V17 M19 17 V4 H22 V17"/></graphic>
+                        </Button>
+                        <Button id="studentGpaNav" text="My SGPA / CGPA" onAction="#handleGPA" maxWidth="Infinity" styleClass="nav-button"/>
+                        <Button text="My Timetable" onAction="#handleTimetable" maxWidth="Infinity" styleClass="nav-button">
+                            <graphic><SVGPath styleClass="nav-icon" content="M3 5 H21 V21 H3 Z M7 2 V8 M17 2 V8 M3 11 H21 M7 15 H10 M14 15 H17"/></graphic>
+                        </Button>
+                        <Button text="Notices" onAction="#handleNotices" maxWidth="Infinity" styleClass="nav-button">
+                            <graphic><SVGPath styleClass="nav-icon" content="M3 10 L20 4 V20 L3 14 Z M6 15 L8 22 H12 L10 16 M20 9 H23 V15 H20"/></graphic>
+                        </Button>
+                    </VBox>
+                </content>
+            </ScrollPane>
+            <VBox spacing="14" styleClass="sidebar-bottom">
+                <Separator styleClass="sidebar-divider"/>
+                <HBox spacing="10" alignment="CENTER_LEFT">
+                    <StackPane minWidth="36" minHeight="36" maxWidth="36" maxHeight="36" styleClass="student-avatar">
+                        <Label fx:id="avatarLabel" text="S" styleClass="avatar-letter"/>
+                    </StackPane>
+                    <VBox spacing="3" minWidth="0" HBox.hgrow="ALWAYS">
+                        <Label fx:id="studentNameLabel" text="Student name" wrapText="true" maxWidth="Infinity" styleClass="sidebar-name"/>
+                        <Label text="UNDERGRADUATE" styleClass="sidebar-role"/>
+                    </VBox>
+                </HBox>
+                <Button fx:id="logoutButton" text="Logout" onAction="#handleLogout" maxWidth="Infinity" styleClass="logout-button">
+                    <graphic><SVGPath styleClass="logout-icon" content="M9 3 H3 V21 H9 M8 12 H22 M17 7 L22 12 L17 17"/></graphic>
+                </Button>
+            </VBox>
+        </VBox>
+    </left>
+    <center>
+        <ScrollPane fx:id="contentScroll" fitToWidth="true" hbarPolicy="NEVER" minWidth="0" minHeight="0"
+                    prefViewportWidth="876" styleClass="dashboard-scroll">
+            <content>
+                <VBox spacing="24" minWidth="0" styleClass="dashboard-content">
+                    <VBox spacing="12" minWidth="0">
+                        <HBox spacing="12" alignment="CENTER_LEFT">
+                            <Label text="UNIVERSITY OF RUHUNA" wrapText="true" styleClass="university-label" HBox.hgrow="ALWAYS" maxWidth="Infinity" minWidth="0"/>
+                            <Label fx:id="dateLabel" text="Current date" styleClass="date-label" minWidth="-Infinity"/>
+                        </HBox>
+                        <VBox spacing="6" minWidth="0">
+                            <Label text="Undergraduate Dashboard" wrapText="true" maxWidth="Infinity" styleClass="page-title"/>
+                            <Label text="Your studies. Your progress. Your student space." wrapText="true" styleClass="page-subtitle"/>
+                        </VBox>
+                    </VBox>
+
+                    <StackPane minWidth="0" styleClass="welcome-banner">
+                        <SVGPath content="M20 55 L100 12 L180 55 Z M34 66 H166 M43 76 V145 M77 76 V145 M123 76 V145 M157 76 V145 M24 157 H176 M12 170 H188"
+                                 styleClass="campus-illustration" StackPane.alignment="CENTER_RIGHT" mouseTransparent="true"/>
+                        <VBox spacing="12" minWidth="0">
+                            <Label text="A PLACE TO LEARN. A SPACE TO GROW." wrapText="true" styleClass="welcome-eyebrow"/>
+                            <Label fx:id="nameLabel" text="Welcome back, Student!" wrapText="true" maxWidth="Infinity" styleClass="welcome-title"/>
+                            <Label text="Keep your academic journey in view. Find your courses, track your progress and stay connected with your faculty."
+                                   maxWidth="480" wrapText="true" styleClass="welcome-description"/>
+                            <FlowPane hgap="10" vgap="8" styleClass="welcome-details">
+                                <Label text="UNDERGRADUATE" styleClass="welcome-chip"/>
+                                <Label text="Registration no. —" styleClass="registration-label"/>
+                            </FlowPane>
+                        </VBox>
+                    </StackPane>
+
+                    <HBox spacing="12" alignment="CENTER_LEFT">
+                        <VBox spacing="5" minWidth="0" HBox.hgrow="ALWAYS">
+                            <Label text="Your academic workspace" wrapText="true" styleClass="section-title"/>
+                            <Label text="Everything you need, thoughtfully brought together." wrapText="true" styleClass="section-description"/>
+                        </VBox>
+                    </HBox>
+
+                    <GridPane fx:id="featureGrid" hgap="16" vgap="16" minWidth="0">
+                        <columnConstraints>
+                            <ColumnConstraints percentWidth="33.333" minWidth="0" hgrow="ALWAYS"/>
+                            <ColumnConstraints percentWidth="33.333" minWidth="0" hgrow="ALWAYS"/>
+                            <ColumnConstraints percentWidth="33.334" minWidth="0" hgrow="ALWAYS"/>
+                        </columnConstraints>
+                        <VBox spacing="12" minWidth="0" maxWidth="Infinity" styleClass="feature-card,profile-card">
+                            <HBox alignment="CENTER_LEFT" spacing="6">
+                                <StackPane styleClass="card-icon"><SVGPath content="M16 7 A4 4 0 1 1 8 7 A4 4 0 1 1 16 7 M4 21 V19 C4 12 20 12 20 19 V21"/></StackPane>
+                                <Region HBox.hgrow="ALWAYS"/><Label text="COMING SOON" styleClass="coming-soon"/>
+                            </HBox>
+                            <Label text="My Profile" wrapText="true" styleClass="card-title"/>
+                            <Label text="Manage contact details and profile picture" wrapText="true" styleClass="card-description" VBox.vgrow="ALWAYS" maxHeight="Infinity"/>
+                            <Button text="View Profile" onAction="#handleProfile" maxWidth="Infinity" styleClass="card-button"/>
+                        </VBox>
+                        <VBox spacing="12" minWidth="0" maxWidth="Infinity" styleClass="feature-card,attendance-card" GridPane.columnIndex="1">
+                            <HBox alignment="CENTER_LEFT" spacing="6">
+                                <StackPane styleClass="card-icon"><SVGPath content="M7 4 H4 V22 H20 V4 H17 M8 2 H16 V6 H8 Z M8 14 L11 17 L16 11"/></StackPane>
+                                <Region HBox.hgrow="ALWAYS"/><Label text="COMING SOON" styleClass="coming-soon"/>
+                            </HBox>
+                            <Label text="My Attendance" wrapText="true" styleClass="card-title"/>
+                            <Label text="Review attendance records and percentages" wrapText="true" styleClass="card-description" VBox.vgrow="ALWAYS" maxHeight="Infinity"/>
+                            <Button text="View Attendance" onAction="#handleAttendance" maxWidth="Infinity" styleClass="card-button"/>
+                        </VBox>
+                        <VBox spacing="12" minWidth="0" maxWidth="Infinity" styleClass="feature-card,medical-card" GridPane.columnIndex="2">
+                            <HBox alignment="CENTER_LEFT" spacing="6">
+                                <StackPane styleClass="card-icon"><SVGPath content="M9 3 H15 V9 H21 V15 H15 V21 H9 V15 H3 V9 H9 Z"/></StackPane>
+                                <Region HBox.hgrow="ALWAYS"/><Label text="COMING SOON" styleClass="coming-soon"/>
+                            </HBox>
+                            <Label text="My Medical" wrapText="true" styleClass="card-title"/>
+                            <Label text="View medical requests and approval statuses" wrapText="true" styleClass="card-description" VBox.vgrow="ALWAYS" maxHeight="Infinity"/>
+                            <Button text="View Medical" onAction="#handleMedical" maxWidth="Infinity" styleClass="card-button"/>
+                        </VBox>
+                        <VBox spacing="12" minWidth="0" maxWidth="Infinity" styleClass="feature-card,courses-card" GridPane.rowIndex="1">
+                            <HBox alignment="CENTER_LEFT" spacing="6">
+                                <StackPane styleClass="card-icon"><SVGPath content="M12 5 C8 2 3 3 2 4 V20 C5 18 9 19 12 21 C15 19 19 18 22 20 V4 C18 2 14 3 12 5 V21"/></StackPane>
+                                <Region HBox.hgrow="ALWAYS"/><Label text="COMING SOON" styleClass="coming-soon"/>
+                            </HBox>
+                            <Label text="My Courses" wrapText="true" styleClass="card-title"/>
+                            <Label text="View enrolled courses and course information" wrapText="true" styleClass="card-description" VBox.vgrow="ALWAYS" maxHeight="Infinity"/>
+                            <Button text="View Courses" onAction="#handleCourses" maxWidth="Infinity" styleClass="card-button"/>
+                        </VBox>
+                        <VBox spacing="12" minWidth="0" maxWidth="Infinity" styleClass="feature-card,grades-card" GridPane.columnIndex="1" GridPane.rowIndex="1">
+                            <HBox alignment="CENTER_LEFT" spacing="6">
+                                <StackPane styleClass="card-icon"><SVGPath content="M3 3 V21 H22 M7 17 V12 H10 V17 M13 17 V8 H16 V17 M19 17 V4 H22 V17"/></StackPane>
+                                <Region HBox.hgrow="ALWAYS"/>
+                            </HBox>
+                            <Label text="Grades and GPA" wrapText="true" styleClass="card-title"/>
+                            <Label text="View published grades, SGPA and CGPA" wrapText="true" styleClass="card-description" VBox.vgrow="ALWAYS" maxHeight="Infinity"/>
+                            <Button id="studentResultsCard" text="View Results" onAction="#handleGrades" maxWidth="Infinity" styleClass="card-button"/>
+                            <Button id="studentGpaCard" text="View SGPA / CGPA" onAction="#handleGPA" maxWidth="Infinity" styleClass="card-button"/>
+                        </VBox>
+                        <VBox spacing="12" minWidth="0" maxWidth="Infinity" styleClass="feature-card,timetable-card" GridPane.columnIndex="2" GridPane.rowIndex="1">
+                            <HBox alignment="CENTER_LEFT" spacing="6">
+                                <StackPane styleClass="card-icon"><SVGPath content="M3 5 H21 V21 H3 Z M7 2 V8 M17 2 V8 M3 11 H21 M7 15 H10 M14 15 H17"/></StackPane>
+                                <Region HBox.hgrow="ALWAYS"/><Label text="COMING SOON" styleClass="coming-soon"/>
+                            </HBox>
+                            <Label text="My Timetable" wrapText="true" styleClass="card-title"/>
+                            <Label text="View academic schedules" wrapText="true" styleClass="card-description" VBox.vgrow="ALWAYS" maxHeight="Infinity"/>
+                            <Button text="View Timetable" onAction="#handleTimetable" maxWidth="Infinity" styleClass="card-button"/>
+                        </VBox>
+                        <VBox spacing="12" minWidth="0" maxWidth="Infinity" styleClass="feature-card,notices-card" GridPane.rowIndex="2">
+                            <HBox alignment="CENTER_LEFT" spacing="6">
+                                <StackPane styleClass="card-icon"><SVGPath content="M3 10 L20 4 V20 L3 14 Z M6 15 L8 22 H12 L10 16 M20 9 H23 V15 H20"/></StackPane>
+                                <Region HBox.hgrow="ALWAYS"/><Label text="COMING SOON" styleClass="coming-soon"/>
+                            </HBox>
+                            <Label text="Notices" wrapText="true" styleClass="card-title"/>
+                            <Label text="View faculty notices and announcements" wrapText="true" styleClass="card-description" VBox.vgrow="ALWAYS" maxHeight="Infinity"/>
+                            <Button text="View Notices" onAction="#handleNotices" maxWidth="Infinity" styleClass="card-button"/>
+                        </VBox>
+                    </GridPane>
+                    <VBox spacing="8" styleClass="dashboard-footer">
+                        <Separator/>
+                        <Label fx:id="statusLabel" text="Your student workspace. Select a feature to explore." wrapText="true" styleClass="status-label"/>
+                        <Label text="FTMS  /  Faculty of Technology  /  University of Ruhuna" wrapText="true" styleClass="footer-label"/>
+                    </VBox>
+                </VBox>
+            </content>
+        </ScrollPane>
+    </center>
+</BorderPane>

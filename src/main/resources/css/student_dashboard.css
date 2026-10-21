@@ -1,0 +1,133 @@
+/* Scoped to the student screen so shared Admin/Lecturer styles remain independent. */
+.student-dashboard {
+    -fx-font-family: "Segoe UI", "Arial", sans-serif;
+    -fx-font-size: 13px;
+    -fx-background-color: #f2f6fc;
+    -fx-focus-color: #3577ce;
+    -fx-faint-focus-color: transparent;
+}
+
+.student-sidebar { -fx-background-color: #112740; }
+.student-dashboard .sidebar-brand { -fx-padding: 27 20 24 20; }
+.student-dashboard .brand-mark { -fx-background-color: #2d6bbb; -fx-background-radius: 12; }
+.student-dashboard .brand-symbol { -fx-fill: transparent; -fx-stroke: white; -fx-stroke-width: 1.6; }
+.student-dashboard .brand-title { -fx-text-fill: #ffffff; -fx-font-size: 25px; -fx-font-weight: bold; }
+.student-dashboard .brand-subtitle { -fx-text-fill: #adbed4; -fx-font-size: 12px; }
+.student-dashboard .sidebar-divider .line { -fx-border-color: #2a3e57 transparent transparent transparent; }
+.student-dashboard .sidebar-scroll,
+.student-dashboard .sidebar-scroll > .viewport { -fx-background-color: #112740; -fx-background: #112740; }
+.student-dashboard .sidebar-scroll { -fx-padding: 0; -fx-border-width: 0; }
+.student-dashboard .sidebar-navigation { -fx-padding: 17 12; }
+.student-dashboard .sidebar-caption { -fx-text-fill: #8fa4bf; -fx-font-size: 10px; -fx-font-weight: bold; -fx-padding: 2 12 12 12; }
+.student-dashboard .nav-button {
+    -fx-background-color: transparent;
+    -fx-background-radius: 9;
+    -fx-text-fill: #c0cee0;
+    -fx-font-size: 12px;
+    -fx-alignment: CENTER_LEFT;
+    -fx-graphic-text-gap: 12;
+    -fx-padding: 12 13;
+    -fx-cursor: hand;
+    -fx-border-color: transparent;
+    -fx-border-radius: 9;
+}
+.student-dashboard .nav-icon { -fx-fill: transparent; -fx-stroke: #a9bed7; -fx-stroke-width: 1.55; -fx-scale-x: 0.75; -fx-scale-y: 0.75; }
+.student-dashboard .nav-button:hover { -fx-background-color: #203c5e; -fx-text-fill: white; }
+.student-dashboard .nav-active { -fx-background-color: #2b64ad; -fx-text-fill: white; -fx-font-weight: bold; }
+.student-dashboard .nav-active .nav-icon { -fx-stroke: white; }
+.student-dashboard .nav-active:hover { -fx-background-color: #3476c4; }
+.student-dashboard .nav-button:focused { -fx-border-color: #89b8f2; }
+.student-dashboard .sidebar-bottom { -fx-padding: 0 20 20 20; }
+.student-dashboard .student-avatar { -fx-background-color: #2a4565; -fx-background-radius: 11; }
+.student-dashboard .avatar-letter { -fx-text-fill: #e1edff; -fx-font-size: 15px; -fx-font-weight: bold; }
+.student-dashboard .sidebar-name { -fx-text-fill: #edf3fc; -fx-font-size: 12px; -fx-font-weight: bold; }
+.student-dashboard .sidebar-role { -fx-text-fill: #97abc5; -fx-font-size: 9px; }
+.student-dashboard .logout-button {
+    -fx-background-color: #233a54;
+    -fx-text-fill: #f0c9cf;
+    -fx-background-radius: 9;
+    -fx-border-radius: 9;
+    -fx-border-color: #3b4b62;
+    -fx-font-weight: bold;
+    -fx-padding: 10 12;
+    -fx-graphic-text-gap: 12;
+    -fx-cursor: hand;
+}
+.student-dashboard .logout-icon { -fx-fill: transparent; -fx-stroke: #f0c9cf; -fx-stroke-width: 1.7; -fx-scale-x: 0.7; -fx-scale-y: 0.7; }
+.student-dashboard .logout-button:hover { -fx-background-color: #493d51; }
+.student-dashboard .logout-button:focused { -fx-border-color: #edb4c1; }
+
+.student-dashboard .dashboard-scroll,
+.student-dashboard .dashboard-scroll > .viewport { -fx-background: #f2f6fc; -fx-background-color: #f2f6fc; }
+.student-dashboard .dashboard-scroll { -fx-padding: 0; -fx-border-width: 0; }
+.student-dashboard .dashboard-content { -fx-padding: 27 28 22 28; }
+.student-dashboard .university-label { -fx-text-fill: #52759e; -fx-font-size: 10px; -fx-font-weight: bold; }
+.student-dashboard .date-label { -fx-text-fill: #5d718b; -fx-font-size: 11px; -fx-background-color: #e7eef8; -fx-background-radius: 7; -fx-padding: 7 11; }
+.student-dashboard .page-title { -fx-text-fill: #142e4f; -fx-font-size: 28px; -fx-font-weight: bold; }
+.student-dashboard .page-subtitle { -fx-text-fill: #64768e; -fx-font-size: 12px; }
+
+.student-dashboard .welcome-banner {
+    -fx-background-color: linear-gradient(to right bottom, #16385f, #21518a 65%, #3375b4);
+    -fx-background-radius: 18;
+    -fx-padding: 25 26;
+    -fx-effect: dropshadow(gaussian, rgba(23, 55, 93, 0.13), 18, 0, 0, 5);
+}
+.student-dashboard .campus-illustration { -fx-fill: transparent; -fx-stroke: #c3dfff; -fx-stroke-width: 2; -fx-opacity: 0.12; }
+.student-dashboard .welcome-eyebrow { -fx-text-fill: #afcff2; -fx-font-size: 9px; -fx-font-weight: bold; }
+.student-dashboard .welcome-title { -fx-text-fill: #ffffff; -fx-font-size: 24px; -fx-font-weight: bold; }
+.student-dashboard .welcome-description { -fx-text-fill: #d3e2f5; -fx-font-size: 12px; -fx-line-spacing: 3; }
+.student-dashboard .welcome-details { -fx-padding: 3 0 0 0; -fx-alignment: CENTER_LEFT; }
+.student-dashboard .welcome-chip { -fx-text-fill: #eef5ff; -fx-font-size: 9px; -fx-font-weight: bold; -fx-background-color: rgba(255, 255, 255, 0.12); -fx-background-radius: 6; -fx-padding: 6 9; }
+.student-dashboard .registration-label { -fx-text-fill: #d2e2f7; -fx-font-size: 11px; -fx-padding: 5 0; }
+.student-dashboard .section-title { -fx-text-fill: #1b3656; -fx-font-size: 18px; -fx-font-weight: bold; }
+.student-dashboard .section-description { -fx-text-fill: #6b7e95; -fx-font-size: 12px; }
+
+.student-dashboard .feature-card {
+    -fx-background-color: white;
+    -fx-background-radius: 14;
+    -fx-border-radius: 14;
+    -fx-border-color: #e3eaf4;
+    -fx-padding: 19;
+    -fx-pref-height: 220;
+    -fx-effect: dropshadow(gaussian, rgba(29, 56, 92, 0.045), 12, 0, 0, 3);
+    -card-accent: #326cc0;
+    -card-tint: #edf3ff;
+}
+.student-dashboard .feature-card:hover { -fx-border-color: #bed1eb; -fx-effect: dropshadow(gaussian, rgba(29, 56, 92, 0.12), 18, 0, 0, 5); }
+.student-dashboard .attendance-card { -card-accent: #168073; -card-tint: #e8f6f1; }
+.student-dashboard .medical-card { -card-accent: #b85272; -card-tint: #fceef2; }
+.student-dashboard .courses-card { -card-accent: #7660b7; -card-tint: #f1edfb; }
+.student-dashboard .grades-card { -card-accent: #a17824; -card-tint: #fcf5e4; }
+.student-dashboard .timetable-card { -card-accent: #337f9e; -card-tint: #eaf5fa; }
+.student-dashboard .notices-card { -card-accent: #ac6545; -card-tint: #fff1e9; }
+.student-dashboard .card-icon { -fx-background-color: -card-tint; -fx-background-radius: 11; -fx-min-width: 42; -fx-pref-width: 42; -fx-max-width: 42; -fx-min-height: 42; -fx-pref-height: 42; -fx-max-height: 42; }
+.student-dashboard .card-icon SVGPath { -fx-fill: transparent; -fx-stroke: -card-accent; -fx-stroke-width: 1.7; }
+.student-dashboard SVGPath { -fx-stroke-line-cap: round; -fx-stroke-line-join: round; }
+.student-dashboard .coming-soon { -fx-text-fill: #7d8b9f; -fx-font-size: 8px; -fx-font-weight: bold; -fx-padding: 5 6; -fx-background-color: #f3f6fa; -fx-background-radius: 5; }
+.student-dashboard .card-title { -fx-text-fill: #1b3655; -fx-font-size: 16px; -fx-font-weight: bold; }
+.student-dashboard .card-description { -fx-text-fill: #65778f; -fx-font-size: 12px; -fx-alignment: TOP_LEFT; -fx-line-spacing: 2; }
+.student-dashboard .card-button {
+    -fx-text-fill: -card-accent;
+    -fx-background-color: -card-tint;
+    -fx-background-radius: 7;
+    -fx-border-color: transparent;
+    -fx-border-radius: 7;
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-padding: 9 11;
+    -fx-alignment: CENTER_LEFT;
+    -fx-cursor: hand;
+}
+.student-dashboard .card-button:hover { -fx-background-color: -card-accent; -fx-text-fill: white; }
+.student-dashboard .card-button:focused { -fx-border-color: -card-accent; }
+.student-dashboard .card-button:pressed { -fx-opacity: 0.85; }
+.student-dashboard .dashboard-footer { -fx-padding: 3 0 0 0; }
+.student-dashboard .dashboard-footer .line { -fx-border-color: #dfe7f2 transparent transparent transparent; }
+.student-dashboard .status-label { -fx-text-fill: #60758f; -fx-font-size: 11px; }
+.student-dashboard .footer-label { -fx-text-fill: #7b8ca2; -fx-font-size: 10px; }
+.student-dashboard .scroll-bar { -fx-background-color: transparent; -fx-pref-width: 10; }
+.student-dashboard .scroll-bar .thumb { -fx-background-color: #b8c8db; -fx-background-radius: 6; }
+.student-dashboard .scroll-bar .track { -fx-background-color: transparent; }
+.student-dashboard .scroll-bar .increment-button,
+.student-dashboard .scroll-bar .decrement-button { -fx-padding: 3; -fx-background-color: transparent; }
+.student-dashboard .sidebar-scroll .scroll-bar .thumb { -fx-background-color: #39516d; }

@@ -1,212 +1,91 @@
 package lk.ac.ruhuna.ftms.service;
 
-import lk.ac.ruhuna.ftms.dao.EligibilityDAO;
-import lk.ac.ruhuna.ftms.dao.MarkDAO;
-import lk.ac.ruhuna.ftms.model.AssessmentMark;
-import lk.ac.ruhuna.ftms.model.EligibilityResult;
+import lk.ac.ruhuna.ftms.dao.*;
+import lk.ac.ruhuna.ftms.dao.CourseResultDAO.AssessmentInput;
+import lk.ac.ruhuna.ftms.model.*;
+import java.math.*;
+import java.sql.*;
+import java.util.*;
 
-import java.sql.SQLException;
-import java.util.List;
+/** CA uses the complete assessment plan. Unknown attendance policy keeps the overall decision pending. */
 public class EligibilityService {
-
-    public java.util.List<lk.ac.ruhuna.ftms.model.EligibilityRow> getLecturerEligibility(int offeringId)
-            throws SQLException {
-        var access = new LecturerAccessService();
-        access.requireOffering(offeringId);
-        var rows = eligibilityDAO.findByOfferingId(offeringId);
-        access.requireOffering(offeringId);
-        return rows;
+    private final EligibilityDAO dao=new EligibilityDAO();
+    private final AcademicAccessDAO access=new AcademicAccessDAO();
+    public List<EligibilityOffering> getOfferings() throws SQLException {
+        return new LecturerCourseAssignmentDAO().findAssigned(new LecturerAccessService().requireLecturer());
+    }
+    public List<EligibilityRow> getLecturerEligibility(int offering) throws SQLException {
+        var lecturer=new LecturerAccessService(); lecturer.requireOffering(offering);
+        var rows=dao.findByOfferingId(offering); lecturer.requireOffering(offering); return rows;
     }
 
-    // Confirmed SRS rule
-    private static final double CA_ELIGIBILITY_THRESHOLD = 40.0;
-
-    private final MarkDAO markDAO;
-    private final EligibilityDAO eligibilityDAO;
-
-    public EligibilityService() {
-        this.markDAO = new MarkDAO();
-        this.eligibilityDAO = new EligibilityDAO();
+    public record CaCalculation(Double weightedScore, Double percentage, Boolean eligible) {}
+    /** A missing positive-weight assessment never disappears from the denominator. */
+    public static CaCalculation calculateCA(List<AssessmentInput> inputs) {
+        BigDecimal weight=BigDecimal.ZERO, score=BigDecimal.ZERO;
+        boolean complete=true;
+        for(var a:inputs) {
+            if(a.maxMark()==null || a.maxMark().signum()<=0 || a.weightPercentage()==null
+                || a.weightPercentage().signum()<0 || a.weightPercentage().compareTo(BigDecimal.valueOf(100))>0)
+                throw new IllegalArgumentException("Invalid assessment maximum or weight.");
+            if("FINAL_EXAM".equals(a.assessmentType()) || a.weightPercentage().signum()==0)continue;
+            weight=weight.add(a.weightPercentage());
+            if(!"PRESENT".equals(a.markStatus()) || a.marksObtained()==null) {complete=false;continue;}
+            if(a.marksObtained().signum()<0 || a.marksObtained().compareTo(a.maxMark())>0)
+                throw new IllegalArgumentException("CA mark is outside its assessment maximum.");
+            score=score.add(a.marksObtained().multiply(a.weightPercentage()).divide(a.maxMark(),MathContext.DECIMAL128));
+        }
+        if(!complete || weight.signum()==0)return new CaCalculation(null,null,null);
+        if(weight.compareTo(BigDecimal.valueOf(100))>0)throw new IllegalArgumentException("CA weight exceeds 100%.");
+        BigDecimal percentage=score.multiply(BigDecimal.valueOf(100)).divide(weight,2,RoundingMode.HALF_UP);
+        return new CaCalculation(score.setScale(2,RoundingMode.HALF_UP).doubleValue(),percentage.doubleValue(),
+                percentage.compareTo(BigDecimal.valueOf(40))>=0);
     }
-
-    // ---------------------------------------------------------
-    // CALCULATE RAW WEIGHTED CA SCORE
-    // ---------------------------------------------------------
-    public double calculateCAWeightedScore(int enrollmentId) {
-
+    public EligibilityResult evaluate(int enrollment, boolean save) {
         try {
-            List<AssessmentMark> marks =
-                    markDAO.findCAMarksByEnrollment(enrollmentId);
-
-            double total = 0;
-
-            for (AssessmentMark item : marks) {
-
-                if (item.getMarksObtained() != null
-                        && item.getMaxMark() > 0) {
-
-                    total +=
-                            (item.getMarksObtained()
-                                    / item.getMaxMark())
-                                    * item.getWeightPercentage();
+            return AcademicTransaction.run((c,id)->{
+                int offering=access.enrollment(c,enrollment);
+                access.offering(c,id,offering);
+                if(save)access.unpublished(c,enrollment);
+                var data=new CourseResultDAO().loadCalculationData(c,enrollment,true);
+                if(data==null || data.mismatchedMarks())throw new IllegalArgumentException("Invalid assessment/enrollment relationship.");
+                var ca=calculateCA(data.assessments());
+                BigDecimal planWeight=data.assessments().stream().map(AssessmentInput::weightPercentage)
+                    .reduce(BigDecimal.ZERO,BigDecimal::add);
+                if(planWeight.compareTo(BigDecimal.valueOf(100))!=0)ca=new CaCalculation(null,null,null);
+                var counts=new AttendanceEligibilityDAO().findByEnrollmentId(c,enrollment);
+                Double attendance=counts==null || counts.requiresPolicyDecision() ? null : counts.getCombinedPercentage();
+                String reason=ca.percentage()==null ? "CA assessment data is incomplete. " : "";
+                reason += counts==null || counts.getTotalSessions()==0 ? "No Theory/Practical attendance sessions. "
+                    : "Raw PRESENT/session ratios - Theory: "+counts.getTheoryPercentage()+"%; Practical: "+counts.getPracticalPercentage()+"%. ";
+                if(counts!=null && counts.requiresPolicyDecision())reason+="Attendance is incomplete or contains unresolved special statuses. ";
+                reason += "Attendance cutoff and special-status policy are unconfirmed; overall eligibility is pending.";
+                var result=new EligibilityResult(enrollment,ca.percentage(),ca.eligible(),attendance,null,null,reason);
+                if(save) {
+                    dao.saveOrUpdateEligibility(c,result,id.userId());
+                    access.invalidateDraft(c,enrollment);
                 }
-            }
-
-            return round(total);
-
-        } catch (SQLException e) {
-
-            throw new RuntimeException(
-                    "Failed to calculate CA score.",
-                    e
-            );
-        }
+                return result;
+            });
+        } catch(SQLException error){throw new IllegalStateException("Unable to calculate or save eligibility.",error);}
     }
-
-    // ---------------------------------------------------------
-    // CALCULATE CA PERCENTAGE
-    // ---------------------------------------------------------
-    public double calculateCAPercentage(int enrollmentId) {
-
-        try {
-            List<AssessmentMark> marks =
-                    markDAO.findCAMarksByEnrollment(enrollmentId);
-
-            double weightedScore = 0;
-            double totalWeight = 0;
-
-            for (AssessmentMark item : marks) {
-
-                if (item.getMarksObtained() != null
-                        && item.getMaxMark() > 0) {
-
-                    weightedScore +=
-                            (item.getMarksObtained()
-                                    / item.getMaxMark())
-                                    * item.getWeightPercentage();
-
-                    totalWeight +=
-                            item.getWeightPercentage();
-                }
-            }
-
-            if (totalWeight == 0) {
-                return 0;
-            }
-
-            return round(
-                    (weightedScore / totalWeight) * 100
-            );
-
-        } catch (SQLException e) {
-
-            throw new RuntimeException(
-                    "Failed to calculate CA percentage.",
-                    e
-            );
-        }
+    public Double calculateCAPercentage(int enrollment) {return evaluate(enrollment,false).getCaPercentage();}
+    public Boolean isCAEligible(int enrollment) {return evaluate(enrollment,false).isCaEligible();}
+    public double calculateCAWeightedScore(int enrollment) {
+        try { return AcademicTransaction.run((c,id)->{
+            access.offering(c,id,access.enrollment(c,enrollment));
+            var result=calculateCA(new CourseResultDAO().loadCalculationData(c,enrollment,true).assessments());
+            if(result.weightedScore()==null)throw new IllegalStateException("CA assessment data is incomplete.");
+            return result.weightedScore();
+        }); }catch(SQLException e){throw new IllegalStateException(e);}
     }
-
-    // ---------------------------------------------------------
-    // CA ELIGIBILITY
-    // CA >= 40%
-    // ---------------------------------------------------------
-    public boolean isCAEligible(int enrollmentId) {
-
-        double caPercentage =
-                calculateCAPercentage(enrollmentId);
-
-        return caPercentage >=
-                CA_ELIGIBILITY_THRESHOLD;
+    /** Legacy arguments cannot supply an attendance decision or impersonate the calculator. */
+    public EligibilityResult evaluateEligibility(int enrollment,double ignoredPercentage,boolean ignoredDecision) {
+        return evaluate(enrollment,false);
     }
-
-    // ---------------------------------------------------------
-    // COMPLETE ELIGIBILITY RESULT
-    //
-    // Attendance eligibility is passed from the Attendance
-    // module because the official attendance threshold is TBC.
-    // ---------------------------------------------------------
-    public EligibilityResult evaluateEligibility(
-            int enrollmentId,
-            double attendancePercentage,
-            boolean attendanceEligible) {
-
-        double caPercentage =
-                calculateCAPercentage(enrollmentId);
-
-        boolean caEligible =
-                caPercentage >= CA_ELIGIBILITY_THRESHOLD;
-
-        boolean overallEligible =
-                caEligible && attendanceEligible;
-
-        String reason =
-                buildReason(
-                        caEligible,
-                        attendanceEligible
-                );
-
-        return new EligibilityResult(
-                enrollmentId,
-                caPercentage,
-                caEligible,
-                round(attendancePercentage),
-                attendanceEligible,
-                overallEligible,
-                reason
-        );
-    }
-
-    // ---------------------------------------------------------
-    // CALCULATE AND SAVE ELIGIBILITY
-    // ---------------------------------------------------------
-    public EligibilityResult evaluateAndSaveEligibility(
-            int enrollmentId,
-            double attendancePercentage,
-            boolean attendanceEligible,
-            Integer calculatedBy) {
-        LecturerAccessService.rejectUnscopedLecturerOperation();
-
-        EligibilityResult result = evaluateEligibility(
-                enrollmentId,
-                attendancePercentage,
-                attendanceEligible
-        );
-
-        try {
-            eligibilityDAO.saveOrUpdateEligibility(result, calculatedBy);
-            return result;
-        } catch (SQLException e) {
-            throw new RuntimeException("Failed to save eligibility result.", e);
-        }
-    }
-
-    // ---------------------------------------------------------
-    // RESULT REASON
-    // ---------------------------------------------------------
-    private String buildReason(
-            boolean caEligible,
-            boolean attendanceEligible) {
-
-        if (caEligible && attendanceEligible) {
-            return "Eligible";
-        }
-
-        if (!caEligible && !attendanceEligible) {
-            return "CA and attendance requirements not met.";
-        }
-
-        if (!caEligible) {
-            return "CA requirement not met.";
-        }
-
-        return "Attendance requirement not met.";
-    }
-
-    // ---------------------------------------------------------
-    // ROUND TO 2 DECIMAL PLACES
-    // ---------------------------------------------------------
-    private double round(double value) {
-        return Math.round(value * 100.0) / 100.0;
+    public EligibilityResult evaluateAndSaveEligibility(int enrollment,double ignoredPercentage,boolean ignoredDecision,Integer actor) {
+        if(actor!=null && actor!=lk.ac.ruhuna.ftms.util.SessionManager.requireSession().userId())
+            throw new SecurityException("Calculated-by must be the signed-in user.");
+        return evaluate(enrollment,true);
     }
 }

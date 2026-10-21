@@ -11,6 +11,26 @@ import java.util.Optional;
 
 public class UserDAO {
 
+    public record DepartmentOption(int departmentId, String code, String name) {
+        @Override public String toString() {
+            return code + " - " + name;
+        }
+    }
+
+    public List<DepartmentOption> getDepartments() throws SQLException {
+        List<DepartmentOption> departments = new ArrayList<>();
+        try (Connection con = DBConnection.getConnection();
+             PreparedStatement ps = con.prepareStatement(
+                     "SELECT department_id, department_code, department_name FROM departments ORDER BY department_code");
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                departments.add(new DepartmentOption(rs.getInt("department_id"),
+                        rs.getString("department_code"), rs.getString("department_name")));
+            }
+        }
+        return departments;
+    }
+
     // Retrieve all users
     public List<User> getAllUsers() throws SQLException {
 
@@ -133,6 +153,72 @@ public class UserDAO {
             ps.setBoolean(7, user.isActive());
 
             ps.executeUpdate();
+        }
+    }
+
+    public void addTechnicalOfficer(User user, String passwordHash,
+                                    int departmentId, String staffNo) throws SQLException {
+        if (departmentId <= 0) throw new IllegalArgumentException("Please select a department.");
+        if (staffNo == null || staffNo.isBlank()) {
+            throw new IllegalArgumentException("Staff number is required for a Technical Officer.");
+        }
+        String normalizedStaffNo = staffNo.trim();
+        if (normalizedStaffNo.length() > 50) {
+            throw new IllegalArgumentException("Staff number must be 50 characters or fewer.");
+        }
+
+        String[] names = splitName(user.getFullName());
+        try (Connection con = DBConnection.getConnection()) {
+            con.setAutoCommit(false);
+            try {
+                if (!exists(con, "SELECT 1 FROM departments WHERE department_id = ? FOR SHARE", departmentId)) {
+                    throw new IllegalArgumentException("The selected department does not exist.");
+                }
+                if (exists(con, "SELECT 1 FROM technical_officers WHERE staff_no = ? FOR SHARE", normalizedStaffNo)) {
+                    throw new IllegalArgumentException("Staff number is already assigned.");
+                }
+
+                int userId;
+                try (PreparedStatement ps = con.prepareStatement("""
+                        INSERT INTO users
+                        (username, password_hash, role, first_name, last_name, email, is_active, department_id)
+                        VALUES (?, ?, 'TECHNICAL_OFFICER', ?, ?, ?, ?, ?)
+                        """, Statement.RETURN_GENERATED_KEYS)) {
+                    ps.setString(1, user.getUsername());
+                    ps.setString(2, passwordHash);
+                    ps.setString(3, names[0]);
+                    ps.setString(4, names[1]);
+                    ps.setString(5, user.getEmail());
+                    ps.setBoolean(6, user.isActive());
+                    ps.setInt(7, departmentId);
+                    ps.executeUpdate();
+                    try (ResultSet keys = ps.getGeneratedKeys()) {
+                        if (!keys.next()) throw new SQLException("The new user ID was not generated.");
+                        userId = keys.getInt(1);
+                    }
+                }
+
+                try (PreparedStatement ps = con.prepareStatement(
+                        "INSERT INTO technical_officers (technical_officer_id, staff_no) VALUES (?, ?)")) {
+                    ps.setInt(1, userId);
+                    ps.setString(2, normalizedStaffNo);
+                    ps.executeUpdate();
+                }
+                con.commit();
+            } catch (SQLException | RuntimeException exception) {
+                try { con.rollback(); } catch (SQLException rollback) { exception.addSuppressed(rollback); }
+                throw exception;
+            }
+        }
+    }
+
+    private boolean exists(Connection connection, String sql, Object value) throws SQLException {
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            if (value instanceof Integer integer) ps.setInt(1, integer);
+            else ps.setString(1, value.toString());
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
         }
     }
 
