@@ -54,6 +54,13 @@
                         left="30"/>
             </padding>
 
+            <FlowPane hgap="10" vgap="8">
+                <ComboBox fx:id="offeringCombo" promptText="Assigned offering" prefWidth="280"/>
+                <ComboBox fx:id="enrollmentCombo" promptText="Student enrollment" prefWidth="280"/>
+                <ComboBox fx:id="assessmentCombo" promptText="Assessment" prefWidth="250"/>
+                <Label text="Mark status"/><ComboBox fx:id="markStatusCombo"/>
+                <Label text="Leave the mark empty for Pending, Absent or Medical."/>
+            </FlowPane>
             <GridPane hgap="15"
                       vgap="15">
 
@@ -96,8 +103,9 @@
 
             </GridPane>
 
-            <HBox spacing="10">
+            <FlowPane hgap="10" vgap="8">
 
+                <Button text="Assessments" onAction="#handleAssessments"/><Button text="Refresh" onAction="#handleRefresh"/>
                 <Button fx:id="saveButton"
                         text="Save / Update"
                         onAction="#handleSave"
@@ -120,12 +128,12 @@
                         onAction="#handleResults"
                         prefWidth="145"/>
 
-            </HBox>
+            </FlowPane>
 
             <TableView fx:id="marksTable"
                        VBox.vgrow="ALWAYS">
 
-                <columns>
+                <columns><TableColumn fx:id="statusColumn" text="Status" prefWidth="100"/>
 
                     <TableColumn fx:id="markIdColumn"
                                  text="ID"

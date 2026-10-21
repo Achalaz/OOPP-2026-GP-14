@@ -55,7 +55,7 @@
                     </FlowPane>
                     <Label text="Topic (optional)"/>
                     <TextField fx:id="topicField" promptText="Session topic" minWidth="0"/>
-                    <Button text="Save Session" onAction="#handleSaveSession" prefWidth="160"/>
+                    <Button fx:id="saveSessionButton" text="Save Session" onAction="#handleSaveSession" prefWidth="160"/>
                 </VBox>
                 <VBox spacing="12" minWidth="0"
                       style="-fx-background-color: white; -fx-background-radius: 12; -fx-padding: 18;">
@@ -71,8 +71,8 @@
                     <ComboBox fx:id="attendanceStatusCombo" promptText="Select status"
                               maxWidth="Infinity" minWidth="0"/>
                     <FlowPane hgap="10" vgap="10">
-                        <Button text="Save / Update Attendance" onAction="#handleSaveAttendance"/>
-                        <Button text="Load Attendance" onAction="#handleLoadAttendance"/>
+                        <Button fx:id="saveAttendanceButton" text="Save / Update Attendance" onAction="#handleSaveAttendance"/>
+                        <Button fx:id="loadAttendanceButton" text="Load Attendance" onAction="#handleLoadAttendance"/>
                         <Button text="Clear" onAction="#handleClear"/>
                     </FlowPane>
                 </VBox>
@@ -112,7 +112,7 @@
                     <Label text="Select a course offering above, then select Load Batch Summary. Click a row to view an individual. Only PRESENT currently counts as attended."
                            wrapText="true"/>
 
-                    <Button text="Load Batch Summary"
+                    <Button fx:id="loadSummaryButton" text="Load Batch Summary"
                             onAction="#handleLoadSummary"
                             prefWidth="180"/>
 

@@ -28,6 +28,8 @@ public class UsersController {
     @FXML private TextField emailField;
     @FXML private PasswordField passwordField;
     @FXML private ComboBox<String> roleComboBox;
+    @FXML private ComboBox<UserDAO.DepartmentOption> departmentComboBox;
+    @FXML private TextField staffNumberField;
 
     private final UserDAO userDAO = new UserDAO();
     private final UserService userService = new UserService();
@@ -63,6 +65,16 @@ public class UsersController {
                         "STUDENT"
                 )
         );
+        try {
+            departmentComboBox.setItems(
+                    FXCollections.observableArrayList(userDAO.getDepartments()));
+        } catch (SQLException exception) {
+            showError("Cannot load departments: " + exception.getMessage());
+        }
+        departmentComboBox.disableProperty().bind(
+                roleComboBox.valueProperty().isNotEqualTo("TECHNICAL_OFFICER"));
+        staffNumberField.disableProperty().bind(
+                roleComboBox.valueProperty().isNotEqualTo("TECHNICAL_OFFICER"));
 
         usersTable.getSelectionModel()
                 .selectedItemProperty()
@@ -149,7 +161,16 @@ public class UsersController {
             );
 
             // Step 6: Save into MySQL
-            userDAO.addUser(newUser, passwordHash);
+            if ("TECHNICAL_OFFICER".equals(newUser.getRole())) {
+                UserDAO.DepartmentOption department = departmentComboBox.getValue();
+                if (department == null) {
+                    throw new IllegalArgumentException("Please select a department.");
+                }
+                userDAO.addTechnicalOfficer(newUser, passwordHash,
+                        department.departmentId(), staffNumberField.getText());
+            } else {
+                userDAO.addUser(newUser, passwordHash);
+            }
 
             // Step 7: Clear and refresh
             handleClear();
@@ -174,6 +195,8 @@ public class UsersController {
             }
 
             passwordField.clear();
+            departmentComboBox.setValue(null);
+            staffNumberField.clear();
         }
     }
 

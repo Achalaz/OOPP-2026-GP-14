@@ -28,7 +28,7 @@ public class ProfileDAO {
             String sql = """
                     SELECT user_id, username,
                            first_name, last_name,
-                           email, role, is_active, %s
+                           email, phone, role, is_active, %s
                     FROM users
                     WHERE user_id = ?
                       AND is_active = TRUE
@@ -55,6 +55,7 @@ public class ProfileDAO {
                             rs.getBoolean("is_active")
                     );
                     profile.setProfilePicture(rs.getString("profile_picture"));
+                    profile.setPhone(rs.getString("phone"));
                     return profile;
                 }
             }
@@ -72,6 +73,8 @@ public class ProfileDAO {
     public boolean updateProfile(
             SessionIdentity identity, String fullName, String email) throws SQLException {
         SessionManager.requireSession(identity);
+        if ("STUDENT".equals(SessionManager.getCurrentUser().getRole()))
+            throw new SecurityException("Students may update contact details only.");
         if (fullName == null || fullName.isBlank() || email == null || email.isBlank()) {
             throw new IllegalArgumentException("Full name and email are required.");
         }
@@ -108,6 +111,25 @@ public class ProfileDAO {
 
     protected Connection openConnection() throws SQLException {
         return DBConnection.getConnection();
+    }
+
+    public boolean updateStudentContact(SessionIdentity identity, String expectedName, String email, String phone)
+            throws SQLException {
+        SessionManager.requireSession(identity);
+        if (!"STUDENT".equals(SessionManager.getCurrentUser().getRole()))
+            throw new SecurityException("A student session is required.");
+        try (var connection = openConnection(); var statement = connection.prepareStatement("""
+                UPDATE users SET email=?,phone=? WHERE user_id=? AND role='STUDENT' AND is_active=TRUE
+                AND TRIM(CONCAT(first_name,' ',last_name))=?
+                """)) {
+            statement.setString(1, email);
+            statement.setString(2, phone);
+            statement.setInt(3, identity.userId());
+            statement.setString(4, expectedName);
+            statement.setQueryTimeout(15);
+            SessionManager.requireSession(identity);
+            return statement.executeUpdate() == 1;
+        }
     }
 
     /** Optimistic comparison prevents a stale upload/removal from deleting a newer picture. */

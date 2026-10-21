@@ -4,7 +4,7 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
-<BorderPane xmlns:fx="http://javafx.com/fxml"
+<BorderPane minWidth="0" minHeight="0" xmlns:fx="http://javafx.com/fxml"
             fx:controller="lk.ac.ruhuna.ftms.controller.EligibilityController"
             prefWidth="1120" prefHeight="780">
     <top>
@@ -12,13 +12,14 @@
             <padding>
                 <Insets top="20" right="25" bottom="20" left="25"/>
             </padding>
+            <Button fx:id="backButton" id="dashboardButton" minWidth="-Infinity" text="&#8592; Back to Dashboard" onAction="#handleBack"/>
             <VBox spacing="5" HBox.hgrow="ALWAYS">
                 <Label text="Eligibility"
                        style="-fx-text-fill: white; -fx-font-size: 24px; -fx-font-weight: bold;"/>
                 <Label text="FTMS - Individual and Batch Eligibility"
                        style="-fx-text-fill: #d1d5db; -fx-font-size: 13px;"/>
             </VBox>
-            <Button fx:id="backButton" text="Back to Marks Dashboard" onAction="#handleBack"/>
+
         </HBox>
     </top>
     <center>
@@ -65,7 +66,7 @@
                            wrapText="true" maxWidth="Infinity"
                            GridPane.columnIndex="1" GridPane.rowIndex="3" GridPane.columnSpan="3"/>
                 </GridPane>
-                <Label text="CA eligibility requires at least 40%. Attendance eligibility is supplied by the Attendance module. If unavailable, it stays pending and saving is disabled."
+                <Label text="CA eligibility requires at least 40%. Missing CA data and unconfirmed attendance decisions remain pending. Save stores the available percentages without inventing an overall decision."
                        wrapText="true" maxWidth="Infinity" style="-fx-text-fill: #4b5563;"/>
             </VBox>
 

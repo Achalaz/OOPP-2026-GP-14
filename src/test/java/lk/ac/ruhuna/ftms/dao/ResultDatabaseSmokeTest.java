@@ -12,6 +12,8 @@ import java.util.List;
 /** Explicit local integration runner; optional write checks are always rolled back. */
 public final class ResultDatabaseSmokeTest {
     public static void main(String[] args) throws Exception {
+        var actor=new UserDAO().getAllUsers().stream().filter(u->u.isActive() && "LECTURER".equals(u.getRole())).findFirst().orElseThrow();
+        lk.ac.ruhuna.ftms.util.SessionManager.startSession(actor);
         GradeRuleDAO grades = new GradeRuleDAO();
         CourseResultDAO results = new CourseResultDAO();
         ResultService service = new ResultService();
@@ -30,7 +32,7 @@ public final class ResultDatabaseSmokeTest {
                 if (row.result() != null) {
                     check(snapshot(row.result()).equals(snapshot(service.getResultByEnrollmentId(row.enrollmentId()))), "individual and batch mapping");
                 }
-                CourseResult calculated = service.calculateResult(row.enrollmentId());
+                CourseResult calculated = row.result()!=null && row.result().isPublished() ? row.result() : service.calculateResult(row.enrollmentId());
                 boolean graded = calculated.getResultStatus() == ResultStatus.PASS || calculated.getResultStatus() == ResultStatus.FAIL;
                 check(graded == (calculated.getGradeRuleId() != null), "grade rule only for graded results");
                 check(graded == (calculated.getGradePoint() != null), "grade point only for graded results");
@@ -45,7 +47,7 @@ public final class ResultDatabaseSmokeTest {
         try (Connection connection = DBConnection.getConnection()) {
             connection.setAutoCommit(false);
             try {
-                try (var statement = connection.prepareStatement("SELECT enrollment_id FROM course_results ORDER BY result_id LIMIT 1 FOR UPDATE");
+                try (var statement = connection.prepareStatement("SELECT enrollment_id FROM course_results WHERE published=FALSE ORDER BY result_id LIMIT 1 FOR UPDATE");
                      var rows = statement.executeQuery()) {
                     check(rows.next(), "an existing result is required for the rollback test");
                     enrollmentId = rows.getInt(1);

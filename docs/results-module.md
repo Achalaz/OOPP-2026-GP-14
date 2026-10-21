@@ -1,108 +1,85 @@
 # Results and grades module
 
-The implementation was matched to `SHOW CREATE TABLE` output from the local
-`ftms_group14` database. It adds no schema changes. `CourseResult` represents every
-column of `course_results`, including nullable marks/grades, audit and publication
-fields. Student labels use the existing `students` and `users` tables.
+Updated 19 October 2026 for Achala (TG/2024/2122). This supersedes the earlier
+Phase 1 deny-all publication decision and draft-overwrite behavior.
 
-## Navigation and integration
+## Preserved implementation
 
-Open the existing application, go back from Eligibility to Marks Entry, then choose
-**Results & Grades**. `MainApp` is unchanged. The results screen reuses
-`NavigationUtil`, the existing offering projection/query, JavaFX alerts, and the
-existing inline FTMS visual style; the CSS directory currently has no stylesheet.
-All controller data access goes through `ResultService` and runs off the UI thread.
+The existing CourseResult, CourseResultDAO, ResultService, ResultsController and
+results.fxml remain the publication implementation. The calculation engine still:
 
-The service requires the saved `eligibility_records.overall_eligible` decision.
-It does not invent attendance rules or recalculate eligibility. Missing/null
-eligibility gives `PENDING`; false gives `NOT_ELIGIBLE`, with no normal grade or
-grade point. The eligibility module must maintain that saved decision as inputs
-change. Authentication may call `ResultsController.setCalculatedBy(userId)`;
-until integrated, `calculated_by` is SQL NULL. Authorization remains an integration
-gap in the existing application.
+- Uses every positive-weight assessment in the offering; weights must total 100%.
+- Uses marks / maximum * weight, with decimal arithmetic and two-decimal HALF_UP storage.
+- Separates FINAL_EXAM from CA, supporting different maxima, splits and multiple exams.
+- Uses configured active grade rules, including is_pass; rejects gaps and overlapping rules.
+- Preserves NULL for missing data. PENDING, INCOMPLETE, ABSENT, MEDICAL and NOT_ELIGIBLE do not acquire normal grades.
+- Calculates previews, recalculates before saving, and compares an immutable reviewed snapshot before publication.
 
-## Calculation and explicit assumptions
+## Confirmed publication authority
 
-For each assessment with positive weight:
+Only an authenticated, active database LECTURER assigned to the selected offering
+may calculate/save academic drafts or publish results. The publication authority
+was explicitly confirmed by the project owner in this session. PRIMARY, ASSISTANT
+and PRACTICAL are recognized schema assignment types; no extra restriction between
+those types was invented. Cancelled offerings and withdrawn enrollments are rejected.
+ADMIN, STUDENT, TECHNICAL_OFFICER and anonymous direct publication calls are denied.
 
-`contribution = marks_obtained / max_mark * weight_percentage`
+The UI is an affordance, not the security boundary. The service independently
+locks the active actor, assignment and enrollment context and verifies the same
+SessionManager login generation before committing.
 
-All non-`FINAL_EXAM` assessment types form CA. All `FINAL_EXAM` assessments form
-the exam component, including offerings with multiple exam assessments.
-`ca_mark` and `final_exam_mark` are each normalized to a percentage within their
-component, matching existing saved data. Overall is the sum of unrounded
-contributions, not an average of the displayed percentages. Offerings can use
-different splits, or have only one weighted component. An absent component is NULL.
+## Publication and corrections
 
-Weights must total 100%; incomplete/invalid plans produce an actionable validation
-error instead of silently rescaling. Marks must be between zero and that
-assessment's maximum. Marks belonging to another offering are rejected. Withdrawn
-enrollments are rejected. Zero-weight assessments do not affect the result.
+Save produces an unpublished draft only when no published result already exists.
+A published result cannot be converted back into a draft by ordinary saving.
+Marks and assessment edits that would affect published results are also rejected.
+A formal academic correction/revision policy is required before corrections can
+be enabled; no correction, unpublish or republish feature was invented.
 
-Decimal arithmetic is used. Displayed/stored marks round to two decimal places
-using HALF_UP; the grade lookup uses that exact stored overall value. Active grade
-rules are matched inclusively on `min_mark` and `max_mark`. Gaps and overlaps are
-errors. Grade letter, point, and PASS/FAIL are taken from the matched rule, including
-`is_pass`; no grade boundaries are encoded in application logic. Current database
-rules are demo data and are not represented as official grading policy.
+Publication uses a SERIALIZABLE InnoDB transaction. It re-reads eligibility,
+assessment inputs and grade rules, checks the reviewed saved version, recalculates
+derived values, and updates published/published_at atomically. Missing audit fields,
+unresolved statuses, stale values and duplicate publication are rejected. Failures
+roll back. No published_by column was assumed.
 
-No replacement scores, medical concessions, repeat-grade caps, or special
-exam-pass thresholds are invented. Until official policies are supplied, unresolved
-positive-weight marks are handled conservatively:
+Existing saved attendance decisions are accepted only when supported by current
+fully marked Theory/Practical attendance, matching raw percentages and source
+timestamps. Unresolved special statuses block publication. Current CA must support
+the existing 40% threshold when a CA component exists. These checks do not approve
+an official attendance cutoff: new eligibility evaluations remain pending until
+that policy is confirmed.
 
-| Situation after confirmed eligibility | Result status |
-| --- | --- |
-| All required marks PRESENT and numeric | PASS or FAIL from the grade rule |
-| No marks entered; every mark missing/PENDING | PENDING |
-| All unresolved marks are explicitly ABSENT | ABSENT |
-| All unresolved marks are explicitly MEDICAL | MEDICAL |
-| Partially entered marks, PRESENT with NULL, or mixed unresolved statuses | INCOMPLETE |
-| No assessment plan | INCOMPLETE |
+Input timestamps have one-second precision and there is no immutable input revision
+history. Changes that leave all relevant academic values equivalent are not a
+separate version. External database writes bypass application guards; restrict
+database access accordingly.
 
-The complete CA/exam component may still display for an unresolved result, but
-overall mark, grade rule, grade letter, and grade point stay NULL. Missing marks
-are never converted to zero or removed to inflate a component percentage.
+## GPA and reports
 
-## Saving
+Published grade letters, grade points and PASS/FAIL are historical snapshots.
+Changing a grade rule later does not retroactively change GPA for published results.
+Publication invalidates stored semester GPA caches. GPA screens calculate current
+published data on load/refresh, and authorized Save recalculates/persists the full
+student history transactionally. Repeat/replacement cases yield pending GPA rather
+than an invented rule.
 
-Calculate is a preview. Save re-reads eligibility, assessments, marks, and grade
-rules in one transaction and upserts on the existing unique `enrollment_id` key.
-The enrollment is locked during saving to serialize result calculations. Errors
-roll back the transaction. Updating an ungraded result clears any previous grade.
+Reports hide draft marks and grades, while retaining pending enrollment rows.
+Lecturers see assigned offerings only; students see only their own reports/GPA.
+A lecturer's full GPA view is withheld if its transcript includes an unassigned
+offering. Offering reports remain available within scope.
 
-Saving always produces an **unpublished draft**, including when replacing a
-published result; `published` becomes false and `published_at` becomes NULL.
-This behavior is stated on the screen. Publishing and GPA calculations are outside
-this module. Refresh discards unsaved previews and reloads saved results.
+## Navigation and validation
 
-## Verification
+Lecturer Dashboard has an Assessments and Results section with direct sidebar and
+card links to Assessments, Marks, Eligibility, Result Publication, GPA and Reports.
+Student Dashboard's Grades and GPA card opens personal published results and GPA;
+the corresponding sidebar links are My Published Results and My SGPA / CGPA.
+Student reports load automatically and hide offering/batch controls. Student GPA
+selects the current student's latest semester and has no Save action.
+Results -> GPA / Reports. Academic screens return to the authenticated dashboard.
+The shared NavigationUtil lecturer allowlist includes these screens; Technical
+Officer restrictions remain in place.
 
-Compile using the existing Maven setup: `mvn compile`.
-
-`src/test/java/lk/ac/ruhuna/ftms/service/ResultServiceTest.java` is a dependency-free
-regression runner with a `main` method. After `mvn test-compile`, run it using:
-
-```powershell
-java -cp 'target/test-classes;target/classes' lk.ac.ruhuna.ftms.service.ResultServiceTest
-```
-
-It covers varying maxima and weights, multiple exam assessments, rounding and rule
-boundaries, all result statuses, missing CA marks, invalid inputs, and unavailable
-or overlapping rules. Test-only grade ranges are synthetic fixtures.
-
-Two additional explicit runners are provided (these `main` runners are not
-automatically executed by Surefire):
-
-- `lk.ac.ruhuna.ftms.dao.ResultDatabaseSmokeTest` reads the configured database and
-  checks active rule boundaries, individual/batch mapping, and calculations. Add
-  `--rollback-write` to check upserts against an existing row in a transaction that
-  is always rolled back. Include MySQL Connector/J on the runtime classpath. Like
-  any MySQL auto-increment upsert, this can reserve IDs even when rolled back.
-- `lk.ac.ruhuna.ftms.controller.ResultsViewSmokeTest` loads the real FXML using an
-  in-memory service, with no visible window or database access. Add the four JavaFX
-  platform JARs to the module path and use
-  `--add-modules javafx.controls,javafx.fxml --enable-native-access=javafx.graphics`.
-
-Verified locally: a clean Maven `test-compile` succeeded; 89 service assertions,
-database checks for 11 configured rules and 36 enrollments, rollback upsert checks,
-and FXML/controller interaction checks passed. No result-row changes were retained.
+Run the reproducible checks with scripts/test-achala.ps1. The detailed executed
+results, remaining policy decisions and complete changed-file inventory are in
+[Achala academic completion report](achala-academic-completion.md).
