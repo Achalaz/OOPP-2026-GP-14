@@ -4,19 +4,20 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
-<BorderPane xmlns:fx="http://javafx.com/fxml"
+<BorderPane minWidth="0" minHeight="0" xmlns:fx="http://javafx.com/fxml"
             fx:controller="lk.ac.ruhuna.ftms.controller.ResultsController"
             prefWidth="1160" prefHeight="780">
     <top>
         <HBox alignment="CENTER_LEFT" spacing="20" style="-fx-background-color: #1f2937;">
             <padding><Insets top="20" right="25" bottom="20" left="25"/></padding>
+            <Button fx:id="backButton" id="dashboardButton" minWidth="-Infinity" text="&#8592; Back to Dashboard" onAction="#handleBack"/>
             <VBox spacing="5" HBox.hgrow="ALWAYS">
                 <Label text="Results &amp; Grades"
                        style="-fx-text-fill: white; -fx-font-size: 24px; -fx-font-weight: bold;"/>
                 <Label text="FTMS - Individual and Batch Course Results"
                        style="-fx-text-fill: #d1d5db; -fx-font-size: 13px;"/>
             </VBox>
-            <Button fx:id="backButton" text="Back to Marks Entry" onAction="#handleBack"/>
+
         </HBox>
     </top>
     <center>
@@ -67,14 +68,18 @@
                 <Label text="Grades use the configured database rules. Current sample rules are demo data, not confirmed official grading policy."
                        wrapText="true" maxWidth="Infinity" style="-fx-text-fill: #92400e;"/>
             </VBox>
-            <HBox spacing="10">
+            <FlowPane hgap="10" vgap="8">
                 <Button fx:id="calculateButton" text="Calculate Result" onAction="#handleCalculate" prefWidth="145"/>
                 <Button fx:id="saveButton" text="Save / Update Result" onAction="#handleSave" prefWidth="160"/>
+                <Button fx:id="publishButton" text="Publish Result" onAction="#handlePublish" prefWidth="130"
+                        visible="false" managed="false" disable="true"/>
                 <Button fx:id="clearButton" text="Clear" onAction="#handleClear" prefWidth="100"/>
+                <Button text="SGPA / CGPA" onAction="#handleGpa"/><Button text="Reports" onAction="#handleReports"/>
                 <Button fx:id="refreshButton" text="Refresh" onAction="#handleRefresh" prefWidth="100"/>
-            </HBox>
-            <Label text="Save / Update recalculates current data and saves an unpublished draft, including when replacing a published result. Refresh reloads saved results and discards previews."
+            </FlowPane>
+            <Label text="Save / Update recalculates current data and saves an unpublished draft. Published results are protected from changes. Refresh reloads saved results and discards previews."
                    wrapText="true" maxWidth="Infinity" style="-fx-text-fill: #4b5563;"/>
+            <Label fx:id="publicationPolicyLabel" wrapText="true" maxWidth="Infinity" style="-fx-text-fill: #92400e;"/>
             <VBox spacing="5" VBox.vgrow="ALWAYS">
                 <Label text="Batch results" style="-fx-font-size: 16px; -fx-font-weight: bold;"/>
                 <Label text="Select a row to view the individual result. Calculations are saved one enrollment at a time."

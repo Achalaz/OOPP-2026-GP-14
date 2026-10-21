@@ -5,6 +5,9 @@ import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
+import lk.ac.ruhuna.ftms.controller.CourseController;
+import lk.ac.ruhuna.ftms.dao.CourseDAO;
+import lk.ac.ruhuna.ftms.service.CourseService;
 
 import java.io.IOException;
 import java.net.URL;
@@ -42,6 +45,9 @@ public final class NavigationUtil {
     public static void navigate(Node source, String resource, String title) throws IOException {
         if ("/fxml/dashboard.fxml".equals(resource)) resource = dashboardResource();
         requireNoticeAccess(resource);
+        if ("/fxml/courses.fxml".equals(resource) && !CourseService.isCurrentUserAdmin()) {
+            throw new SecurityException("Active administrator access is required to manage courses.");
+        }
         var user = SessionManager.getCurrentUser();
         if ("/fxml/attendance.fxml".equals(resource)
                 && (user == null || !user.isActive() || !"TECHNICAL_OFFICER".equals(user.getRole()))) {
@@ -64,10 +70,18 @@ public final class NavigationUtil {
             throw new IOException("Screen not found: " + resource);
         }
 
-        Parent root = new FXMLLoader(location).load();
+        FXMLLoader loader = new FXMLLoader(location);
+        Parent root = loader.load();
+        if ("/fxml/courses.fxml".equals(resource)) {
+            CourseController controller = loader.getController();
+            controller.setCourseService(new CourseService(new CourseDAO(), CourseService::isCurrentUserAdmin));
+        }
         Scene scene = source.getScene();
         // Responsive portals and logout retain MainApp's screen-bounded window size.
         boolean preserveWindowSize = "/fxml/student_dashboard.fxml".equals(resource)
+                || "/fxml/admin_dashboard.fxml".equals(resource)
+                || "/fxml/courses.fxml".equals(resource)
+                || "coursesRoot".equals(scene.getRoot().getId())
                 || "/fxml/technical_officer_dashboard.fxml".equals(resource)
                 || "/fxml/attendance.fxml".equals(resource)
                 || "/fxml/login.fxml".equals(resource)

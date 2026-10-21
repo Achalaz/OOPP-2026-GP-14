@@ -75,6 +75,10 @@ public class AttendanceController {
 
     @FXML
     private Label statusLabel;
+    @FXML private Button saveSessionButton;
+    @FXML private Button saveAttendanceButton;
+    @FXML private Button loadAttendanceButton;
+    @FXML private Button loadSummaryButton;
 
     // New Attendance Summary controls
 
@@ -118,6 +122,8 @@ public class AttendanceController {
 
     private final AttendanceService attendanceService;
     private boolean busy;
+    private boolean sceneWasAttached;
+    private Task<?> activeTask;
 
     public AttendanceController() { this(new AttendanceService()); }
 
@@ -133,6 +139,9 @@ public class AttendanceController {
 
     @FXML
     public void initialize() {
+        attendanceRoot.sceneProperty().addListener((observable, oldScene, newScene) -> {
+            if (newScene != null) sceneWasAttached = true;
+        });
         attendanceService.requireManagementSession();
 
         sessionTypeCombo.setItems(
@@ -170,6 +179,7 @@ public class AttendanceController {
 
         initializeSummaryTable();
         sessionDatePicker.setValue(LocalDate.now());
+        offeringCombo.setDisable(true);
         sessionCombo.setConverter(new StringConverter<>() {
             @Override public String toString(AttendanceSession session) {
                 if (session == null) return "";
@@ -189,15 +199,26 @@ public class AttendanceController {
         offeringCombo.valueProperty().addListener((obs, old, choice) -> {
             clearOfferingData();
             if (choice != null) loadOffering(choice.offeringId());
+            updateControlState();
         });
         sessionCombo.valueProperty().addListener((obs, old, choice) -> {
             attendanceRecords.clear();
             attendanceStatusCombo.setValue(null);
+            updateControlState();
         });
+        enrollmentCombo.valueProperty().addListener((obs, old, choice) -> updateControlState());
+        attendanceStatusCombo.valueProperty().addListener((obs, old, choice) -> updateControlState());
+        sessionDatePicker.valueProperty().addListener((obs, old, choice) -> updateControlState());
+        startTimeField.textProperty().addListener((obs, old, choice) -> updateControlState());
+        endTimeField.textProperty().addListener((obs, old, choice) -> updateControlState());
+        topicField.textProperty().addListener((obs, old, choice) -> updateControlState());
+        sessionTypeCombo.valueProperty().addListener((obs, old, choice) -> updateControlState());
+        updateControlState();
         run("Loading authorized course offerings...", attendanceService::getAuthorizedOfferings, choices -> {
             offeringCombo.getItems().setAll(choices);
             statusLabel.setText(choices.isEmpty() ? "No course offerings are assigned to your department."
                     : "Select a course offering from your department to begin.");
+            updateControlState();
         });
     }
 
@@ -413,6 +434,7 @@ public class AttendanceController {
             enrollmentCombo.getItems().setAll(data.enrollments());
             statusLabel.setText("Choose an existing session or create one below. "
                     + data.enrollments().size() + " undergraduate enrollments available.");
+            updateControlState();
         });
     }
 
@@ -430,30 +452,35 @@ public class AttendanceController {
         if (busy) return;
         attendanceService.requireManagementSession();
         busy = true;
-        workspace.setDisable(true);
         statusLabel.setText(message);
+        updateControlState();
         Task<T> task = new Task<>() {
             @Override protected T call() throws Exception { return operation.call(); }
         };
+        activeTask = task;
         task.setOnSucceeded(event -> {
             busy = false;
-            if (!isCurrentScreen()) return;
+            if (activeTask != task || !isCurrentScreen()) return;
+            activeTask = null;
             try {
                 attendanceService.requireManagementSession();
-                workspace.setDisable(false);
                 completed.accept(task.getValue());
+                updateControlState();
             } catch (SecurityException exception) { denyAccess(exception.getMessage()); }
         });
         task.setOnFailed(event -> {
             busy = false;
-            if (!isCurrentScreen()) return;
+            if (activeTask != task || !isCurrentScreen()) return;
+            activeTask = null;
             try { attendanceService.requireManagementSession(); }
             catch (SecurityException exception) { denyAccess(exception.getMessage()); return; }
             if (task.getException() instanceof SecurityException) {
                 denyAccess(task.getException().getMessage());
             } else {
-                workspace.setDisable(false);
-                statusLabel.setText(task.getException().getMessage());
+                Throwable failure = task.getException();
+                statusLabel.setText(failure == null || failure.getMessage() == null
+                        ? "Attendance operation failed. Please retry." : failure.getMessage());
+                updateControlState();
             }
         });
         Thread thread = new Thread(task, "ftms-attendance");
@@ -462,13 +489,15 @@ public class AttendanceController {
     }
 
     private boolean isCurrentScreen() {
-        return attendanceRoot.getScene() != null && attendanceRoot.getScene().getRoot() == attendanceRoot;
+        // FXMLLoader invokes initialize before NavigationUtil attaches the root.
+        return !sceneWasAttached || (attendanceRoot.getScene() != null
+                && attendanceRoot.getScene().getRoot() == attendanceRoot);
     }
 
     private void denyAccess(String message) {
         clearOfferingData();
         offeringCombo.getItems().clear();
-        workspace.setDisable(true);
+        updateControlState();
         statusLabel.setText(message);
     }
 
@@ -532,6 +561,48 @@ public class AttendanceController {
         attendanceRecords.clear();
         summaryRows.clear();
         summaryDetailsLabel.setText("Select a student to view individual attendance details.");
+        updateControlState();
+    }
+
+    private void updateControlState() {
+        if (offeringCombo == null) return;
+        boolean authenticated;
+        try {
+            attendanceService.requireManagementSession();
+            authenticated = true;
+        } catch (SecurityException exception) {
+            authenticated = false;
+        }
+        boolean loading = busy || !authenticated;
+        boolean offeringSelected = offeringCombo.getValue() != null;
+        boolean sessionSelected = sessionCombo.getValue() != null;
+        boolean enrollmentSelected = enrollmentCombo.getValue() != null;
+        boolean statusSelected = attendanceStatusCombo.getValue() != null;
+        boolean sessionInputsValid = offeringSelected && sessionDatePicker.getValue() != null
+                && sessionTypeCombo.getValue() != null && validSessionTimes()
+                && (topicField.getText() == null || topicField.getText().length() <= 255);
+
+        offeringCombo.setDisable(loading);
+        saveSessionButton.setDisable(loading || !sessionInputsValid);
+        saveAttendanceButton.setDisable(loading || !sessionSelected || !enrollmentSelected || !statusSelected);
+        loadAttendanceButton.setDisable(loading || !sessionSelected);
+        loadSummaryButton.setDisable(loading || !offeringSelected);
+    }
+
+    private boolean validSessionTimes() {
+        if (!isTime(startTimeField.getText()) || !isTime(endTimeField.getText())) return false;
+        return LocalTime.parse(endTimeField.getText().trim())
+                .isAfter(LocalTime.parse(startTimeField.getText().trim()));
+    }
+
+    private boolean isTime(String value) {
+        if (value == null || value.isBlank()) return false;
+        try {
+            LocalTime.parse(value.trim());
+            return true;
+        } catch (java.time.format.DateTimeParseException exception) {
+            return false;
+        }
     }
 
     @FXML

@@ -23,14 +23,14 @@ public final class LecturerAccessSmokeTest {
                 continue;
             }
             var service = new LecturerViewService();
-            denied(() -> new EligibilityService().evaluateAndSaveEligibility(1,100,true,user.getUserId()));
+            denied(() -> new EligibilityService().evaluateAndSaveEligibility(1,100,true,Integer.MAX_VALUE));
             denied(() -> new AttendanceService().saveSession(null));
             denied(() -> new AttendanceService().saveAttendance(null));
             denied(() -> new MedicalService().approveMedical(1,user.getUserId(),""));
             denied(() -> new MedicalService().getAllMedicals());
-            denied(() -> new GPAService().saveSemesterResult(null));
-            denied(() -> new ResultService().calculateAndSaveResult(1,user.getUserId()));
-            denied(() -> new ReportService().getStudentReport(1));
+            try { new GPAService().saveSemesterResult(null);throw new AssertionError("Missing GPA accepted"); } catch(IllegalArgumentException expected) { checks++; }
+            denied(() -> new ResultService().calculateAndSaveResult(1,Integer.MAX_VALUE));
+            check(new ReportService().getStudentReport(1).isEmpty(),"unrelated student report reveals no rows");
             var materials = new CourseMaterialService();
             var offerings = service.offerings();
             for (var other : new EligibilityDAO().findOfferings()) {

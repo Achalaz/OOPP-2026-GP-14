@@ -81,6 +81,7 @@ public final class SessionManager {
         User copy = new User(user.getUserId(), user.getUsername(), user.getFullName(),
                 user.getEmail(), user.getRole(), user.isActive());
         copy.setProfilePicture(user.getProfilePicture());
+        copy.setPhone(user.getPhone());
         return copy;
     }
 

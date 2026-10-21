@@ -11,6 +11,7 @@ import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TableColumn;
@@ -21,6 +22,7 @@ import lk.ac.ruhuna.ftms.model.EligibilityOffering;
 import lk.ac.ruhuna.ftms.model.ResultRow;
 import lk.ac.ruhuna.ftms.service.ResultService;
 import lk.ac.ruhuna.ftms.util.NavigationUtil;
+import lk.ac.ruhuna.ftms.util.SessionManager;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -42,8 +44,10 @@ public class ResultsController {
     @FXML private Label resultStateLabel;
     @FXML private Label reasonLabel;
     @FXML private Label statusLabel;
+    @FXML private Label publicationPolicyLabel;
     @FXML private Button calculateButton;
     @FXML private Button saveButton;
+    @FXML private Button publishButton;
     @FXML private Button clearButton;
     @FXML private Button refreshButton;
     @FXML private Button backButton;
@@ -58,13 +62,14 @@ public class ResultsController {
     @FXML private TableColumn<ResultRow, String> gradePointColumn;
     @FXML private TableColumn<ResultRow, String> stateColumn;
 
+    private final SessionManager.SessionIdentity screenIdentity = SessionManager.requireSession();
     private final ResultService resultService;
     private final ObservableList<ResultRow> rows = FXCollections.observableArrayList();
     private final BooleanProperty busy = new SimpleBooleanProperty();
     private final ObjectProperty<Integer> readyEnrollment = new SimpleObjectProperty<>();
+    private final BooleanProperty publicationAuthorized = new SimpleBooleanProperty();
+    private final BooleanProperty publishableSelection = new SimpleBooleanProperty();
     private boolean updatingSelection;
-    // Authentication integration may supply this later; the schema allows SQL NULL.
-    private Integer calculatedBy;
 
     public ResultsController() { this(new ResultService()); }
 
@@ -72,11 +77,12 @@ public class ResultsController {
         this.resultService = Objects.requireNonNull(resultService);
     }
 
+    /** Compatibility hook only; audit identity always comes from the authenticated session. */
+    @Deprecated
     public void setCalculatedBy(Integer userId) {
-        if (userId != null && userId <= 0) {
-            throw new IllegalArgumentException("Calculated-by user ID must be positive.");
+        if (userId != null && !Objects.equals(userId, SessionManager.getCurrentUserIdOrNull())) {
+            throw new SecurityException("Calculated-by must be the signed-in user.");
         }
-        calculatedBy = userId;
         readyEnrollment.set(null);
     }
 
@@ -100,6 +106,9 @@ public class ResultsController {
         batchTable.disableProperty().bind(busy);
         calculateButton.disableProperty().bind(busy.or(enrollmentCombo.valueProperty().isNull()));
         saveButton.disableProperty().bind(busy.or(readyEnrollment.isNull()));
+        publishButton.visibleProperty().bind(publicationAuthorized);
+        publishButton.managedProperty().bind(publicationAuthorized);
+        publishButton.disableProperty().bind(busy.or(publicationAuthorized.not()).or(publishableSelection.not()));
         clearButton.disableProperty().bind(busy);
         refreshButton.disableProperty().bind(busy);
         backButton.disableProperty().bind(busy);
@@ -174,14 +183,52 @@ public class ResultsController {
         ResultRow selected = enrollmentCombo.getValue();
         if (selected == null || !Objects.equals(readyEnrollment.get(), selected.enrollmentId())) { return; }
         readyEnrollment.set(null);
-        Integer userId = calculatedBy;
         runTask("Recalculating and saving result...",
-                () -> resultService.calculateAndSaveResult(selected.enrollmentId(), userId), result -> {
+                () -> resultService.calculateAndSaveResult(selected.enrollmentId()), result -> {
                     replaceRow(selected.withResult(result));
                     statusLabel.setText("Unpublished result saved for enrollment " + selected.enrollmentId() + ".");
                 });
     }
 
+    @FXML
+    private void handlePublish() {
+        ResultRow selected = enrollmentCombo.getValue();
+        EligibilityOffering offering = offeringCombo.getValue();
+        if (busy.get() || selected == null || selected.result() == null || offering == null
+                || !publishableSelection.get() || !resultService.canPublishResult(offering.offeringId())) { return; }
+        var reviewed = selected.result().publicationSnapshot();
+        var identity = SessionManager.requireSession();
+        if (!confirmPublication(selected, reviewed)) { return; }
+        readyEnrollment.set(null);
+        runTask("Validating and publishing result...", () -> {
+            SessionManager.requireSession(identity);
+            return resultService.publishResult(offering.offeringId(), reviewed);
+        }, result -> {
+            replaceRow(selected.withResult(result));
+            statusLabel.setText("Result published for enrollment " + selected.enrollmentId() + ".");
+        });
+    }
+
+    /** Package-visible so the FXML runner can test confirm/cancel without opening a window. */
+    boolean confirmPublication(ResultRow selected, CourseResult.PublicationSnapshot reviewed) {
+        Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
+        confirmation.setTitle("Publish Result");
+        confirmation.setHeaderText("Publish the reviewed result for " + selected.registrationNo() + "?");
+        confirmation.setContentText("Enrollment " + selected.enrollmentId() + " | " + offeringCombo.getValue()
+                + "\nOverall: " + reviewed.overallMark() + " | Grade: " + reviewed.gradeLetter()
+                + " | Status: " + reviewed.resultStatus()
+                + "\nThis makes the saved result available to published-result views and GPA calculations."
+                + " Current inputs will be checked again before publication.");
+        if (publishButton.getScene() != null && publishButton.getScene().getWindow() != null) {
+            confirmation.initOwner(publishButton.getScene().getWindow());
+        }
+        ((Button) confirmation.getDialogPane().lookupButton(ButtonType.OK)).setDefaultButton(false);
+        ((Button) confirmation.getDialogPane().lookupButton(ButtonType.CANCEL)).setDefaultButton(true);
+        return confirmation.showAndWait().filter(ButtonType.OK::equals).isPresent();
+    }
+
+    @FXML private void handleGpa() throws IOException { NavigationUtil.navigate(batchTable,"/fxml/gpa.fxml","FTMS - GPA"); }
+    @FXML private void handleReports() throws IOException { NavigationUtil.navigate(batchTable,"/fxml/reports.fxml","FTMS - Reports"); }
     private void replaceRow(ResultRow replacement) {
         updatingSelection = true;
         try {
@@ -213,12 +260,23 @@ public class ResultsController {
 
     @FXML
     private void handleBack() {
-        try { NavigationUtil.navigate(batchTable, "/fxml/marks_entry.fxml", "FTMS - Marks Entry"); }
+        try { NavigationUtil.navigate(batchTable, NavigationUtil.dashboardResource(), "FTMS - Marks Entry"); }
         catch (IOException error) { showError("Unable to open Marks Entry. Please retry.", error); }
     }
 
     private void display(ResultRow row) {
         CourseResult result = row == null ? null : row.result();
+        EligibilityOffering offering = offeringCombo.getValue();
+        publicationAuthorized.set(offering != null && resultService.canPublishResult(offering.offeringId()));
+        publicationPolicyLabel.setText(publicationAuthorized.get() ? "Review a saved draft before publishing."
+                : ResultService.PUBLICATION_POLICY_PENDING);
+        publishableSelection.set(result != null && result.getResultId() > 0 && !result.isPublished()
+                && result.getPublishedAt() == null && result.getCalculatedAt() != null
+                && result.getCalculatedBy() != null
+                && (result.getResultStatus() == CourseResult.ResultStatus.PASS
+                    || result.getResultStatus() == CourseResult.ResultStatus.FAIL)
+                && result.getOverallMark() != null && result.getGradeRuleId() != null
+                && result.getGradeLetter() != null && !result.getGradeLetter().isBlank() && result.getGradePoint() != null);
         caMarkLabel.setText(number(result, CourseResult::getCaMark));
         finalExamMarkLabel.setText(number(result, CourseResult::getFinalExamMark));
         overallMarkLabel.setText(number(result, CourseResult::getOverallMark));
@@ -245,20 +303,26 @@ public class ResultsController {
     }
 
     private <T> void runTask(String message, Callable<T> work, Consumer<T> onSuccess) {
+        var identity = screenIdentity;
         busy.set(true);
         statusLabel.setText(message);
         Task<T> task = new Task<>() {
-            @Override protected T call() throws Exception { return work.call(); }
+            @Override protected T call() throws Exception {
+                if (identity != null) { SessionManager.requireSession(identity); }
+                return work.call();
+            }
         };
         task.setOnSucceeded(event -> {
             busy.set(false);
+            if (identity != null && !SessionManager.isCurrentSession(identity)) { rows.clear(); display(null); return; }
             onSuccess.accept(task.getValue());
         });
         task.setOnFailed(event -> {
             busy.set(false);
             readyEnrollment.set(null);
+            rows.clear(); display(null);
             Throwable error = task.getException();
-            showError(error instanceof ResultCalculationException ? error.getMessage()
+            showError(error instanceof ResultCalculationException || error instanceof SecurityException ? error.getMessage()
                     : "Unable to complete the result action. Check the database connection and retry.", error);
         });
         Thread thread = new Thread(task, "ftms-results");

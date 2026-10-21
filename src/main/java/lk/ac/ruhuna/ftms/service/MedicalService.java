@@ -10,6 +10,17 @@ import java.util.List;
 import java.util.Objects;
 
 public class MedicalService {
+    public List<Medical> getMyMedicals(lk.ac.ruhuna.ftms.util.SessionManager.SessionIdentity identity)
+            throws SQLException {
+        return new StudentAccessService(identity).read(medicalDAO::findByStudentId);
+    }
+
+    private void requireStaff() {
+        var user = lk.ac.ruhuna.ftms.util.SessionManager.getCurrentUser();
+        if (user == null || !user.isActive() || user.getRole() == null
+                || !java.util.Set.of("ADMIN", "TECHNICAL_OFFICER").contains(user.getRole()))
+            throw new SecurityException("Staff access is required. Students can only view their own medical records.");
+    }
 
     /** Deliberately excludes reason, document path and reviewer notes. */
     public lk.ac.ruhuna.ftms.model.LecturerTable getLecturerStatuses(int offeringId) throws SQLException {
@@ -36,7 +47,7 @@ public class MedicalService {
     // Submit a new medical record
     public Medical submitMedical(Medical medical)
             throws SQLException {
-        LecturerAccessService.rejectUnscopedLecturerOperation();
+        requireStaff();
 
         validateMedical(medical);
 
@@ -59,7 +70,7 @@ public class MedicalService {
     // Update a medical record while it is pending
     public boolean updatePendingMedical(Medical medical)
             throws SQLException {
-        LecturerAccessService.rejectUnscopedLecturerOperation();
+        requireStaff();
 
         validateMedical(medical);
 
@@ -131,7 +142,7 @@ public class MedicalService {
             String status,
             int reviewedBy,
             String reviewNote) throws SQLException {
-        LecturerAccessService.rejectUnscopedLecturerOperation();
+        requireStaff();
 
         validateId(medicalId, "Medical ID");
         validateId(reviewedBy, "Reviewer ID");
@@ -178,7 +189,7 @@ public class MedicalService {
     // Get a medical record by ID
     public Medical getMedicalById(int medicalId)
             throws SQLException {
-        LecturerAccessService.rejectUnscopedLecturerOperation();
+        requireStaff();
 
         validateId(medicalId, "Medical ID");
 
@@ -188,7 +199,7 @@ public class MedicalService {
     // Get all medical records of a student
     public List<Medical> getMedicalsByStudent(
             int studentId) throws SQLException {
-        LecturerAccessService.rejectUnscopedLecturerOperation();
+        requireStaff();
 
         validateId(studentId, "Student ID");
 
@@ -199,7 +210,7 @@ public class MedicalService {
     // Caller must check staff permissions
     public List<Medical> getAllMedicals()
             throws SQLException {
-        LecturerAccessService.rejectUnscopedLecturerOperation();
+        requireStaff();
 
         return medicalDAO.findAll();
     }
@@ -209,7 +220,7 @@ public class MedicalService {
     public boolean deletePendingMedical(
             int medicalId,
             int studentId) throws SQLException {
-        LecturerAccessService.rejectUnscopedLecturerOperation();
+        requireStaff();
 
         validateId(medicalId, "Medical ID");
         validateId(studentId, "Student ID");
