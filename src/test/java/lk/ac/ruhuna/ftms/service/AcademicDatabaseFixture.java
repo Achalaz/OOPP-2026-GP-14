@@ -18,6 +18,7 @@ public final class AcademicDatabaseFixture implements AutoCloseable {
     private final Driver driver;
     private String failSql;
     private Runnable afterWrite;
+    private int connectionsOpened;
     public AcademicDatabaseFixture()throws Exception {
         connection=DBConnection.getConnection();
         for(String table:TABLES) {
@@ -52,7 +53,11 @@ public final class AcademicDatabaseFixture implements AutoCloseable {
         originalDrivers=Collections.list(DriverManager.getDrivers());
         for(var d:originalDrivers)DriverManager.deregisterDriver(d);
         driver=new Driver(){
-            public Connection connect(String url,Properties p){return url.startsWith("jdbc:mysql:")?borrowed:null;}
+            public Connection connect(String url,Properties p){
+                if (!url.startsWith("jdbc:mysql:")) return null;
+                connectionsOpened++;
+                return borrowed;
+            }
             public boolean acceptsURL(String url){return url.startsWith("jdbc:mysql:");}
             public DriverPropertyInfo[] getPropertyInfo(String u,Properties p){return new DriverPropertyInfo[0];}
             public int getMajorVersion(){return 1;}public int getMinorVersion(){return 0;}
@@ -63,6 +68,7 @@ public final class AcademicDatabaseFixture implements AutoCloseable {
     public void login(int id,String role){SessionManager.startSession(new User(id,"fixture","Fixture",null,role,true));}
     public void failAfterWrite(String fragment){failSql=fragment;}
     public void afterWrite(Runnable action){afterWrite=action;}
+    public int connectionsOpened(){return connectionsOpened;}
     public void execute(String sql)throws SQLException{
         try(var s=connection.createStatement()){s.executeUpdate(sql);}
         if(!connection.getAutoCommit())connection.commit();

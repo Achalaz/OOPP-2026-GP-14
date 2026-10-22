@@ -24,6 +24,10 @@ public final class TimetableService {
     private final TimetableDAO timetableDAO;
     private final AttendanceAccessDAO accessDAO;
     private final SessionIdentity loginIdentity;
+    private final ConnectionProvider connections;
+
+    @FunctionalInterface
+    interface ConnectionProvider { Connection open() throws SQLException; }
 
     public TimetableService() {
         this(
@@ -35,6 +39,11 @@ public final class TimetableService {
     public TimetableService(
             TimetableDAO timetableDAO,
             AttendanceAccessDAO accessDAO) {
+        this(timetableDAO, accessDAO, DBConnection::getConnection);
+    }
+
+    TimetableService(TimetableDAO timetableDAO, AttendanceAccessDAO accessDAO, ConnectionProvider connections) {
+        this.connections = Objects.requireNonNull(connections);
 
         this.timetableDAO = Objects.requireNonNull(
                 timetableDAO,
@@ -58,10 +67,7 @@ public final class TimetableService {
         return inDepartment(
                 (connection, departmentId) ->
                         List.copyOf(
-                                accessDAO.findOfferings(
-                                        connection,
-                                        departmentId
-                                )
+                                timetableDAO.findOfferings(connection, departmentId, false)
                         )
         );
     }
@@ -140,7 +146,7 @@ public final class TimetableService {
         requireTechnicalOfficer();
 
         try (Connection connection =
-                     DBConnection.getConnection()) {
+                     connections.open()) {
 
             connection.setAutoCommit(false);
 

@@ -2,6 +2,7 @@
 package lk.ac.ruhuna.ftms.service;
 
 import lk.ac.ruhuna.ftms.dao.TimetableDAO;
+import lk.ac.ruhuna.ftms.dao.TimetableDAO.AssignedLecturer;
 import lk.ac.ruhuna.ftms.dao.TimetableDAO.TimetableEntry;
 import lk.ac.ruhuna.ftms.dao.TimetableDAO.TimetableInput;
 import lk.ac.ruhuna.ftms.database.DBConnection;
@@ -15,7 +16,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -28,16 +28,25 @@ public final class AdminTimetableService {
             "ftms_group14_timetable_write";
 
     private final TimetableDAO timetableDAO;
+    private final ConnectionProvider connections;
+
+    @FunctionalInterface
+    interface ConnectionProvider { Connection open() throws SQLException; }
     private final SessionIdentity loginIdentity;
 
     // Default constructor
     public AdminTimetableService() {
-        this(new TimetableDAO());
+        this(new TimetableDAO(), DBConnection::getConnection);
     }
 
     // Dependency injection constructor
     public AdminTimetableService(
             TimetableDAO timetableDAO) {
+        this(timetableDAO, DBConnection::getConnection);
+    }
+
+    AdminTimetableService(TimetableDAO timetableDAO, ConnectionProvider connections) {
+        this.connections = Objects.requireNonNull(connections);
 
         this.timetableDAO = Objects.requireNonNull(
                 timetableDAO,
@@ -55,50 +64,15 @@ public final class AdminTimetableService {
     // ======================================
 
     public List<AttendanceOffering> getAllOfferings() {
+        return execute(false, connection -> timetableDAO.findOfferings(connection, null, false));
+    }
 
-        return execute(false, connection -> {
+    public List<AttendanceOffering> getSchedulableOfferings() {
+        return execute(false, connection -> timetableDAO.findOfferings(connection, null, true));
+    }
 
-            String sql = """
-                    SELECT
-                        o.offering_id,
-                        c.course_code,
-                        c.course_name,
-                        o.semester_id,
-                        o.offering_group
-                    FROM course_offerings o
-                    JOIN courses c
-                        ON c.course_id = o.course_id
-                    ORDER BY
-                        c.course_code,
-                        o.semester_id DESC,
-                        o.offering_group
-                    """;
-
-            List<AttendanceOffering> results =
-                    new ArrayList<>();
-
-            try (PreparedStatement statement =
-                         connection.prepareStatement(sql);
-
-                 ResultSet rs =
-                         statement.executeQuery()) {
-
-                while (rs.next()) {
-
-                    results.add(
-                            new AttendanceOffering(
-                                    rs.getInt("offering_id"),
-                                    rs.getString("course_code"),
-                                    rs.getString("course_name"),
-                                    rs.getInt("semester_id"),
-                                    rs.getString("offering_group")
-                            )
-                    );
-                }
-            }
-
-            return List.copyOf(results);
-        });
+    public List<AssignedLecturer> getAssignedLecturers() {
+        return execute(false, timetableDAO::findAssignedLecturers);
     }
 
     // ======================================
@@ -106,44 +80,7 @@ public final class AdminTimetableService {
     // ======================================
 
     public List<TimetableEntry> getAllTimetable() {
-
-        return execute(false, connection -> {
-
-            List<Integer> departments =
-                    new ArrayList<>();
-
-            String sql = """
-                    SELECT department_id
-                    FROM departments
-                    ORDER BY department_id
-                    """;
-
-            try (PreparedStatement statement =
-                         connection.prepareStatement(sql);
-
-                 ResultSet rs =
-                         statement.executeQuery()) {
-
-                while (rs.next()) {
-                    departments.add(rs.getInt(1));
-                }
-            }
-
-            List<TimetableEntry> results =
-                    new ArrayList<>();
-
-            for (int departmentId : departments) {
-
-                results.addAll(
-                        timetableDAO.findByDepartment(
-                                connection,
-                                departmentId
-                        )
-                );
-            }
-
-            return List.copyOf(results);
-        });
+        return execute(false, timetableDAO::findAll);
     }
 
     // ======================================
@@ -430,9 +367,10 @@ public final class AdminTimetableService {
             SqlWork<T> work) {
 
         requireAdminSession();
+        rejectInterrupted();
 
         try (Connection connection =
-                     DBConnection.getConnection()) {
+                     connections.open()) {
 
             connection.setAutoCommit(false);
 
@@ -453,6 +391,7 @@ public final class AdminTimetableService {
                 requireAdminSession();
                 requireAdminInDatabase(connection);
 
+                rejectInterrupted();
                 connection.commit();
 
                 return result;
@@ -547,6 +486,12 @@ public final class AdminTimetableService {
                          statement.executeQuery()) {
                 // Result consumed when closing.
             }
+        }
+    }
+
+    private static void rejectInterrupted() {
+        if (Thread.currentThread().isInterrupted()) {
+            throw new java.util.concurrent.CancellationException("Timetable operation cancelled.");
         }
     }
 
