@@ -69,5 +69,12 @@ public class AdminDashboardController {
     private void showError(String message) {
         new Alert(Alert.AlertType.ERROR, message).showAndWait();
     }
+
+
+    @FXML
+    private void handleCourseOfferings() {
+        navigate("course_offerings.fxml");
+    }
+
 }
 
