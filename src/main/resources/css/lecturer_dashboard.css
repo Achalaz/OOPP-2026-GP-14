@@ -10,6 +10,14 @@
     -fx-padding: 28 17 22 17;
 }
 
+.sidebar-scroll,
+.sidebar-scroll > .viewport {
+    -fx-background-color: transparent;
+    -fx-background: #112845;
+    -fx-padding: 0;
+    -fx-border-width: 0;
+}
+
 .brand-icon {
     -fx-background-color: #3479CD;
     -fx-background-radius: 12;

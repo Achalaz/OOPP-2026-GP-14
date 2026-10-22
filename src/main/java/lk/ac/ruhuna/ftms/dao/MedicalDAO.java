@@ -17,6 +17,18 @@ import java.util.List;
 import java.util.Locale;
 
 public class MedicalDAO {
+    public List<Medical> findByStudentId(Connection connection, int studentId) throws SQLException {
+        var records = new ArrayList<Medical>();
+        try (var statement = connection.prepareStatement(
+                "SELECT * FROM medicals WHERE student_id=? ORDER BY submitted_at DESC,medical_id DESC")) {
+            statement.setInt(1, studentId);
+            statement.setQueryTimeout(15);
+            try (var rows = statement.executeQuery()) {
+                while (rows.next()) records.add(mapRow(rows));
+            }
+        }
+        return List.copyOf(records);
+    }
 
     public void save(Medical medical) throws SQLException {
 

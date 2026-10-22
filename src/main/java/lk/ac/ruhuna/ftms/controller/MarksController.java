@@ -2,8 +2,6 @@ package lk.ac.ruhuna.ftms.controller;
 
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.Parent;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 
@@ -83,6 +81,7 @@ public class MarksController {
 
         loadMarks();
 
+        initializeSelections();
         boolean lecturer = "LECTURER".equals(SessionManager.getCurrentUser().getRole());
         saveButton.setDisable(!lecturer);
         deleteButton.setVisible(!lecturer);
@@ -94,6 +93,7 @@ public class MarksController {
                 .addListener((obs, oldValue, selected) -> {
 
                     if (selected != null) {
+                        markStatusCombo.setValue(selected.getMarkStatus());
                         enrollmentIdField.setText(
                                 String.valueOf(
                                         selected.getEnrollmentId()
@@ -140,10 +140,7 @@ public class MarksController {
                             assessmentIdField.getText().trim()
                     );
 
-            double mark =
-                    Double.parseDouble(
-                            markField.getText().trim()
-                    );
+            Double mark = markField.getText().isBlank() ? null : Double.valueOf(markField.getText().trim());
 
             int attemptNo =
                     Integer.parseInt(
@@ -157,6 +154,7 @@ public class MarksController {
                     attemptNo
             );
 
+            newMark.setMarkStatus(markStatusCombo.getValue());
             markService.saveMark(newMark);
 
             showAlert(
@@ -195,7 +193,7 @@ public class MarksController {
             showAlert(
                     Alert.AlertType.ERROR,
                     "Error",
-                    "Unable to save mark."
+                    e.getMessage() == null ? "Unable to save mark." : e.getMessage()
             );
 
             e.printStackTrace();
@@ -257,16 +255,7 @@ public class MarksController {
     private void openAcademicScreen(String mode, String resource, String title) {
         try {
             SessionManager.requireSession(identity);
-            if ("LECTURER".equals(SessionManager.getCurrentUser().getRole())) {
-                // Keep the existing academic integrations within the lecturer's assigned courses.
-                FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/lecturer_workspace.fxml"));
-                Parent root = loader.load();
-                marksTable.getScene().setRoot(root);
-                LecturerWorkspaceController controller = loader.getController();
-                controller.configure(mode, title);
-            } else {
-                NavigationUtil.navigate(marksTable, resource, title);
-            }
+            NavigationUtil.navigate(marksTable, resource, title);
         } catch (IOException | SecurityException e) {
             showAlert(Alert.AlertType.ERROR, "Navigation Error", e.getMessage());
             e.printStackTrace();
@@ -283,6 +272,31 @@ public class MarksController {
         }
     }
 
+    @FXML private ComboBox<lk.ac.ruhuna.ftms.model.EligibilityOffering> offeringCombo;
+    @FXML private ComboBox<lk.ac.ruhuna.ftms.model.ResultRow> enrollmentCombo;
+    @FXML private ComboBox<lk.ac.ruhuna.ftms.model.Assessment> assessmentCombo;
+    @FXML private ComboBox<String> markStatusCombo;
+    @FXML private TableColumn<Mark,String> statusColumn;
+    private void initializeSelections() {
+        markStatusCombo.getItems().setAll("PRESENT","PENDING","ABSENT","MEDICAL");
+        markStatusCombo.setValue("PRESENT");
+        statusColumn.setCellValueFactory(new PropertyValueFactory<>("markStatus"));
+        if(!"LECTURER".equals(SessionManager.getCurrentUser().getRole()))return;
+        try { offeringCombo.getItems().setAll(new lk.ac.ruhuna.ftms.service.AssessmentService().getOfferings()); }
+        catch(Exception error){showAlert(Alert.AlertType.ERROR,"Offerings",error.getMessage());}
+        offeringCombo.valueProperty().addListener((o,old,selected)->{
+            enrollmentCombo.getItems().clear();assessmentCombo.getItems().clear();clearFields();
+            if(selected==null)return;
+            try {
+                enrollmentCombo.getItems().setAll(new lk.ac.ruhuna.ftms.service.ResultService().getBatchResults(selected.offeringId()));
+                assessmentCombo.getItems().setAll(new lk.ac.ruhuna.ftms.service.AssessmentService().getAssessments(selected.offeringId()));
+            }catch(Exception error){showAlert(Alert.AlertType.ERROR,"Offering",error.getMessage());}
+        });
+        enrollmentCombo.valueProperty().addListener((o,old,r)->{if(r!=null){enrollmentIdField.setText(""+r.enrollmentId());attemptNoField.setText(""+r.attemptNo());}});
+        assessmentCombo.valueProperty().addListener((o,old,a)->{if(a!=null)assessmentIdField.setText(""+a.getAssessmentId());});
+    }
+    @FXML private void handleAssessments(){openAcademicScreen("assessments","/fxml/assessments.fxml","FTMS - Assessments");}
+    @FXML private void handleRefresh(){loadMarks();}
     private void loadMarks() {
 
         marksTable.setItems(
@@ -297,6 +311,7 @@ public class MarksController {
         enrollmentIdField.clear();
         assessmentIdField.clear();
         markField.clear();
+        markStatusCombo.setValue("PRESENT");
 
         attemptNoField.setText("1");
 
