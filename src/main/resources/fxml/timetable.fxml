@@ -1,11 +1,13 @@
 
 <?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.ComboBox?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.TableColumn?>
 <?import javafx.scene.control.TableView?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.FlowPane?>
 <?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.VBox?>
 
@@ -14,8 +16,8 @@
             fx:controller="lk.ac.ruhuna.ftms.controller.TimetableController"
             prefWidth="1280.0"
             prefHeight="800.0"
-            minWidth="900.0"
-            minHeight="600.0"
+            minWidth="0.0"
+            minHeight="0.0"
             style="-fx-background-color: #F3F6FB;">
 
     <!-- Technical Officer Timetable Header -->
@@ -24,12 +26,12 @@
               spacing="16"
               style="-fx-background-color: #102C4C; -fx-padding: 20 26;">
 
-            <VBox spacing="5">
+            <VBox spacing="5" minWidth="0" HBox.hgrow="ALWAYS">
 
                 <Label text="FTMS / TECHNICAL OFFICER PORTAL"
                        style="-fx-text-fill: #B5CAE3; -fx-font-size: 12; -fx-font-weight: bold;"/>
 
-                <Label text="Department Timetable"
+                <Label text="Department Timetable" wrapText="true"
                        style="-fx-text-fill: white; -fx-font-size: 25; -fx-font-weight: bold;"/>
 
                 <Label fx:id="officerNameLabel"
@@ -41,7 +43,7 @@
             <Region HBox.hgrow="ALWAYS"/>
 
             <Button fx:id="backButton"
-                    text="Back to Dashboard"
+                    text="Back to Dashboard" minWidth="-Infinity"
                     onAction="#handleBack"
                     style="-fx-background-color: #2E5279; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 7; -fx-padding: 11 17;"/>
 
@@ -50,6 +52,8 @@
 
     <!-- Main Content -->
     <center>
+        <ScrollPane fitToWidth="true" fitToHeight="true" hbarPolicy="AS_NEEDED" vbarPolicy="AS_NEEDED">
+        <content>
         <VBox spacing="18"
               style="-fx-padding: 24;">
 
@@ -60,8 +64,7 @@
                 <Label text="Filter Timetable"
                        style="-fx-text-fill: #102C4C; -fx-font-size: 18; -fx-font-weight: bold;"/>
 
-                <HBox alignment="CENTER_LEFT"
-                      spacing="12">
+                <FlowPane alignment="CENTER_LEFT" hgap="12" vgap="10">
 
                     <Label text="Course offering:"
                            style="-fx-text-fill: #334155; -fx-font-size: 13; -fx-font-weight: bold;"/>
@@ -81,10 +84,10 @@
                             onAction="#handleRefresh"
                             style="-fx-background-color: #2E5279; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 7; -fx-padding: 10 16;"/>
 
-                </HBox>
+                </FlowPane>
 
                 <Label
-                        text="Select a course to view its schedule, or choose All Courses to view the department timetable."
+                        text="Select a course or All Courses. Historical entries, including completed and cancelled offerings, remain visible."
                         wrapText="true"
                         style="-fx-text-fill: #64748B; -fx-font-size: 12;"/>
 
@@ -103,7 +106,7 @@
                        wrapText="true"
                        style="-fx-background-color: #EEF4FA; -fx-background-radius: 6; -fx-padding: 10 12; -fx-text-fill: #274766; -fx-font-weight: bold; -fx-font-size: 13;"/>
 
-                <TableView fx:id="timetableTable"
+                <TableView fx:id="timetableTable" minWidth="0"
                            prefHeight="440"
                            minHeight="230"
                            VBox.vgrow="ALWAYS">
@@ -154,6 +157,8 @@
             </VBox>
 
         </VBox>
+        </content>
+        </ScrollPane>
     </center>
 
     <!-- Bottom Status Bar -->

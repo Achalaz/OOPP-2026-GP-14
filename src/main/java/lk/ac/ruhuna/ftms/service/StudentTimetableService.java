@@ -17,14 +17,25 @@ import java.util.Objects;
 /** Read-only timetable service for the currently signed-in undergraduate. */
 public final class StudentTimetableService {
 
+    public record TimetableData(int enrolledOfferingCount, List<TimetableEntry> entries) {}
+
     private final TimetableDAO timetableDAO;
     private final SessionIdentity loginIdentity;
+    private final ConnectionProvider connections;
+
+    @FunctionalInterface
+    interface ConnectionProvider { Connection open() throws SQLException; }
 
     public StudentTimetableService() {
         this(new TimetableDAO());
     }
 
     public StudentTimetableService(TimetableDAO timetableDAO) {
+        this(timetableDAO, DBConnection::getConnection);
+    }
+
+    StudentTimetableService(TimetableDAO timetableDAO, ConnectionProvider connections) {
+        this.connections = Objects.requireNonNull(connections);
         this.timetableDAO = Objects.requireNonNull(
                 timetableDAO, "TimetableDAO is required.");
         this.loginIdentity = SessionManager.requireSession();
@@ -33,18 +44,34 @@ public final class StudentTimetableService {
 
     /** Only entries belonging to the student's enrolled/repeat offerings. */
     public List<TimetableEntry> getMyTimetable() {
+        return getMyTimetableData().entries();
+    }
+
+    /** Enrollment and schedule are read in the same authorized transaction for accurate empty states. */
+    public TimetableData getMyTimetableData() {
         int studentId = requireStudent();
 
-        try (Connection connection = DBConnection.getConnection()) {
+        try (Connection connection = connections.open()) {
             connection.setReadOnly(true);
             connection.setAutoCommit(false);
             try {
                 requireActiveStudentInDatabase(connection, studentId);
+                int enrolledOfferings;
+                try (var statement = connection.prepareStatement("""
+                        SELECT COUNT(DISTINCT offering_id) FROM enrollments
+                        WHERE student_id = ? AND status IN ('ENROLLED', 'REPEAT')
+                        """)) {
+                    statement.setInt(1, studentId);
+                    try (var rows = statement.executeQuery()) {
+                        rows.next();
+                        enrolledOfferings = rows.getInt(1);
+                    }
+                }
                 List<TimetableEntry> entries =
                         timetableDAO.findForStudent(connection, studentId);
                 requireStudent();
                 connection.commit();
-                return List.copyOf(entries);
+                return new TimetableData(enrolledOfferings, List.copyOf(entries));
             } catch (SQLException | RuntimeException error) {
                 try {
                     connection.rollback();

@@ -1,6 +1,8 @@
 
 package lk.ac.ruhuna.ftms.dao;
 
+import lk.ac.ruhuna.ftms.model.AttendanceOffering;
+
 import java.sql.Connection;
 import java.sql.Date;
 import java.sql.PreparedStatement;
@@ -27,6 +29,53 @@ import java.util.Set;
  * 3. Manage the database transaction.
  */
 public final class TimetableDAO {
+
+    public record AssignedLecturer(int offeringId, int lecturerId, String name) {
+        @Override public String toString() { return lecturerId == 0 ? name : name + " (#" + lecturerId + ")"; }
+    }
+
+    /** Read filters include historical offerings; scheduling excludes cancelled offerings. */
+    public List<AttendanceOffering> findOfferings(Connection connection, Integer departmentId,
+                                                 boolean schedulable) throws SQLException {
+        String sql = """
+                SELECT o.offering_id, c.course_code, c.course_name, o.semester_id, o.offering_group
+                FROM course_offerings o JOIN courses c ON c.course_id = o.course_id
+                WHERE (? IS NULL OR c.department_id = ?)
+                """ + (schedulable ? " AND o.status <> 'CANCELLED' " : "")
+                + " ORDER BY c.course_code, o.semester_id DESC, o.offering_group";
+        try (var statement = connection.prepareStatement(sql)) {
+            setNullableInt(statement, 1, departmentId);
+            setNullableInt(statement, 2, departmentId);
+            List<AttendanceOffering> offerings = new ArrayList<>();
+            try (var rows = statement.executeQuery()) {
+                while (rows.next()) offerings.add(new AttendanceOffering(rows.getInt(1),
+                        rows.getString(2), rows.getString(3), rows.getInt(4), rows.getString(5)));
+            }
+            return List.copyOf(offerings);
+        }
+    }
+
+    public List<AssignedLecturer> findAssignedLecturers(Connection connection) throws SQLException {
+        String sql = """
+                SELECT DISTINCT a.offering_id, l.lecturer_id, CONCAT_WS(' ', u.first_name, u.last_name)
+                FROM lecturer_course_assignments a
+                JOIN lecturers l ON l.lecturer_id = a.lecturer_id
+                JOIN users u ON u.user_id = l.lecturer_id
+                WHERE u.role = 'LECTURER' AND u.is_active = 1
+                ORDER BY a.offering_id, l.lecturer_id
+                """;
+        try (var statement = connection.prepareStatement(sql); var rows = statement.executeQuery()) {
+            List<AssignedLecturer> lecturers = new ArrayList<>();
+            while (rows.next()) lecturers.add(new AssignedLecturer(rows.getInt(1), rows.getInt(2), rows.getString(3)));
+            return List.copyOf(lecturers);
+        }
+    }
+
+    public List<TimetableEntry> findAll(Connection connection) throws SQLException {
+        try (var statement = connection.prepareStatement(BASE_SELECT + SORT)) {
+            return readRows(statement);
+        }
+    }
 
     // Timetable display model
 
@@ -560,7 +609,7 @@ public final class TimetableDAO {
             int offeringId) throws SQLException {
 
         String sql = """
-                SELECT 1
+                SELECT o.status
 
                 FROM course_offerings o
 
@@ -588,6 +637,9 @@ public final class TimetableDAO {
                             "This offering is outside "
                                     + "your authorized department."
                     );
+                }
+                if ("CANCELLED".equals(rs.getString(1))) {
+                    throw new IllegalArgumentException("This course offering is cancelled. Select a different offering. Existing timetable entries remain available in All Courses.");
                 }
             }
         }
@@ -667,7 +719,7 @@ public final class TimetableDAO {
                   AND u.role = 'LECTURER'
                   AND u.is_active = 1
 
-                LIMIT 1
+                LIMIT 1 FOR SHARE
                 """;
 
         try (PreparedStatement statement =
@@ -707,7 +759,7 @@ public final class TimetableDAO {
             int excludeId) throws SQLException {
 
         String sql = """
-                SELECT t.timetable_id
+                SELECT t.timetable_id, t.offering_id, t.room, t.lecturer_id, t.start_time, t.end_time
 
                 FROM timetable_entries t
 
@@ -814,12 +866,23 @@ public final class TimetableDAO {
                          statement.executeQuery()) {
 
                 if (rs.next()) {
-
+                    List<String> conflicts = new ArrayList<>();
+                    if (rs.getInt("offering_id") == value.offeringId()) conflicts.add("the same course offering");
+                    if (value.room() != null && rs.getString("room") != null
+                            && value.room().equalsIgnoreCase(rs.getString("room").strip())) {
+                        conflicts.add("room " + value.room());
+                    }
+                    if (value.lecturerId() != null && value.lecturerId() == rs.getInt("lecturer_id")) {
+                        conflicts.add("lecturer #" + value.lecturerId());
+                    }
+                    // MySQL's room collation may equate accents that Java string comparisons do not.
+                    if (conflicts.isEmpty()) conflicts.add("room " + value.room());
                     throw new IllegalArgumentException(
-                            "Schedule conflict with timetable ID "
+                            "Schedule conflict with timetable entry #"
                                     + rs.getInt(1)
-                                    + ": overlapping course, "
-                                    + "room or lecturer."
+                                    + " on " + value.dayOfWeek() + ", " + rs.getTime("start_time") + " - " + rs.getTime("end_time")
+                                    + ": " + String.join(", ", conflicts) + " is already scheduled. "
+                                    + "Choose a different time or an effective date range that does not overlap."
                     );
                 }
             }

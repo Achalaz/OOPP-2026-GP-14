@@ -4,7 +4,6 @@ import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
@@ -18,6 +17,7 @@ import lk.ac.ruhuna.ftms.dao.TimetableDAO.TimetableEntry;
 import lk.ac.ruhuna.ftms.model.User;
 import lk.ac.ruhuna.ftms.service.StudentTimetableService;
 import lk.ac.ruhuna.ftms.util.NavigationUtil;
+import lk.ac.ruhuna.ftms.util.TimetableTaskRunner;
 import lk.ac.ruhuna.ftms.util.SessionManager;
 import lk.ac.ruhuna.ftms.util.SessionManager.SessionIdentity;
 
@@ -59,14 +59,18 @@ public final class StudentTimetableController {
             new SimpleBooleanProperty(false);
 
     private List<TimetableEntry> allEntries = List.of();
+    private int enrolledOfferingCount;
+    private boolean loaded;
     private SessionIdentity loginIdentity;
     private StudentTimetableService timetableService;
+    private TimetableTaskRunner tasks;
 
     @FXML
     public void initialize() {
         loginIdentity = SessionManager.requireSession();
         User student = requireStudent();
         timetableService = new StudentTimetableService();
+        tasks = new TimetableTaskRunner(studentTimetableRoot, busy, statusLabel, loginIdentity, this::clearData);
 
         studentNameLabel.setText("My Timetable — " + student.getFullName());
 
@@ -95,10 +99,9 @@ public final class StudentTimetableController {
 
         timetableTable.setItems(displayedRows);
         timetableTable.setPlaceholder(
-                new Label("No timetable entries for the selected day."));
+                new Label("Loading your course timetable..."));
 
         refreshButton.disableProperty().bind(busy);
-        backButton.disableProperty().bind(busy);
         dayFilterComboBox.disableProperty().bind(busy);
 
         dayFilterComboBox.valueProperty().addListener(
@@ -124,65 +127,61 @@ public final class StudentTimetableController {
     }
 
     private void refreshTimetable() {
-        if (busy.get()) {
-            return;
-        }
-        try {
-            requireStudent();
-        } catch (SecurityException error) {
-            showError(error.getMessage());
-            return;
-        }
-
-        busy.set(true);
-        statusLabel.setText("Loading your enrolled course timetable...");
-
-        Task<List<TimetableEntry>> task = new Task<>() {
-            @Override
-            protected List<TimetableEntry> call() {
-                return timetableService.getMyTimetable();
-            }
-        };
-
-        task.setOnSucceeded(event -> {
-            busy.set(false);
-            try {
-                requireStudent();
-                allEntries = task.getValue();
-                showFilteredEntries();
-                statusLabel.setText("Timetable loaded successfully.");
-            } catch (SecurityException error) {
-                allEntries = List.of();
-                displayedRows.clear();
-                showError(error.getMessage());
-            }
+        tasks.run("Loading your enrollments and timetable...", timetableService::getMyTimetableData, data -> {
+            User student = requireStudent();
+            studentNameLabel.setText("My Timetable — " + student.getFullName());
+            enrolledOfferingCount = data.enrolledOfferingCount();
+            allEntries = data.entries();
+            loaded = true;
+            showFilteredEntries();
+        }, error -> {
+            clearData();
+            showError(TimetableTaskRunner.errorMessage("Could not load your timetable.", error));
         });
+    }
 
-        task.setOnFailed(event -> {
-            busy.set(false);
-            allEntries = List.of();
-            displayedRows.clear();
-            Throwable error = task.getException();
-            if (error != null) {
-                error.printStackTrace();
-            }
-            showError(error instanceof SecurityException
-                    ? error.getMessage()
-                    : "Could not load your timetable. Check the console.");
-        });
-
-        Thread worker = new Thread(task, "ftms-student-timetable");
-        worker.setDaemon(true);
-        worker.start();
+    private void clearData() {
+        loaded = false;
+        enrolledOfferingCount = 0;
+        allEntries = List.of();
+        displayedRows.clear();
+        studentNameLabel.setText("My Timetable");
+        summaryLabel.setText("Timetable unavailable.");
+        timetableTable.setPlaceholder(new Label("Timetable is unavailable. See the message below for the next step."));
     }
 
     private void showFilteredEntries() {
+        try {
+            requireStudent();
+        } catch (SecurityException error) {
+            clearData();
+            statusLabel.setText(error.getMessage());
+            return;
+        }
+        if (!loaded) return;
         String day = dayFilterComboBox.getValue();
         List<TimetableEntry> selected = allEntries.stream()
                 .filter(entry -> day == null || "All Days".equals(day)
                         || day.equals(entry.dayOfWeek()))
                 .toList();
         displayedRows.setAll(selected);
+        String dayName = day == null || "All Days".equals(day) ? "all days"
+                : day.substring(0, 1) + day.substring(1).toLowerCase(Locale.ROOT);
+        String message;
+        if (enrolledOfferingCount == 0) {
+            message = "You have no enrolled or repeat course offerings. Check My Courses and contact your department if an enrollment is missing.";
+        } else if (allEntries.isEmpty()) {
+            message = "No timetable entries are available for your enrolled or repeat course offerings. Contact your department or click Refresh later.";
+        } else if (selected.isEmpty()) {
+            message = "No sessions are scheduled for " + dayName + ". Select All Days to view your full timetable.";
+        } else {
+            message = "Showing " + selected.size() + (selected.size() == 1 ? " session" : " sessions") + " for " + dayName + ".";
+        }
+        Label emptyMessage = new Label(message);
+        emptyMessage.setWrapText(true);
+        emptyMessage.setMaxWidth(420);
+        timetableTable.setPlaceholder(emptyMessage);
+        statusLabel.setText(message);
 
         long offerings = selected.stream()
                 .map(TimetableEntry::offeringId)
@@ -203,12 +202,13 @@ public final class StudentTimetableController {
                     "FTMS - Student Dashboard");
         } catch (IOException | RuntimeException error) {
             error.printStackTrace();
-            showError("Could not return to Student Dashboard.");
+            showError(TimetableTaskRunner.errorMessage("Could not open the Student Dashboard. Try Back to Dashboard again.", error));
         }
     }
 
     private void showError(String message) {
-        statusLabel.setText(message);
+        if (!SessionManager.isCurrentSession(loginIdentity)) clearData();
+        statusLabel.setText(TimetableTaskRunner.statusMessage(message));
         Alert alert = new Alert(Alert.AlertType.ERROR, message);
         alert.setTitle("Student Timetable");
         alert.setHeaderText(null);

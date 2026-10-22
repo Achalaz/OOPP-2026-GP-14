@@ -20,8 +20,8 @@
             fx:controller="lk.ac.ruhuna.ftms.controller.AdminTimetableController"
             prefWidth="1350.0"
             prefHeight="850.0"
-            minWidth="900.0"
-            minHeight="620.0"
+            minWidth="0.0"
+            minHeight="0.0"
             style="-fx-background-color: #F3F6FB;">
 
     <!-- HEADER -->
@@ -29,11 +29,11 @@
         <HBox alignment="CENTER_LEFT" spacing="14.0"
               style="-fx-background-color: #102C4C; -fx-padding: 18 24;">
 
-            <VBox spacing="5.0">
+            <VBox spacing="5.0" minWidth="0" HBox.hgrow="ALWAYS">
                 <Label text="FTMS / ADMIN PORTAL"
                        style="-fx-text-fill: #B5CAE3; -fx-font-size: 12; -fx-font-weight: bold;" />
 
-                <Label text="Timetable Management"
+                <Label text="Timetable Management" wrapText="true"
                        style="-fx-text-fill: white; -fx-font-size: 25; -fx-font-weight: bold;" />
 
                 <Label fx:id="adminNameLabel"
@@ -44,7 +44,7 @@
             <Region HBox.hgrow="ALWAYS" />
 
             <Button fx:id="backButton"
-                    text="Back to Admin Dashboard"
+                    text="Back to Admin Dashboard" minWidth="-Infinity"
                     onAction="#handleBack"
                     style="-fx-background-color: #2E5279; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 7; -fx-padding: 11 16;" />
 
@@ -54,12 +54,12 @@
     <!-- MAIN CONTENT -->
     <center>
         <ScrollPane fitToWidth="true"
-                    hbarPolicy="NEVER"
+                    hbarPolicy="AS_NEEDED"
                     vbarPolicy="AS_NEEDED"
                     style="-fx-background: #F3F6FB; -fx-background-color: transparent;">
 
             <content>
-                <VBox spacing="18.0"
+                <VBox spacing="18.0" minWidth="680"
                       style="-fx-padding: 22;">
 
                     <!-- COURSE FILTER -->
@@ -245,13 +245,14 @@
                                        GridPane.columnIndex="1"
                                        GridPane.rowIndex="3" />
 
-                            <!-- Lecturer ID -->
-                            <Label text="Lecturer ID"
+                            <!-- Assigned lecturer -->
+                            <Label text="Lecturer"
                                    GridPane.columnIndex="2"
                                    GridPane.rowIndex="3" />
 
-                            <TextField fx:id="lecturerIdField"
-                                       promptText="Optional (e.g. 2)"
+                            <ComboBox fx:id="lecturerComboBox"
+                                       maxWidth="Infinity"
+                                       promptText="Unassigned (optional)"
                                        GridPane.columnIndex="3"
                                        GridPane.rowIndex="3" />
 
@@ -310,7 +311,7 @@
 
                         </FlowPane>
 
-                        <Label text="ADMIN ONLY: timetable changes are validated and saved through the AdminTimetableService."
+                        <Label text="Choose an assigned lecturer or Unassigned. Cancelled offerings remain visible in timetable history."
                                wrapText="true"
                                style="-fx-text-fill: #64748B; -fx-font-size: 12;" />
 

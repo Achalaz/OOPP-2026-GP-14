@@ -5,7 +5,6 @@ import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
@@ -19,6 +18,8 @@ import javafx.scene.control.TextField;
 import javafx.scene.layout.BorderPane;
 
 import lk.ac.ruhuna.ftms.dao.TimetableDAO.TimetableEntry;
+import lk.ac.ruhuna.ftms.dao.TimetableDAO.AssignedLecturer;
+import lk.ac.ruhuna.ftms.util.TimetableTaskRunner;
 import lk.ac.ruhuna.ftms.dao.TimetableDAO.TimetableInput;
 import lk.ac.ruhuna.ftms.model.AttendanceOffering;
 import lk.ac.ruhuna.ftms.model.User;
@@ -62,7 +63,7 @@ public final class AdminTimetableController {
     @FXML private TextField startTimeField;
     @FXML private TextField endTimeField;
     @FXML private TextField roomField;
-    @FXML private TextField lecturerIdField;
+    @FXML private ComboBox<AssignedLecturer> lecturerComboBox;
 
     @FXML private DatePicker effectiveFromPicker;
     @FXML private DatePicker effectiveToPicker;
@@ -108,9 +109,14 @@ public final class AdminTimetableController {
     private AdminTimetableService timetableService;
 
     private boolean changingFilter;
+    private TimetableTaskRunner tasks;
+    private List<AssignedLecturer> assignedLecturers = List.of();
+    private static final AssignedLecturer UNASSIGNED = new AssignedLecturer(0, 0, "Unassigned");
 
     private record InitialData(
             List<AttendanceOffering> offerings,
+            List<AttendanceOffering> schedulableOfferings,
+            List<AssignedLecturer> lecturers,
             List<TimetableEntry> timetable
     ) {
     }
@@ -127,6 +133,20 @@ public final class AdminTimetableController {
         User admin = requireAdmin();
 
         timetableService = new AdminTimetableService();
+        tasks = new TimetableTaskRunner(adminTimetableRoot, busy, statusLabel, loginIdentity, this::clearData);
+        entryOfferingComboBox.valueProperty().addListener((obs, oldValue, offering) -> updateLecturers(offering));
+        for (DatePicker picker : List.of(effectiveFromPicker, effectiveToPicker)) {
+            picker.setPromptText("yyyy-MM-dd (optional)");
+            picker.setConverter(new javafx.util.StringConverter<>() {
+                @Override public String toString(LocalDate date) {
+                    return date == null ? "" : DateTimeFormatter.ISO_LOCAL_DATE.format(date);
+                }
+                @Override public LocalDate fromString(String text) {
+                    return text == null || text.isBlank() ? null
+                            : LocalDate.parse(text.strip(), DateTimeFormatter.ISO_LOCAL_DATE);
+                }
+            });
+        }
 
         adminNameLabel.setText(
                 "Timetable Management - " + admin.getFullName()
@@ -266,7 +286,6 @@ public final class AdminTimetableController {
 
         refreshButton.disableProperty().bind(busy);
         allCoursesButton.disableProperty().bind(busy);
-        backButton.disableProperty().bind(busy);
         addButton.disableProperty().bind(busy);
 
         updateButton.disableProperty().bind(
@@ -296,7 +315,7 @@ public final class AdminTimetableController {
         startTimeField.disableProperty().bind(busy);
         endTimeField.disableProperty().bind(busy);
         roomField.disableProperty().bind(busy);
-        lecturerIdField.disableProperty().bind(busy);
+        lecturerComboBox.disableProperty().bind(busy);
 
         effectiveFromPicker.disableProperty().bind(busy);
         effectiveToPicker.disableProperty().bind(busy);
@@ -334,17 +353,21 @@ public final class AdminTimetableController {
     // =========================================
 
     private void loadInitialData() {
+        AttendanceOffering previousFilter = filterOfferingComboBox.getValue();
 
         runTask(
                 "Loading course offerings and timetable...",
 
                 () -> new InitialData(
                         timetableService.getAllOfferings(),
+                        timetableService.getSchedulableOfferings(),
+                        timetableService.getAssignedLecturers(),
                         timetableService.getAllTimetable()
                 ),
 
                 data -> {
 
+                    assignedLecturers = data.lecturers();
                     changingFilter = true;
 
                     try {
@@ -352,12 +375,12 @@ public final class AdminTimetableController {
                         filterOfferingComboBox.getItems()
                                 .setAll(data.offerings());
 
-                        filterOfferingComboBox
-                                .getSelectionModel()
-                                .clearSelection();
+                        filterOfferingComboBox.setValue(previousFilter == null ? null :
+                                data.offerings().stream().filter(o -> o.offeringId() == previousFilter.offeringId())
+                                        .findFirst().orElse(null));
 
                         entryOfferingComboBox.getItems()
-                                .setAll(data.offerings());
+                                .setAll(data.schedulableOfferings());
 
                     } finally {
 
@@ -367,20 +390,20 @@ public final class AdminTimetableController {
                     timetableTable.getSelectionModel()
                             .clearSelection();
 
-                    entries.setAll(data.timetable());
+                    AttendanceOffering filter = filterOfferingComboBox.getValue();
+                    entries.setAll(data.timetable().stream().filter(row -> filter == null
+                            || row.offeringId() == filter.offeringId()).toList());
 
                     clearFormFields();
 
                     updateSummary(
-                            data.timetable(),
-                            null
+                            List.copyOf(entries),
+                            filter
                     );
 
-                    statusLabel.setText(
-                            data.timetable().size()
-                                    + " timetable entries loaded."
-                    );
-                }
+                    showLoadedMessage(entries.size(), filter);
+                },
+                true
         );
     }
 
@@ -390,10 +413,7 @@ public final class AdminTimetableController {
 
     @FXML
     private void handleRefresh() {
-
-        loadTimetable(
-                filterOfferingComboBox.getValue()
-        );
+        loadInitialData();
     }
 
     // =========================================
@@ -440,14 +460,13 @@ public final class AdminTimetableController {
                             .clearSelection();
 
                     entries.setAll(result);
+                    clearFormFields();
 
                     updateSummary(result, offering);
 
-                    statusLabel.setText(
-                            result.size()
-                                    + " timetable entries loaded."
-                    );
-                }
+                    showLoadedMessage(result.size(), offering);
+                },
+                true
         );
     }
 
@@ -509,36 +528,16 @@ public final class AdminTimetableController {
             );
         }
 
-        // Lecturer ID is optional
-
-        Integer lecturerId = null;
-
-        String lecturerText =
-                lecturerIdField.getText() == null
-                        ? ""
-                        : lecturerIdField.getText().strip();
-
-        if (!lecturerText.isEmpty()) {
-
-            try {
-
-                lecturerId = Integer.valueOf(lecturerText);
-
-            } catch (NumberFormatException error) {
-
-                throw new IllegalArgumentException(
-                        "Lecturer ID must be a positive whole number."
-                );
-            }
-
-            if (lecturerId <= 0) {
-
-                throw new IllegalArgumentException(
-                        "Lecturer ID must be a positive whole number."
-                );
-            }
+        AssignedLecturer lecturer = lecturerComboBox.getValue();
+        Integer lecturerId = lecturer == null || lecturer.lecturerId() == 0 ? null : lecturer.lecturerId();
+        if (lecturerId != null && assignedLecturers.stream().noneMatch(a ->
+                a.offeringId() == offering.offeringId() && a.lecturerId() == lecturerId)) {
+            throw new IllegalArgumentException("Select an active lecturer assigned to this offering, or Unassigned.");
         }
 
+        // Commit typed dates too; DatePicker.getValue alone can silently use an older date.
+        commitDate(effectiveFromPicker, "Effective-from");
+        commitDate(effectiveToPicker, "Effective-to");
         LocalDate from = effectiveFromPicker.getValue();
         LocalDate to = effectiveToPicker.getValue();
 
@@ -562,6 +561,22 @@ public final class AdminTimetableController {
                 from,
                 to
         );
+    }
+
+    private static void commitDate(DatePicker picker, String field) {
+        String text = picker.getEditor().getText();
+        try {
+            picker.setValue(text == null || text.isBlank() ? null : picker.getConverter().fromString(text));
+        } catch (RuntimeException error) {
+            throw new IllegalArgumentException(field + " must be a valid date in yyyy-MM-dd format, for example 2026-10-22. Leave it blank for an open date range.", error);
+        }
+    }
+
+    private void updateLecturers(AttendanceOffering offering) {
+        lecturerComboBox.getItems().setAll(UNASSIGNED);
+        if (offering != null) lecturerComboBox.getItems().addAll(assignedLecturers.stream()
+                .filter(a -> a.offeringId() == offering.offeringId()).toList());
+        lecturerComboBox.setValue(UNASSIGNED);
     }
 
     // Validate time format
@@ -619,7 +634,7 @@ public final class AdminTimetableController {
                         showInfo(
                                 "Timetable entry #"
                                         + generatedId
-                                        + " created."
+                                        + " created.\n\n" + savedEntryDetails(input)
                         );
 
                         timetableTable.getSelectionModel()
@@ -661,8 +676,8 @@ public final class AdminTimetableController {
             if (!confirm(
                     "Update timetable entry #"
                             + selected.timetableId()
-                            + "?")) {
-
+                            + " for " + selected.courseCode() + "?\n\nNew schedule: " + savedEntryDetails(input))) {
+                statusLabel.setText("Update cancelled. The timetable entry was not changed.");
                 return;
             }
 
@@ -681,7 +696,7 @@ public final class AdminTimetableController {
 
                     ignored -> {
 
-                        showInfo("Timetable entry updated.");
+                        showInfo("Timetable entry #" + selected.timetableId() + " updated.\n\n" + savedEntryDetails(input));
 
                         timetableTable.getSelectionModel()
                                 .clearSelection();
@@ -718,8 +733,10 @@ public final class AdminTimetableController {
             if (!confirm(
                     "Delete timetable entry #"
                             + selected.timetableId()
-                            + "? This cannot be undone.")) {
-
+                            + " for " + selected.courseCode() + "?\n"
+                            + selected.dayOfWeek() + ", " + formatTime(selected)
+                            + "\n\nThis removes this scheduled session. This cannot be undone.")) {
+                statusLabel.setText("Deletion cancelled. The timetable entry was not removed.");
                 return;
             }
 
@@ -737,7 +754,8 @@ public final class AdminTimetableController {
 
                     ignored -> {
 
-                        showInfo("Timetable entry deleted.");
+                        showInfo("Timetable entry #" + selected.timetableId() + " for " + selected.courseCode()
+                                + " deleted.\n" + selected.dayOfWeek() + ", " + formatTime(selected));
 
                         timetableTable.getSelectionModel()
                                 .clearSelection();
@@ -790,7 +808,9 @@ public final class AdminTimetableController {
                         offering.offeringId() == row.offeringId()
                 )
                 .findFirst()
-                .ifPresent(entryOfferingComboBox::setValue);
+                .ifPresentOrElse(entryOfferingComboBox::setValue,
+                        () -> entryOfferingComboBox.setValue(new AttendanceOffering(row.offeringId(),
+                                row.courseCode(), row.courseName(), row.semesterId(), row.offeringGroup())));
 
         dayComboBox.setValue(row.dayOfWeek());
 
@@ -812,11 +832,11 @@ public final class AdminTimetableController {
                 row.room() == null ? "" : row.room()
         );
 
-        lecturerIdField.setText(
-                row.lecturerId() == null
-                        ? ""
-                        : row.lecturerId().toString()
-        );
+        lecturerComboBox.setValue(row.lecturerId() == null ? UNASSIGNED :
+                assignedLecturers.stream().filter(a -> a.offeringId() == row.offeringId()
+                        && a.lecturerId() == row.lecturerId()).findFirst()
+                        .orElse(new AssignedLecturer(row.offeringId(), row.lecturerId(),
+                                orDash(row.lecturerName()) + " (no longer assigned)")));
 
         effectiveFromPicker.setValue(
                 row.effectiveFrom()
@@ -868,7 +888,7 @@ public final class AdminTimetableController {
         startTimeField.clear();
         endTimeField.clear();
         roomField.clear();
-        lecturerIdField.clear();
+        lecturerComboBox.setValue(UNASSIGNED);
 
         effectiveFromPicker.setValue(null);
         effectiveToPicker.setValue(null);
@@ -907,6 +927,42 @@ public final class AdminTimetableController {
         );
     }
 
+    private void showLoadedMessage(int count, AttendanceOffering offering) {
+        String scope = offering == null ? "all course offerings"
+                : offering.courseCode() + " (offering #" + offering.offeringId() + ")";
+        String message;
+        if (filterOfferingComboBox.getItems().isEmpty()) {
+            message = "No course offerings are available. Create one in Course Offerings, then click Refresh.";
+        } else if (count == 0) {
+            message = "No timetable entries found for " + scope + ". "
+                    + (entryOfferingComboBox.getItems().isEmpty()
+                    ? "No offerings are available for scheduling. Check Course Offerings, then click Refresh."
+                    : offering != null && entryOfferingComboBox.getItems().stream()
+                            .noneMatch(o -> o.offeringId() == offering.offeringId())
+                            ? "This offering is unavailable for scheduling. Choose another offering."
+                            : "Use the entry form below to add a session.")
+                    + (offering == null ? "" : " Choose All Courses to check other offerings.");
+        } else {
+            message = "Showing " + count + (count == 1 ? " timetable entry" : " timetable entries") + " for " + scope + ".";
+        }
+        Label placeholder = new Label(message);
+        placeholder.setWrapText(true);
+        placeholder.setMaxWidth(420);
+        timetableTable.setPlaceholder(placeholder);
+        statusLabel.setText(message);
+    }
+
+    private String savedEntryDetails(TimetableInput input) {
+        String offering = entryOfferingComboBox.getItems().stream()
+                .filter(o -> o.offeringId() == input.offeringId()).map(AttendanceOffering::toString)
+                .findFirst().orElse("Course offering #" + input.offeringId());
+        AttendanceOffering filter = filterOfferingComboBox.getValue();
+        return offering + "\n" + input.dayOfWeek() + ", " + input.startTime().format(TIME_FORMAT)
+                + " - " + input.endTime().format(TIME_FORMAT)
+                + (filter != null && filter.offeringId() != input.offeringId()
+                ? "\n\nThis session is outside the current course filter. Choose All Courses to view it." : "");
+    }
+
     // =========================================
     // BACK TO ADMIN DASHBOARD
     // =========================================
@@ -937,91 +993,39 @@ public final class AdminTimetableController {
     // BACKGROUND DATABASE TASK
     // =========================================
 
-    private <T> void runTask(
-            String message,
-            Callable<T> databaseWork,
-            Consumer<T> onSuccess) {
+    private <T> void runTask(String message, Callable<T> databaseWork, Consumer<T> onSuccess) {
+        runTask(message, databaseWork, onSuccess, false);
+    }
 
-        if (busy.get()) {
-            return;
-        }
-
-        try {
-
+    private <T> void runTask(String message, Callable<T> databaseWork, Consumer<T> onSuccess,
+                             boolean clearOnFailure) {
+        tasks.run(message, () -> {
             requireAdmin();
-
-        } catch (SecurityException error) {
-
-            handleAccessDenied(error);
-            return;
-        }
-
-        busy.set(true);
-
-        statusLabel.setText(message);
-
-        Task<T> task = new Task<>() {
-
-            @Override
-            protected T call() throws Exception {
-
-                return databaseWork.call();
-            }
-        };
-
-        task.setOnSucceeded(event -> {
-
-            busy.set(false);
-
-            try {
-
-                requireAdmin();
-
-                onSuccess.accept(task.getValue());
-
-            } catch (SecurityException error) {
-
-                handleAccessDenied(error);
-
-            } catch (RuntimeException error) {
-
-                showError(
-                        "Could not display timetable results.",
-                        error
-                );
-            }
+            return databaseWork.call();
+        }, result -> {
+            requireAdmin();
+            onSuccess.accept(result);
+        }, error -> {
+            // Failed reads must not leave rows from a previous course filter editable.
+            // Failed writes retain the form so the administrator can correct or retry it.
+            if (clearOnFailure) clearData();
+            if (error instanceof SecurityException) handleAccessDenied(error);
+            else if (error instanceof IllegalArgumentException) showValidationError(error.getMessage());
+            else showError(message.replace("...", "") + " could not be completed.", error);
         });
+    }
 
-        task.setOnFailed(event -> {
-
-            busy.set(false);
-
-            Throwable error = task.getException();
-
-            if (error instanceof SecurityException) {
-
-                handleAccessDenied(error);
-
-            } else if (error instanceof IllegalArgumentException) {
-
-                showValidationError(error.getMessage());
-
-            } else {
-
-                showError(
-                        "Timetable operation failed. See console for details.",
-                        error
-                );
-            }
-        });
-
-        Thread thread = new Thread(
-                task,
-                "ftms-admin-timetable"
-        );
-
-        thread.setDaemon(true);
-        thread.start();
+    private void clearData() {
+        changingFilter = true;
+        try {
+            entries.clear();
+            filterOfferingComboBox.getItems().clear();
+            entryOfferingComboBox.getItems().clear();
+            assignedLecturers = List.of();
+            clearFormFields();
+            summaryLabel.setText("Timetable unavailable.");
+            timetableTable.setPlaceholder(new Label("Timetable is unavailable. See the message below for the next step."));
+        } finally { changingFilter = false; }
     }
 
     // =========================================
@@ -1030,13 +1034,7 @@ public final class AdminTimetableController {
 
     private void handleAccessDenied(Throwable error) {
 
-        entries.clear();
-
-        timetableTable.getSelectionModel()
-                .clearSelection();
-
-        filterOfferingComboBox.getItems().clear();
-        entryOfferingComboBox.getItems().clear();
+        clearData();
 
         showError(
                 "Admin session expired or access was denied. Please log in again.",
@@ -1068,6 +1066,8 @@ public final class AdminTimetableController {
     }
 
     private void showInfo(String message) {
+
+        statusLabel.setText(message.lines().findFirst().orElse(message));
 
         Alert alert = new Alert(
                 Alert.AlertType.INFORMATION,
@@ -1103,7 +1103,9 @@ public final class AdminTimetableController {
             String message,
             Throwable error) {
 
-        statusLabel.setText(message);
+        message = TimetableTaskRunner.errorMessage(message, error);
+        statusLabel.setText(TimetableTaskRunner.statusMessage(message));
+        if (summaryLabel.getText().startsWith("Loading")) summaryLabel.setText("Timetable unavailable.");
 
         if (error != null) {
 
