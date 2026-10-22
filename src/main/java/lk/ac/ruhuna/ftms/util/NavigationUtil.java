@@ -20,10 +20,15 @@ public final class NavigationUtil {
     private NavigationUtil() {
     }
 
+    // ==========================================
+    // NOTICES ACCESS
+    // ==========================================
+
     private static void requireNoticeAccess(String resource) {
 
         var user = SessionManager.getCurrentUser();
 
+        // Only Admin can manage notices
         if ("/fxml/notices.fxml".equals(resource)
                 && (user == null
                 || !user.isActive()
@@ -34,6 +39,7 @@ public final class NavigationUtil {
             );
         }
 
+        // Authorized users can view notices
         if ("/fxml/view_notices.fxml".equals(resource)
                 && (user == null
                 || !user.isActive()
@@ -51,14 +57,19 @@ public final class NavigationUtil {
         }
     }
 
-    // Route users to their original dashboards
+    // ==========================================
+    // ROLE-BASED DASHBOARD ROUTING
+    // ==========================================
 
     public static String dashboardResource() {
 
         var user = SessionManager.getCurrentUser();
 
         if (user == null || !user.isActive()) {
-            throw new SecurityException("Please sign in.");
+
+            throw new SecurityException(
+                    "Please sign in."
+            );
         }
 
         return switch (user.getRole()) {
@@ -80,20 +91,29 @@ public final class NavigationUtil {
         };
     }
 
-    // Open an authorized JavaFX screen
+    // ==========================================
+    // MAIN NAVIGATION
+    // ==========================================
 
     public static void navigate(
             Node source,
             String resource,
             String title) throws IOException {
 
+        // Redirect generic dashboard route
         if ("/fxml/dashboard.fxml".equals(resource)) {
+
             resource = dashboardResource();
         }
 
+        // Check notice permissions
         requireNoticeAccess(resource);
 
-        // Preserve administrator course management
+        var user = SessionManager.getCurrentUser();
+
+        // ======================================
+        // ADMIN COURSE MANAGEMENT
+        // ======================================
 
         if ("/fxml/courses.fxml".equals(resource)
                 && !CourseService.isCurrentUserAdmin()) {
@@ -103,9 +123,23 @@ public final class NavigationUtil {
             );
         }
 
-        var user = SessionManager.getCurrentUser();
+        // ======================================
+        // ADMIN TIMETABLE MANAGEMENT
+        // ======================================
 
-        // Technical Officer attendance access
+        if ("/fxml/admin_timetable.fxml".equals(resource)
+                && (user == null
+                || !user.isActive()
+                || !"ADMIN".equals(user.getRole()))) {
+
+            throw new SecurityException(
+                    "Active administrator access is required to manage timetables."
+            );
+        }
+
+        // ======================================
+        // TECHNICAL OFFICER ATTENDANCE
+        // ======================================
 
         if ("/fxml/attendance.fxml".equals(resource)
                 && (user == null
@@ -117,7 +151,10 @@ public final class NavigationUtil {
             );
         }
 
-        // NEW: Technical Officer timetable access
+        // ======================================
+        // TECHNICAL OFFICER TIMETABLE
+        // VIEW ONLY
+        // ======================================
 
         if ("/fxml/timetable.fxml".equals(resource)
                 && (user == null
@@ -129,7 +166,9 @@ public final class NavigationUtil {
             );
         }
 
-        // Preserve Student-only pages
+        // ======================================
+        // STUDENT-ONLY SCREENS
+        // ======================================
 
         Set<String> studentViews = Set.of(
                 "/fxml/student_dashboard.fxml",
@@ -137,9 +176,11 @@ public final class NavigationUtil {
                 "/fxml/student_eligibility.fxml",
                 "/fxml/student_medical.fxml",
                 "/fxml/student_courses.fxml",
-                "/fxml/student_results.fxml"
+                "/fxml/student_results.fxml",
+                "/fxml/student_timetable.fxml"
         );
 
+        // Only active Students can open Student pages
         if (studentViews.contains(resource)
                 && (user == null
                 || !user.isActive()
@@ -150,8 +191,7 @@ public final class NavigationUtil {
             );
         }
 
-        // Students may access only student screens
-
+        // Restrict students to Student Portal
         if (user != null
                 && "STUDENT".equals(user.getRole())
                 && (!user.isActive()
@@ -167,7 +207,9 @@ public final class NavigationUtil {
             );
         }
 
-        // Preserve Lecturer access
+        // ======================================
+        // LECTURER ACCESS
+        // ======================================
 
         if (user != null
                 && "LECTURER".equals(user.getRole())
@@ -185,7 +227,9 @@ public final class NavigationUtil {
             );
         }
 
-        // Preserve Technical Officer access restrictions
+        // ======================================
+        // TECHNICAL OFFICER ACCESS
+        // ======================================
 
         if (user != null
                 && "TECHNICAL_OFFICER".equals(user.getRole())
@@ -203,7 +247,9 @@ public final class NavigationUtil {
             );
         }
 
-        // Load FXML
+        // ======================================
+        // LOAD FXML
+        // ======================================
 
         URL location =
                 NavigationUtil.class.getResource(resource);
@@ -219,7 +265,9 @@ public final class NavigationUtil {
 
         Parent root = loader.load();
 
-        // Preserve CourseService dependency injection
+        // ======================================
+        // PRESERVE COURSE SERVICE INJECTION
+        // ======================================
 
         if ("/fxml/courses.fxml".equals(resource)) {
 
@@ -234,43 +282,58 @@ public final class NavigationUtil {
             );
         }
 
+        // ======================================
+        // PRESERVE RESPONSIVE WINDOW SIZE
+        // ======================================
+
         Scene scene = source.getScene();
 
-        // Keep responsive window size
-
         boolean preserveWindowSize =
+
+                // Student Portal
                 studentViews.contains(resource)
 
+                        // Admin
                         || "/fxml/admin_dashboard.fxml".equals(resource)
+                        || "/fxml/admin_timetable.fxml".equals(resource)
                         || "/fxml/courses.fxml".equals(resource)
                         || "coursesRoot".equals(scene.getRoot().getId())
+                        || "adminTimetableRoot".equals(scene.getRoot().getId())
 
+                        // Technical Officer
                         || "/fxml/technical_officer_dashboard.fxml".equals(resource)
                         || "/fxml/attendance.fxml".equals(resource)
                         || "/fxml/timetable.fxml".equals(resource)
+
+                        // Login
                         || "/fxml/login.fxml".equals(resource)
 
+                        // Notices
                         || "/fxml/notices.fxml".equals(resource)
                         || "/fxml/view_notices.fxml".equals(resource)
-
                         || "noticesRoot".equals(scene.getRoot().getId())
                         || "viewNoticesRoot".equals(scene.getRoot().getId())
 
+                        // Student roots
                         || "studentRoot".equals(scene.getRoot().getId())
                         || "studentEligibilityRoot".equals(scene.getRoot().getId())
                         || "studentAttendanceRoot".equals(scene.getRoot().getId())
 
+                        // Technical Officer roots
                         || "technicalOfficerRoot".equals(scene.getRoot().getId())
                         || "attendanceRoot".equals(scene.getRoot().getId())
                         || "timetableRoot".equals(scene.getRoot().getId());
 
+        // Replace current screen
         scene.setRoot(root);
 
+        // Update window title
         if (scene.getWindow() instanceof Stage stage) {
 
             stage.setTitle(title);
 
             if (!preserveWindowSize) {
+
                 stage.sizeToScene();
             }
         }
