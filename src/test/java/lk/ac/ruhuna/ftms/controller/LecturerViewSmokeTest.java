@@ -27,7 +27,7 @@ public final class LecturerViewSmokeTest {
                 var loader=new FXMLLoader(LecturerViewSmokeTest.class.getResource("/fxml/lecturer_dashboard.fxml"));
                 root=loader.load();new Scene(root,1250,800);root.applyCss();root.layout();
                 check(((Label)root.lookup("#welcomeLabel")).getText().contains("Test Lecturer"),"welcome name");
-                try{NavigationUtil.navigate(root,"/fxml/reports.fxml","Reports");throw new AssertionError("Legacy screen allowed");}
+                try{NavigationUtil.navigate(root,"/fxml/notices.fxml","Manage notices");throw new AssertionError("Admin-only screen allowed");}
                 catch(SecurityException expected){checks++;}
                 return null;
             });

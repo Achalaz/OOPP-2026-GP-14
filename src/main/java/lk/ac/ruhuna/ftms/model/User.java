@@ -10,6 +10,10 @@ public class User {
     private String role;
     private boolean active;
     private String profilePicture;
+    private String phone;
+
+    public String getPhone() { return phone; }
+    public void setPhone(String phone) { this.phone = phone; }
 
     public User() {
     }

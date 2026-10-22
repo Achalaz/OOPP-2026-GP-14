@@ -3,11 +3,11 @@ package lk.ac.ruhuna.ftms.model;
 public class EligibilityResult {
 
     private int enrollmentId;
-    private double caPercentage;
-    private boolean caEligible;
-    private double attendancePercentage;
-    private boolean attendanceEligible;
-    private boolean overallEligible;
+    private Double caPercentage;
+    private Boolean caEligible;
+    private Double attendancePercentage;
+    private Boolean attendanceEligible;
+    private Boolean overallEligible;
     private String reason;
 
     public EligibilityResult() {
@@ -15,11 +15,11 @@ public class EligibilityResult {
 
     public EligibilityResult(
             int enrollmentId,
-            double caPercentage,
-            boolean caEligible,
-            double attendancePercentage,
-            boolean attendanceEligible,
-            boolean overallEligible,
+            Double caPercentage,
+            Boolean caEligible,
+            Double attendancePercentage,
+            Boolean attendanceEligible,
+            Boolean overallEligible,
             String reason) {
 
         this.enrollmentId = enrollmentId;
@@ -39,43 +39,43 @@ public class EligibilityResult {
         this.enrollmentId = enrollmentId;
     }
 
-    public double getCaPercentage() {
+    public Double getCaPercentage() {
         return caPercentage;
     }
 
-    public void setCaPercentage(double caPercentage) {
+    public void setCaPercentage(Double caPercentage) {
         this.caPercentage = caPercentage;
     }
 
-    public boolean isCaEligible() {
+    public Boolean isCaEligible() {
         return caEligible;
     }
 
-    public void setCaEligible(boolean caEligible) {
+    public void setCaEligible(Boolean caEligible) {
         this.caEligible = caEligible;
     }
 
-    public double getAttendancePercentage() {
+    public Double getAttendancePercentage() {
         return attendancePercentage;
     }
 
-    public void setAttendancePercentage(double attendancePercentage) {
+    public void setAttendancePercentage(Double attendancePercentage) {
         this.attendancePercentage = attendancePercentage;
     }
 
-    public boolean isAttendanceEligible() {
+    public Boolean isAttendanceEligible() {
         return attendanceEligible;
     }
 
-    public void setAttendanceEligible(boolean attendanceEligible) {
+    public void setAttendanceEligible(Boolean attendanceEligible) {
         this.attendanceEligible = attendanceEligible;
     }
 
-    public boolean isOverallEligible() {
+    public Boolean isOverallEligible() {
         return overallEligible;
     }
 
-    public void setOverallEligible(boolean overallEligible) {
+    public void setOverallEligible(Boolean overallEligible) {
         this.overallEligible = overallEligible;
     }
 

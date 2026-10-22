@@ -58,6 +58,20 @@
                           prefWidth="220"
                           GridPane.rowIndex="4"
                           GridPane.columnIndex="1"/>
+
+                <Label text="Department" GridPane.rowIndex="5"
+                       GridPane.columnIndex="0"/>
+                <ComboBox fx:id="departmentComboBox"
+                          prefWidth="220"
+                          GridPane.rowIndex="5"
+                          GridPane.columnIndex="1"/>
+
+                <Label text="Staff Number" GridPane.rowIndex="6"
+                       GridPane.columnIndex="0"/>
+                <TextField fx:id="staffNumberField"
+                           promptText="Unique staff number"
+                           GridPane.rowIndex="6"
+                           GridPane.columnIndex="1"/>
             </GridPane>
 
             <HBox spacing="10">
