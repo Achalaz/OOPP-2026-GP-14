@@ -1,0 +1,152 @@
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
+
+<BorderPane xmlns:fx="http://javafx.com/fxml"
+            fx:id="studentEligibilityRoot"
+            fx:controller="lk.ac.ruhuna.ftms.controller.StudentEligibilityController"
+            prefWidth="1280.0"
+            prefHeight="780.0"
+            minWidth="850.0"
+            minHeight="550.0"
+            style="-fx-background-color: #F3F6FB;">
+
+    <!-- Original Student Dashboard is not changed -->
+
+    <!-- Header -->
+    <top>
+        <HBox alignment="CENTER_LEFT"
+              spacing="16.0"
+              style="-fx-background-color: #102C4C; -fx-padding: 20 26 20 26;">
+
+            <VBox spacing="5.0">
+
+                <Label text="FTMS / UNDERGRADUATE PORTAL"
+                       style="-fx-text-fill: #B5CAE3; -fx-font-size: 12; -fx-font-weight: bold;" />
+
+                <Label text="My Eligibility"
+                       style="-fx-text-fill: white; -fx-font-size: 25; -fx-font-weight: bold;" />
+
+                <Label fx:id="studentNameLabel"
+                       text="My Eligibility - Student"
+                       style="-fx-text-fill: #DEEAF8; -fx-font-size: 13;" />
+
+            </VBox>
+
+            <Region HBox.hgrow="ALWAYS" />
+
+            <Button fx:id="refreshButton"
+                    text="Refresh"
+                    onAction="#handleRefresh"
+                    style="-fx-background-color: #E8F1FC; -fx-text-fill: #102C4C; -fx-font-weight: bold; -fx-background-radius: 7; -fx-padding: 10 18 10 18;" />
+
+            <Button fx:id="backButton"
+                    text="Back to Dashboard"
+                    onAction="#handleBack"
+                    style="-fx-background-color: #2E5279; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 7; -fx-padding: 10 16 10 16;" />
+
+        </HBox>
+    </top>
+
+    <!-- Main Content -->
+    <center>
+
+        <VBox spacing="18.0"
+              style="-fx-padding: 24;">
+
+            <VBox spacing="12.0"
+                  VBox.vgrow="ALWAYS"
+                  style="-fx-background-color: white; -fx-background-radius: 10; -fx-padding: 20; -fx-border-color: #E0E8F2; -fx-border-radius: 10;">
+
+                <Label text="Course-wise Examination Eligibility"
+                       style="-fx-font-size: 19; -fx-font-weight: bold; -fx-text-fill: #102C4C;" />
+
+                <Label text="View your saved CA percentage, attendance percentage and examination eligibility decision for each enrolled course."
+                       wrapText="true"
+                       style="-fx-text-fill: #64748B; -fx-font-size: 13;" />
+
+                <!-- Eligibility Summary -->
+                <Label fx:id="summaryLabel"
+                       text="Eligibility results have not been loaded yet."
+                       wrapText="true"
+                       style="-fx-background-color: #EEF4FA; -fx-background-radius: 6; -fx-padding: 10 12; -fx-text-fill: #274766; -fx-font-weight: bold; -fx-font-size: 13;" />
+
+                <!-- Eligibility Table -->
+                <TableView fx:id="eligibilityTable"
+                           prefHeight="430.0"
+                           minHeight="220.0"
+                           VBox.vgrow="ALWAYS"
+                           style="-fx-background-color: white;">
+
+                    <columns>
+
+                        <TableColumn fx:id="enrollmentColumn"
+                                     text="Enrollment ID"
+                                     prefWidth="120.0" />
+
+                        <TableColumn fx:id="courseCodeColumn"
+                                     text="Course Code"
+                                     prefWidth="125.0" />
+
+                        <TableColumn fx:id="courseNameColumn"
+                                     text="Course Name"
+                                     prefWidth="245.0" />
+
+                        <TableColumn fx:id="caPercentageColumn"
+                                     text="CA %"
+                                     prefWidth="115.0" />
+
+                        <TableColumn fx:id="attendancePercentageColumn"
+                                     text="Attendance %"
+                                     prefWidth="150.0" />
+
+                        <TableColumn fx:id="decisionColumn"
+                                     text="Decision"
+                                     prefWidth="135.0" />
+
+                        <TableColumn fx:id="reasonColumn"
+                                     text="Reason / Remarks"
+                                     prefWidth="295.0" />
+
+                    </columns>
+
+                </TableView>
+
+                <!-- Read-only Information -->
+                <Label text="PENDING means no saved eligibility decision is available yet. This page is read-only; students cannot calculate or change eligibility."
+                       wrapText="true"
+                       style="-fx-text-fill: #64748B; -fx-font-size: 12;" />
+
+            </VBox>
+
+        </VBox>
+
+    </center>
+
+    <!-- Bottom Status Bar -->
+    <bottom>
+
+        <HBox alignment="CENTER_LEFT"
+              style="-fx-padding: 12 24 12 24; -fx-background-color: #E8EFF7;">
+
+            <Label fx:id="statusLabel"
+                   text="Loading eligibility records..."
+                   wrapText="true"
+                   style="-fx-text-fill: #334155; -fx-font-size: 12;" />
+
+            <Region HBox.hgrow="ALWAYS" />
+
+            <Label text="STUDENT VIEW ONLY"
+                   style="-fx-text-fill: #64748B; -fx-font-size: 11; -fx-font-weight: bold;" />
+
+        </HBox>
+
+    </bottom>
+
+</BorderPane>
