@@ -14,16 +14,19 @@ public class GPAService {
     /** Uses the existing GPA rules and published snapshots, without saving or exposing draft-only semesters. */
     public List<PublishedSemester> getMyPublishedGpa(lk.ac.ruhuna.ftms.util.SessionManager.SessionIdentity identity)
             throws SQLException {
-        return new StudentAccessService(identity).read((connection, student) -> {
-            var semesters = new ArrayList<PublishedSemester>();
-            for (var semester : dao.getSemestersForStudent(connection, student)) {
-                if (dao.getCourseRowsForSemester(connection, student, semester.semesterId()).stream()
-                        .anyMatch(GpaCourseRow::published)) {
-                    semesters.add(new PublishedSemester(semester, calculate(connection, student, semester.semesterId())));
-                }
+        return new StudentAccessService(identity).readSnapshot(this::getPublishedGpa);
+    }
+
+    /** Called only within the authenticated student's read transaction. */
+    List<PublishedSemester> getPublishedGpa(Connection connection, int student) throws SQLException {
+        var semesters = new ArrayList<PublishedSemester>();
+        for (var semester : dao.getSemestersForStudent(connection, student)) {
+            if (dao.getCourseRowsForSemester(connection, student, semester.semesterId()).stream()
+                    .anyMatch(GpaCourseRow::published)) {
+                semesters.add(new PublishedSemester(semester, calculate(connection, student, semester.semesterId())));
             }
-            return List.copyOf(semesters);
-        });
+        }
+        return List.copyOf(semesters);
     }
     private final SemesterResultDAO dao=new SemesterResultDAO();
     private final AcademicAccessDAO access=new AcademicAccessDAO();

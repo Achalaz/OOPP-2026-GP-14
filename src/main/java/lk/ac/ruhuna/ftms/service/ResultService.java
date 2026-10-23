@@ -28,6 +28,24 @@ import java.util.List;
 import java.util.Objects;
 
 public class ResultService {
+    public record StudentPublishedRecords(List<CourseResultDAO.PublishedStudentResult> grades,
+                                          List<GPAService.PublishedSemester> semesters) {
+        public StudentPublishedRecords {
+            grades = List.copyOf(grades);
+            semesters = List.copyOf(semesters);
+        }
+    }
+
+    /** Grades and GPA belong to one login and one database snapshot; this operation never saves GPA. */
+    public StudentPublishedRecords getMyPublishedRecords(SessionIdentity identity) throws SQLException {
+        return new StudentAccessService(identity).readSnapshot((connection, student) -> {
+            var grades = resultDAO.findPublishedForStudent(connection, student);
+            var semesters = grades.isEmpty() ? List.<GPAService.PublishedSemester>of()
+                    : new GPAService().getPublishedGpa(connection, student);
+            return new StudentPublishedRecords(grades, semesters);
+        });
+    }
+
     public List<CourseResultDAO.PublishedStudentResult> getMyPublishedResults(SessionIdentity identity)
             throws SQLException {
         return new StudentAccessService(identity).read(resultDAO::findPublishedForStudent);
