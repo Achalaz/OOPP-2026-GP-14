@@ -22,22 +22,22 @@ public class LecturerWorkspaceController {
     @FXML private TextField search,markValue,materialTitle;
     @FXML private TextArea description;
     @FXML private ComboBox<String> materialType;
-    @FXML private ComboBox<CourseMaterial> materials;
+    @FXML private ComboBox<CourseMaterials> materials;
     @FXML private TableView<List<String>> table;
     @FXML private HBox markEditor;
     @FXML private VBox materialEditor;
     @FXML private Button refresh;
     private final SessionManager.SessionIdentity identity=SessionManager.requireSession();
     private final LecturerViewService service;
-    private final CourseMaterialService materialService;
+    private final CourseMaterialsService materialService;
     private String mode;
     private Path upload;
     private boolean busy,disposed;
     private Task<?> task;
     public LecturerWorkspaceController() {
-        this(new LecturerViewService(), new CourseMaterialService());
+        this(new LecturerViewService(), new CourseMaterialsService());
     }
-    public LecturerWorkspaceController(LecturerViewService service, CourseMaterialService materialService) {
+    public LecturerWorkspaceController(LecturerViewService service, CourseMaterialsService materialService) {
         this.service=Objects.requireNonNull(service);
         this.materialService=Objects.requireNonNull(materialService);
     }
