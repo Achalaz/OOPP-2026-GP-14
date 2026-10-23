@@ -16,6 +16,7 @@ public final class LecturerViewSmokeTest {
     private static int checks;
     private static Parent root;
     private static int saves;
+    private static int materialSaves;
     private static final User LECTURER=new User(7,"test","Test Lecturer","test@example.org","LECTURER",true);
     public static void main(String[] args) throws Exception {
         var started=new CountDownLatch(1);Platform.startup(started::countDown);
@@ -54,17 +55,49 @@ public final class LecturerViewSmokeTest {
                             ((TextField)root.lookup("#markValue")).setText("55");
                             button("Save Mark").fire();
                         }
+                    } else {
+                        var rows=(TableView<?>)root.lookup("#materialTable");
+                        check(rows.getItems().size()==2,"all offering materials displayed");
+                        check(rows.getColumns().size()==6,"material metadata columns");
+                        rows.getSelectionModel().selectLast();
+                        check(((Button)root.lookup("#saveMaterialButton")).isDisabled(),"other uploader cannot edit");
+                        ((TextField)root.lookup("#search")).setText("Test PDF");
+                        check(rows.getItems().size()==1,"material search filters rows");
+                        rows.getSelectionModel().selectFirst();
+                        check(!((Button)root.lookup("#saveMaterialButton")).isDisabled(),"owner may edit");
+                        button("Save Material").fire();button("Save Material").fire();
                     }
                     return null;
                 });
                 await(()->!((ComboBox<?>)root.lookup("#offering")).isDisabled());
+                if(mode.equals("materials")) fx(()->{
+                    check(materialSaves==1,"duplicate save prevented");
+                    check(((Label)root.lookup("#message")).getText().contains("saved successfully"),"save confirmation survives reload");
+                    return null;
+                });
                 fx(()->{((Button)root.lookup("#refresh")).fire();return null;});
                 await(()->!((ComboBox<?>)root.lookup("#offering")).isDisabled());
             }
             fx(()->{
+                var identity=SessionManager.requireSession();var scene=root.getScene();
+                ((Button)root.lookup("#dashboardButton")).fire();root=scene.getRoot();
+                check("lecturerRoot".equals(root.getId()),"materials back opens lecturer dashboard");
+                check(SessionManager.isCurrentSession(identity),"back preserves login");
+                var loader=new FXMLLoader(LecturerViewSmokeTest.class.getResource("/fxml/course_materials.fxml"));
+                loader.setControllerFactory(t->t==CourseMaterialsController.class?new CourseMaterialsController():
+                        new LecturerWorkspaceController(new StubViews(),new StubMaterials()));
+                root=loader.load();new Scene(root,1200,800);root.applyCss();root.layout();return null;
+            });
+            await(()->!((ComboBox<?>)root.lookup("#offering")).isDisabled());
+            fx(()->{
+                check(((Label)root.lookup("#heading")).getText().equals("Course Materials"),"legacy FXML uses primary workspace");
+                ((ComboBox<?>)root.lookup("#offering")).getSelectionModel().selectFirst();return null;
+            });
+            await(()->!((ComboBox<?>)root.lookup("#offering")).isDisabled());
+            fx(()->{
                 check(saves==1,"marks save delegates exactly once");
                 button("Log Out").fire();check(!SessionManager.isLoggedIn(),"logout invalidates session");
-                for(String file:List.of("lecturer_dashboard.fxml","lecturer_workspace.fxml")) {
+                for(String file:List.of("lecturer_dashboard.fxml","lecturer_workspace.fxml","course_materials.fxml")) {
                     try{FXMLLoader.load(LecturerViewSmokeTest.class.getResource("/fxml/"+file));throw new AssertionError("Unauthenticated screen allowed");}
                     catch(java.io.IOException expected){checks++;}
                 }
@@ -92,6 +125,14 @@ public final class LecturerViewSmokeTest {
         @Override public void saveMark(int offering,Mark mark){check(!Platform.isFxApplicationThread(),"async marks write");check(mark.getMarksObtained()==55,"selected mark payload");saves++;}
     }
     private static final class StubMaterials extends CourseMaterialService {
-        @Override public List<CourseMaterial> list(int offering){return List.of(new CourseMaterial(1,1,"Test PDF","Description","LECTURE_NOTE","test.pdf",7));}
+        @Override public List<CourseMaterial> list(int offering){
+            check(!Platform.isFxApplicationThread(),"async material listing");
+            return List.of(new CourseMaterial(1,1,"Test PDF","Description","LECTURE_NOTE","test.pdf",7),
+                    new CourseMaterial(2,1,"Other notes","Shared","OTHER","legacy.pdf",8));
+        }
+        @Override public void save(int offering,int id,String title,String description,String type,java.nio.file.Path source) {
+            check(!Platform.isFxApplicationThread(),"async material saving");
+            check(offering==1 && id==1 && title.equals("Test PDF"),"existing material edit payload");materialSaves++;
+        }
     }
 }

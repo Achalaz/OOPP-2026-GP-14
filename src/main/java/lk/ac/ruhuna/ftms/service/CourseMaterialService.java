@@ -20,17 +20,23 @@ public class CourseMaterialService {
         this.root=Objects.requireNonNull(root).toAbsolutePath().normalize();
     }
     public List<CourseMaterial> list(int offering) throws SQLException {
-        access.requireOffering(offering);var rows=dao.findByOffering(offering);access.requireOffering(offering);return rows;
+        access.requireOffering(offering);
+        var rows=dao.findByOffering(offering).stream().map(m->m.withAvailability(availability(m.resourcePath()))).toList();
+        access.requireOffering(offering);return rows;
     }
     public void save(int offering,int id,String title,String description,String type,Path source) throws SQLException,IOException {
         access.requireOffering(offering);
         if(title==null || title.isBlank() || title.strip().length()>180) throw new IllegalArgumentException("Enter a title of 1–180 characters.");
         if(description!=null && description.length()>10000) throw new IllegalArgumentException("Description is too long (maximum 10000 characters).");
         if(type==null || !Set.of("LECTURE_NOTE","PRACTICAL","ASSIGNMENT","OTHER").contains(type)) throw new IllegalArgumentException("Select a file material type.");
+        if(id<0) throw new IllegalArgumentException("Invalid material ID.");
         CourseMaterial existing=id==0?null:find(offering,id);
+        if(existing!=null && existing.uploadedBy()!=access.requireLecturer())
+            throw new SecurityException("Only the original uploader may edit this material.");
         if(source==null && existing==null) throw new IllegalArgumentException("Choose a file to upload.");
         String stored=existing==null?null:existing.resourcePath();
         if(source!=null) {
+            if(source.getFileName()==null) throw new IllegalArgumentException("Choose a regular file.");
             String original=source.getFileName().toString();int dot=original.lastIndexOf('.');
             String ext=dot<0?"":original.substring(dot).toLowerCase(Locale.ROOT);
             if(!Set.of(".pdf",".txt",".png",".jpg",".jpeg",".pptx",".docx",".xlsx",".zip").contains(ext)) throw new IllegalArgumentException("Supported files: PDF, TXT, images, Office documents and ZIP.");
@@ -51,14 +57,36 @@ public class CourseMaterialService {
         checkRoot();Path path=root.resolve(name);
         if(!Files.isRegularFile(path,LinkOption.NOFOLLOW_LINKS) || Files.size(path)>LIMIT) throw new IOException("Material file is unavailable.");
         byte[] bytes;try(var in=Files.newInputStream(path,LinkOption.NOFOLLOW_LINKS)){bytes=in.readNBytes((int)LIMIT+1);}
-        if(bytes.length>LIMIT) throw new IOException("Material exceeds download limit.");
+        if(bytes.length==0 || bytes.length>LIMIT) throw new IOException("Material file is empty or exceeds download limit.");
         access.requireOffering(offering);return bytes;
     }
     public void export(int offering,int id,Path destination) throws SQLException,IOException {
         byte[] bytes=download(offering,id);
         access.requireOffering(offering);
-        Files.write(destination,bytes,LinkOption.NOFOLLOW_LINKS,StandardOpenOption.CREATE,
-                StandardOpenOption.TRUNCATE_EXISTING,StandardOpenOption.WRITE);
+        Path target=destination.toAbsolutePath().normalize();
+        Path parent=target.getParent();
+        if(parent==null || !parent.toRealPath().equals(parent) || Files.isSymbolicLink(target))
+            throw new IOException("Choose a destination without redirected directories or symbolic links.");
+        if(target.startsWith(root)) throw new IOException("Export outside managed material storage.");
+        // A failed write must not truncate an existing destination document.
+        Path staged=Files.createTempFile(parent,".ftms-export-",".tmp");
+        try {
+            Files.write(staged,bytes,LinkOption.NOFOLLOW_LINKS,StandardOpenOption.TRUNCATE_EXISTING);
+            access.requireOffering(offering);
+            if(!parent.toRealPath().equals(parent) || Files.isSymbolicLink(target))
+                throw new IOException("The destination changed. Choose another location.");
+            Files.move(staged,target,StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING);
+        } finally { Files.deleteIfExists(staged); }
+    }
+    private String availability(String name) {
+        if(name==null || !name.matches("[0-9a-f-]{36}\\.[a-z0-9]+"))
+            return "Legacy/external metadata - uploader must upload file";
+        try {
+            checkRoot();Path file=root.resolve(name);
+            if(!Files.isRegularFile(file,LinkOption.NOFOLLOW_LINKS) || !Files.isReadable(file)
+                    || Files.size(file)==0 || Files.size(file)>LIMIT) return "File unavailable";
+            return "Available";
+        } catch(IOException | SecurityException error) { return "Storage unavailable"; }
     }
     private CourseMaterial find(int offering,int id) throws SQLException {
         return list(offering).stream().filter(m->m.materialId()==id).findFirst().orElseThrow(()->new SecurityException("Material is not available in this offering."));
