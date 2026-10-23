@@ -48,8 +48,15 @@ public final class StudentPortalViewSmokeTest {
                     check(SessionManager.isCurrentSession(identity),"profile preserves login");
                 }
                 for (String entry : List.of("My Attendance","View Attendance","My Medical","View Medical",
-                        "My Courses","View Courses","My Published Results","View Results","My SGPA / CGPA","View SGPA / CGPA")) {
+                        "My Courses","View Courses","My Grades and GPA","View Results")) {
                     click(entry); ready();
+                    fx(() -> {
+                        button("refreshButton").fire();
+                        check(button("refreshButton").isDisabled(),"Refresh disabled while loading");
+                        check(table("recordsTable").getItems().isEmpty(),"old rows cleared during refresh");
+                        return null;
+                    });
+                    ready();
                     fx(() -> {
                         String feature=scene.getRoot().getUserData().toString();
                         check(!table("recordsTable").isEditable(),entry+" is read only");
@@ -79,6 +86,30 @@ public final class StudentPortalViewSmokeTest {
                     });
                     check(SessionManager.isCurrentSession(identity),entry+" preserves login");
                 }
+                // Unresolved repeat policy keeps the published grade visible, with no invented GPA.
+                db.academic.execute("UPDATE enrollments SET attempt_no=2 WHERE enrollment_id=100");
+                click("My Grades and GPA"); ready();
+                fx(() -> {
+                    check(table("summaryTable").getItems().getFirst().toString().contains("Pending, Pending"),"repeat SGPA and CGPA Pending");
+                    check(table("recordsTable").getItems().size()==1,"published repeat grade still visible");
+                    snapshot("student-gpa-pending");
+                    return null;
+                });
+                db.academic.execute("UPDATE enrollments SET attempt_no=1 WHERE enrollment_id=100");
+                db.academic.execute("UPDATE users SET is_active=FALSE WHERE user_id=3");
+                fx(() -> { button("refreshButton").fire(); return null; }); ready();
+                fx(() -> {
+                    check(table("recordsTable").getItems().isEmpty() && table("summaryTable").getItems().isEmpty(),"failure clears grades and GPA");
+                    check(((Label)node("statusLabel")).getText().contains("account is no longer available"),"account failure explained");
+                    check(!node("progressIndicator").isVisible(),"failure ends loading");
+                    return null;
+                });
+                db.academic.execute("UPDATE users SET is_active=TRUE WHERE user_id=3");
+                fx(() -> { button("refreshButton").fire(); return null; }); ready();
+                fx(() -> {
+                    check(table("summaryTable").getItems().toString().contains("4.00"),"Refresh recovers after failure");
+                    button("dashboardButton").fire(); return null;
+                });
                 for (String entry : List.of("Notices","View Notices")) {
                     click(entry);
                     fx(() -> {
@@ -91,6 +122,7 @@ public final class StudentPortalViewSmokeTest {
                 click("View Results"); ready();
                 fx(() -> {
                     check(table("recordsTable").getItems().isEmpty(),"no draft rows in results");
+                    check(table("summaryTable").getItems().isEmpty() && !node("summaryBox").isVisible(),"empty GPA summary hidden");
                     check(((Label)node("statusLabel")).getText().equals("No published results available."),"exact empty message");
                     button("logoutButton").fire();
                     check("loginRoot".equals(scene.getRoot().getId()),"viewer logout opens login");
@@ -102,6 +134,21 @@ public final class StudentPortalViewSmokeTest {
                     scene.setRoot(FXMLLoader.load(StudentPortalViewSmokeTest.class.getResource("/fxml/student_dashboard.fxml")));
                     layout();button("logoutButton").fire();
                     check(!SessionManager.isLoggedIn() && "loginRoot".equals(scene.getRoot().getId()),"dashboard logout works");
+                    return null;
+                });
+                db.academic.login(3,"STUDENT");
+                fx(() -> {
+                    scene.setRoot(FXMLLoader.load(StudentPortalViewSmokeTest.class.getResource("/fxml/student_results.fxml")));
+                    // Change the session before the task's success event can touch any controls.
+                    db.academic.login(4,"STUDENT");
+                    return null;
+                });
+                ready();
+                fx(() -> {
+                    check(table("recordsTable").getItems().isEmpty() && table("summaryTable").getItems().isEmpty(),"stale callback shows no student's records");
+                    check(((Label)node("statusLabel")).getText().contains("session has ended"),"stale session explained");
+                    button("logoutButton").fire();
+                    check(SessionManager.requireSession().userId()==4,"old screen cannot log out another student");
                     return null;
                 });
                 System.out.println("Student JavaFX/login/navigation checks passed: "+checks);
