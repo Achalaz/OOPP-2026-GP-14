@@ -31,7 +31,7 @@ public final class ResultsViewSmokeTest {
     private static int confirmations;
 
     public static void main(String[] args) throws Exception {
-        SessionManager.startSession(new User(12, "test", "Test", null, "ADMIN", true));
+        SessionManager.startSession(new User(12, "test", "Test", null, "LECTURER", true));
         CountDownLatch started = new CountDownLatch(1);
         Platform.startup(started::countDown);
         if (!started.await(10, TimeUnit.SECONDS)) { throw new AssertionError("JavaFX startup timed out"); }

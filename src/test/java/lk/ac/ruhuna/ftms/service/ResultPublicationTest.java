@@ -268,6 +268,7 @@ public final class ResultPublicationTest {
         Runnable afterPublish = () -> {};
         @Override public int enrollmentOffering(Connection c, int enrollment) { return 7; }
         @Override public boolean eligibilityInputsCurrent(Connection c,int enrollment) { return true; }
+        @Override public boolean draftInputsCurrent(Connection c,int enrollment,java.time.LocalDateTime calculatedAt) { return true; }
         @Override public void invalidateStoredGpa(Connection c,int enrollment) {}
         @Override public User lockActiveActor(Connection c, int id) { return actor; }
         @Override public boolean lockLecturerAssignment(Connection c, int id, int offering) {

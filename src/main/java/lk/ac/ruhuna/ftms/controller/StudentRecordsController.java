@@ -225,9 +225,9 @@ public class StudentRecordsController {
                 r.gradePoint(),r.credits(),r.attempt()));
         var summaries = new ArrayList<List<String>>();
         for (var semester : published.semesters())
-            summaries.add(row(semester.semester(),decimal(semester.result().getSgpa()),decimal(semester.result().getCgpa())));
+            summaries.add(row(semester.semester(),decimal(semester.result().getSgpa()),decimal(semester.result().getCgpa()),semester.status()));
         return new View(new Table(List.of("Course code","Course name","Semester","Published grade","Grade point","Credits","Attempt"),rows),
-                new Table(List.of("Semester","SGPA","CGPA"),summaries),"No published results available.");
+                new Table(List.of("Semester","SGPA","CGPA","GPA status"),summaries),"No published results available.");
     }
 
     private static List<String> row(Object... values) {

@@ -14,8 +14,6 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 
-import lk.ac.ruhuna.ftms.util.NavigationUtil;
-
 public class LecturerDashboardController {
 
     @FXML
@@ -181,6 +179,7 @@ public class LecturerDashboardController {
     private void handleLogout() {
 
         try {
+            SessionManager.requireSession(identity);
             SessionManager.logout();
 
             NavigationUtil.navigate(
@@ -188,8 +187,6 @@ public class LecturerDashboardController {
                     "/fxml/login.fxml",
                     "FTMS - Login"
             );
-
-            SessionManager.logout();
 
         } catch (IOException | SecurityException e) {
             showError("Logout failed: " + e.getMessage());
