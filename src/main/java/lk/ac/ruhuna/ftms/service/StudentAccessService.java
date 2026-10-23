@@ -27,8 +27,18 @@ public final class StudentAccessService {
     public interface Read<T> { T run(Connection connection, int studentId) throws SQLException; }
 
     public <T> T read(Read<T> operation) throws SQLException {
+        return read(operation, false);
+    }
+
+    /** All non-locking reads see the same committed data, even if results are published mid-load. */
+    public <T> T readSnapshot(Read<T> operation) throws SQLException {
+        return read(operation, true);
+    }
+
+    private <T> T read(Read<T> operation, boolean snapshot) throws SQLException {
         requireSession();
         try (var connection = DBConnection.getConnection()) {
+            if (snapshot) connection.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
             connection.setAutoCommit(false);
             try {
                 // Recheck the database account and subtype; keep authorization valid until commit.

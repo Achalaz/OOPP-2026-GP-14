@@ -12,9 +12,12 @@ public class StudentAccessTest extends TestCase {
     public void testUnauthenticatedWrongRoleAndStaleLogin() throws Exception {
         SessionManager.logout();
         denied(StudentAccessService::new);
+        denied(() -> NavigationUtil.navigate(null,"/fxml/student_results.fxml","Forbidden"));
         for (String role : List.of("ADMIN","LECTURER","TECHNICAL_OFFICER")) {
             login(3,role);
             denied(StudentAccessService::new);
+            denied(() -> new ResultService().getMyPublishedRecords(SessionManager.requireSession()));
+            denied(() -> NavigationUtil.navigate(null,"/fxml/student_results.fxml","Forbidden"));
         }
         login(3,"STUDENT");
         var reader = new StudentCourseService();
@@ -22,14 +25,17 @@ public class StudentAccessTest extends TestCase {
         login(3,"STUDENT");
         denied(reader::getMyCourses);
         denied(() -> new ResultService().getMyPublishedResults(identity));
+        denied(() -> new ResultService().getMyPublishedRecords(identity));
         denied(() -> new GPAService().getMyPublishedGpa(identity));
         denied(() -> new MedicalService().getMyMedicals(identity));
     }
 
     public void testStudentCannotEnterManagementOrWriteRecords() throws Exception {
         login(3,"STUDENT");
+        // Legacy academic routes remain allowed by NavigationUtil; their service guards enforce scope.
+        // StudentPortalMySqlIT verifies own published results/GPA and rejects cross-student reads/writes.
         for (String resource : List.of("admin_dashboard","users","notices","medical","attendance",
-                "marks_entry","results","assessments","reports","gpa","lecturer_dashboard","technical_officer_dashboard"))
+                "marks_entry","lecturer_dashboard","technical_officer_dashboard"))
             denied(() -> NavigationUtil.navigate(null,"/fxml/"+resource+".fxml","Forbidden"));
         var medical = new MedicalService();
         denied(() -> medical.submitMedical(null));
