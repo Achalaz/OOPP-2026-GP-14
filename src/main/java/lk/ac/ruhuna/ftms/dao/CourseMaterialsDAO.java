@@ -9,23 +9,39 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Timestamp;
+
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 
 public class CourseMaterialsDAO {
 
-    // Get materials uploaded by a specific lecturer
+    private static final String TABLE_NAME = "course_materials";
+
+    private static final Set<String> VALID_MATERIAL_TYPES = Set.of(
+            "LECTURE_NOTE",
+            "PRACTICAL",
+            "ASSIGNMENT",
+            "LINK",
+            "OTHER"
+    );
+
+    // Retrieve all materials uploaded by a particular user.
     public List<CourseMaterials> getByUploader(int uploadedBy)
             throws SQLException {
 
-        String sql = """
-                SELECT material_id, offering_id, title, description,
-                       material_type, resource_path, uploaded_by,
-                       uploaded_at
-                FROM course_materials
-                WHERE uploaded_by = ?
-                ORDER BY uploaded_at DESC
-                """;
+        if (uploadedBy <= 0) {
+            throw new IllegalArgumentException(
+                    "Invalid uploader ID.");
+        }
+
+        String sql =
+                "SELECT material_id, offering_id, title, description, "
+                        + "material_type, resource_path, uploaded_by, uploaded_at "
+                        + "FROM " + TABLE_NAME + " "
+                        + "WHERE uploaded_by = ? "
+                        + "ORDER BY uploaded_at DESC, material_id DESC";
 
         List<CourseMaterials> materials = new ArrayList<>();
 
@@ -36,6 +52,7 @@ public class CourseMaterialsDAO {
             statement.setInt(1, uploadedBy);
 
             try (ResultSet resultSet = statement.executeQuery()) {
+
                 while (resultSet.next()) {
                     materials.add(mapMaterial(resultSet));
                 }
@@ -45,36 +62,42 @@ public class CourseMaterialsDAO {
         return materials;
     }
 
-    // Search materials by title or description
+    // Search the logged-in user's materials by title or description.
     public List<CourseMaterials> searchByUploader(
-            int uploadedBy, String keyword) throws SQLException {
+            int uploadedBy,
+            String keyword) throws SQLException {
+
+        if (uploadedBy <= 0) {
+            throw new IllegalArgumentException(
+                    "Invalid uploader ID.");
+        }
 
         if (keyword == null || keyword.isBlank()) {
             return getByUploader(uploadedBy);
         }
 
-        String sql = """
-                SELECT material_id, offering_id, title, description,
-                       material_type, resource_path, uploaded_by,
-                       uploaded_at
-                FROM course_materials
-                WHERE uploaded_by = ?
-                  AND (title LIKE ? OR description LIKE ?)
-                ORDER BY uploaded_at DESC
-                """;
+        String sql =
+                "SELECT material_id, offering_id, title, description, "
+                        + "material_type, resource_path, uploaded_by, uploaded_at "
+                        + "FROM " + TABLE_NAME + " "
+                        + "WHERE uploaded_by = ? "
+                        + "AND (title LIKE ? OR description LIKE ?) "
+                        + "ORDER BY uploaded_at DESC, material_id DESC";
 
         List<CourseMaterials> materials = new ArrayList<>();
-        String searchValue = "%" + keyword.trim() + "%";
+
+        String searchKeyword = "%" + keyword.trim() + "%";
 
         try (Connection connection = DBConnection.getConnection();
              PreparedStatement statement =
                      connection.prepareStatement(sql)) {
 
             statement.setInt(1, uploadedBy);
-            statement.setString(2, searchValue);
-            statement.setString(3, searchValue);
+            statement.setString(2, searchKeyword);
+            statement.setString(3, searchKeyword);
 
             try (ResultSet resultSet = statement.executeQuery()) {
+
                 while (resultSet.next()) {
                     materials.add(mapMaterial(resultSet));
                 }
@@ -84,44 +107,28 @@ public class CourseMaterialsDAO {
         return materials;
     }
 
-    // Insert a new material or update an existing one
+    // Insert a new material or update an existing one.
     public boolean save(CourseMaterials material)
             throws SQLException {
 
-        if (material == null) {
-            throw new IllegalArgumentException(
-                    "Material cannot be null.");
+        validateMaterial(material);
+
+        if (material.getMaterialId() <= 0) {
+            return insert(material);
         }
 
-        if (material.getTitle() == null
-                || material.getTitle().isBlank()
-                || material.getTitle().trim().length() > 180) {
-            throw new IllegalArgumentException(
-                    "Title is required and must not exceed 180 characters.");
-        }
+        return update(material);
+    }
 
-        if (material.getOfferingId() <= 0
-                || material.getUploadedBy() <= 0) {
-            throw new IllegalArgumentException(
-                    "Valid offering and uploader IDs are required.");
-        }
+    // Insert a new course material.
+    private boolean insert(CourseMaterials material)
+            throws SQLException {
 
-        if (material.getMaterialType() == null
-                || material.getMaterialType().isBlank()) {
-            throw new IllegalArgumentException(
-                    "Material type is required.");
-        }
-
-        if (material.getMaterialId() > 0) {
-            return update(material);
-        }
-
-        String sql = """
-                INSERT INTO course_materials
-                    (offering_id, title, description, material_type,
-                     resource_path, uploaded_by)
-                VALUES (?, ?, ?, ?, ?, ?)
-                """;
+        String sql =
+                "INSERT INTO " + TABLE_NAME + " "
+                        + "(offering_id, title, description, material_type, "
+                        + "resource_path, uploaded_by) "
+                        + "VALUES (?, ?, ?, ?, ?, ?)";
 
         try (Connection connection = DBConnection.getConnection();
              PreparedStatement statement =
@@ -129,50 +136,52 @@ public class CourseMaterialsDAO {
                              sql, Statement.RETURN_GENERATED_KEYS)) {
 
             statement.setInt(1, material.getOfferingId());
-            statement.setString(2, material.getTitle().trim());
+            statement.setString(2, material.getTitle());
             statement.setString(3, material.getDescription());
             statement.setString(4, material.getMaterialType());
-            statement.setString(5, material.getResourcePath());
+            statement.setString(5, normalizePath(
+                    material.getResourcePath()));
             statement.setInt(6, material.getUploadedBy());
 
-            if (statement.executeUpdate() == 0) {
+            int affectedRows = statement.executeUpdate();
+
+            if (affectedRows == 0) {
                 return false;
             }
 
-            try (ResultSet keys = statement.getGeneratedKeys()) {
-                if (keys.next()) {
-                    material.setMaterialId(keys.getInt(1));
+            try (ResultSet generatedKeys =
+                         statement.getGeneratedKeys()) {
+
+                if (generatedKeys.next()) {
+                    material.setMaterialId(
+                            generatedKeys.getInt(1));
                 }
             }
 
-            return material.getMaterialId() > 0;
+            return true;
         }
     }
 
-    // Update only a material owned by the specified uploader
+    // Update only a material owned by the specified uploader.
     private boolean update(CourseMaterials material)
             throws SQLException {
 
-        String sql = """
-                UPDATE course_materials
-                SET offering_id = ?,
-                    title = ?,
-                    description = ?,
-                    material_type = ?,
-                    resource_path = ?
-                WHERE material_id = ?
-                  AND uploaded_by = ?
-                """;
+        String sql =
+                "UPDATE " + TABLE_NAME + " "
+                        + "SET offering_id = ?, title = ?, description = ?, "
+                        + "material_type = ?, resource_path = ? "
+                        + "WHERE material_id = ? AND uploaded_by = ?";
 
         try (Connection connection = DBConnection.getConnection();
              PreparedStatement statement =
                      connection.prepareStatement(sql)) {
 
             statement.setInt(1, material.getOfferingId());
-            statement.setString(2, material.getTitle().trim());
+            statement.setString(2, material.getTitle());
             statement.setString(3, material.getDescription());
             statement.setString(4, material.getMaterialType());
-            statement.setString(5, material.getResourcePath());
+            statement.setString(5, normalizePath(
+                    material.getResourcePath()));
             statement.setInt(6, material.getMaterialId());
             statement.setInt(7, material.getUploadedBy());
 
@@ -180,20 +189,18 @@ public class CourseMaterialsDAO {
         }
     }
 
-    // Delete only a material owned by the specified uploader
+    // Delete only a material owned by the specified uploader.
     public boolean delete(int materialId, int uploadedBy)
             throws SQLException {
 
         if (materialId <= 0 || uploadedBy <= 0) {
             throw new IllegalArgumentException(
-                    "Valid material and uploader IDs are required.");
+                    "Invalid material ID or uploader ID.");
         }
 
-        String sql = """
-                DELETE FROM course_materials
-                WHERE material_id = ?
-                  AND uploaded_by = ?
-                """;
+        String sql =
+                "DELETE FROM " + TABLE_NAME + " "
+                        + "WHERE material_id = ? AND uploaded_by = ?";
 
         try (Connection connection = DBConnection.getConnection();
              PreparedStatement statement =
@@ -206,7 +213,83 @@ public class CourseMaterialsDAO {
         }
     }
 
-    // Convert a database row into a CourseMaterials object
+    // Validate material data before inserting or updating.
+    private void validateMaterial(CourseMaterials material) {
+
+        if (material == null) {
+            throw new IllegalArgumentException(
+                    "Material cannot be null.");
+        }
+
+        if (material.getOfferingId() <= 0) {
+            throw new IllegalArgumentException(
+                    "Please select a valid course offering.");
+        }
+
+        if (material.getUploadedBy() <= 0) {
+            throw new IllegalArgumentException(
+                    "Invalid uploader ID.");
+        }
+
+        String title = material.getTitle();
+
+        if (title == null || title.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Material title is required.");
+        }
+
+        title = title.trim();
+
+        if (title.length() > 180) {
+            throw new IllegalArgumentException(
+                    "Title cannot exceed 180 characters.");
+        }
+
+        material.setTitle(title);
+
+        String type = material.getMaterialType();
+
+        if (type == null || type.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Material type is required.");
+        }
+
+        type = type.trim().toUpperCase(Locale.ROOT);
+
+        if (!VALID_MATERIAL_TYPES.contains(type)) {
+            throw new IllegalArgumentException(
+                    "Invalid material type. Use LECTURE_NOTE, "
+                            + "PRACTICAL, ASSIGNMENT, LINK or OTHER.");
+        }
+
+        material.setMaterialType(type);
+
+        String path = material.getResourcePath();
+
+        if (path != null) {
+            path = path.trim();
+
+            if (path.length() > 500) {
+                throw new IllegalArgumentException(
+                        "Resource path cannot exceed 500 characters.");
+            }
+
+            material.setResourcePath(
+                    path.isEmpty() ? null : path);
+        }
+    }
+
+    // Convert an empty resource path into SQL NULL.
+    private String normalizePath(String path) {
+
+        if (path == null || path.isBlank()) {
+            return null;
+        }
+
+        return path.trim();
+    }
+
+    // Map a database row into a CourseMaterials object.
     private CourseMaterials mapMaterial(ResultSet resultSet)
             throws SQLException {
 
@@ -214,16 +297,22 @@ public class CourseMaterialsDAO {
 
         material.setMaterialId(
                 resultSet.getInt("material_id"));
+
         material.setOfferingId(
                 resultSet.getInt("offering_id"));
+
         material.setTitle(
                 resultSet.getString("title"));
+
         material.setDescription(
                 resultSet.getString("description"));
+
         material.setMaterialType(
                 resultSet.getString("material_type"));
+
         material.setResourcePath(
                 resultSet.getString("resource_path"));
+
         material.setUploadedBy(
                 resultSet.getInt("uploaded_by"));
 
