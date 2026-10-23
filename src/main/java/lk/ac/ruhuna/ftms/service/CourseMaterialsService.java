@@ -133,11 +133,11 @@ public class CourseMaterialsService {
                     "A valid resource path or URL is required.");
         }
 
-        // Check real assignment in the database.
+
         requireOfferingAccess(
                 lecturerId, material.getOfferingId());
 
-        // Do not trust uploader ID received from the UI.
+
         material.setUploadedBy(lecturerId);
         material.setTitle(title);
         material.setMaterialType(type);
