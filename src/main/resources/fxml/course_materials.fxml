@@ -39,6 +39,7 @@
 
                 <Button text="Refresh"
                         onAction="#handleRefresh"/>
+
             </HBox>
         </VBox>
     </top>
@@ -153,6 +154,9 @@
                         onAction="#handleDelete"/>
             </HBox>
         </VBox>
+
+
     </bottom>
+
 
 </BorderPane>
