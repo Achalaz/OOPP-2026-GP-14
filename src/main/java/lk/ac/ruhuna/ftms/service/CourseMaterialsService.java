@@ -1,34 +1,41 @@
 package lk.ac.ruhuna.ftms.service;
 
 import lk.ac.ruhuna.ftms.dao.CourseMaterialsDAO;
+import lk.ac.ruhuna.ftms.dao.LecturerCourseAssignmentDAO;
 import lk.ac.ruhuna.ftms.model.CourseMaterials;
 import lk.ac.ruhuna.ftms.model.User;
 import lk.ac.ruhuna.ftms.util.SessionManager;
 
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
-import java.util.function.BiPredicate;
+import java.util.Set;
 
 public class CourseMaterialsService {
 
     private final CourseMaterialsDAO materialsDAO;
+    private final LecturerCourseAssignmentDAO assignmentDAO;
 
-    // Checks whether a lecturer is assigned to an offering.
-    private final BiPredicate<Integer, Integer> canManageOffering;
+    private static final Set<String> VALID_TYPES = Set.of(
+            "LECTURE_NOTE",
+            "PRACTICAL",
+            "ASSIGNMENT",
+            "LINK",
+            "OTHER"
+    );
 
     public CourseMaterialsService(
             CourseMaterialsDAO materialsDAO,
-            BiPredicate<Integer, Integer> canManageOffering) {
+            LecturerCourseAssignmentDAO assignmentDAO) {
 
         this.materialsDAO =
                 Objects.requireNonNull(materialsDAO);
 
-        this.canManageOffering =
-                Objects.requireNonNull(canManageOffering);
+        this.assignmentDAO =
+                Objects.requireNonNull(assignmentDAO);
     }
 
-    // Verify login and lecturer role.
     private int requireLecturer() {
 
         SessionManager.SessionIdentity identity =
@@ -36,24 +43,26 @@ public class CourseMaterialsService {
 
         User user = SessionManager.getCurrentUser();
 
-        // Ensure the same login session is still active.
         SessionManager.requireSession(identity);
 
         if (user == null
+                || user.getUserId() != identity.userId()
+                || !user.isActive()
                 || !"LECTURER".equalsIgnoreCase(user.getRole())) {
+
             throw new SecurityException(
-                    "Access denied. Lecturers only.");
+                    "Access denied. Active lecturer login required.");
         }
 
         return identity.userId();
     }
 
-    // Verify access to a course offering.
     private void requireOfferingAccess(
-            int lecturerId, int offeringId) {
+            int lecturerId,
+            int offeringId) throws SQLException {
 
         if (offeringId <= 0
-                || !canManageOffering.test(
+                || !assignmentDAO.isAssignedToOffering(
                 lecturerId, offeringId)) {
 
             throw new SecurityException(
@@ -61,7 +70,6 @@ public class CourseMaterialsService {
         }
     }
 
-    // Retrieve the logged-in lecturer's materials.
     public List<CourseMaterials> getMyMaterials()
             throws SQLException {
 
@@ -70,7 +78,6 @@ public class CourseMaterialsService {
         return materialsDAO.getByUploader(lecturerId);
     }
 
-    // Search the logged-in lecturer's materials.
     public List<CourseMaterials> searchMyMaterials(
             String keyword) throws SQLException {
 
@@ -80,7 +87,6 @@ public class CourseMaterialsService {
                 lecturerId, keyword);
     }
 
-    // Create or update a material.
     public boolean save(CourseMaterials material)
             throws SQLException {
 
@@ -105,10 +111,18 @@ public class CourseMaterialsService {
                     "Title cannot exceed 180 characters.");
         }
 
-        if (material.getMaterialType() == null
-                || material.getMaterialType().isBlank()) {
+        String type = material.getMaterialType();
+
+        if (type == null || type.isBlank()) {
             throw new IllegalArgumentException(
                     "Please select a material type.");
+        }
+
+        type = type.trim().toUpperCase(Locale.ROOT);
+
+        if (!VALID_TYPES.contains(type)) {
+            throw new IllegalArgumentException(
+                    "Invalid material type.");
         }
 
         String path = material.getResourcePath();
@@ -116,26 +130,31 @@ public class CourseMaterialsService {
         if (path == null || path.isBlank()
                 || path.trim().length() > 500) {
             throw new IllegalArgumentException(
-                    "A valid file path is required (maximum 500 characters).");
+                    "A valid resource path or URL is required.");
         }
 
-        // Validate access to the selected course offering.
+
         requireOfferingAccess(
                 lecturerId, material.getOfferingId());
 
-        // Never trust the uploader ID supplied by the UI.
+
         material.setUploadedBy(lecturerId);
         material.setTitle(title);
+        material.setMaterialType(type);
         material.setResourcePath(path.trim());
 
         return materialsDAO.save(material);
     }
 
-    // Delete only the logged-in lecturer's own material.
     public boolean delete(int materialId)
             throws SQLException {
 
         int lecturerId = requireLecturer();
+
+        if (materialId <= 0) {
+            throw new IllegalArgumentException(
+                    "Invalid material ID.");
+        }
 
         return materialsDAO.delete(
                 materialId, lecturerId);
