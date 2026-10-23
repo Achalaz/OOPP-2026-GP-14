@@ -102,8 +102,8 @@ public final class AcademicAcceptanceSmokeTest {
                 logout();
                 login(3, password, "studentRoot");
                 var student = SessionManager.requireSession();
-                for (String entry : List.of("studentResultsCard", "studentGpaCard")) {
-                    click(entry); ready();
+                for (String entry : List.of("My Grades and GPA", "View Results")) {
+                    textClick(entry); ready();
                     fx(() -> {
                         check(table("recordsTable").getItems().size() == 1, "only own published course visible");
                         check(((List<?>)table("recordsTable").getItems().getFirst()).get(3).equals("A"), "own grade shown, other student's B hidden");
@@ -118,7 +118,7 @@ public final class AcademicAcceptanceSmokeTest {
                 login(4, password, "studentRoot");
                 try { retained.requireSession(); throw new AssertionError("Old student session accepted"); }
                 catch (SecurityException expected) { checks++; }
-                click("studentResultsCard"); ready();
+                textClick("View Results"); ready();
                 var secondStudentResults = new ResultService().getMyPublishedResults(SessionManager.requireSession());
                 check(secondStudentResults.size() == 1 && secondStudentResults.getFirst().grade().equals("B"), "second login has its own publication only");
                 logout();

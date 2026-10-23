@@ -86,6 +86,11 @@ public class StudentPortalMySqlIT extends TestCase {
         var gpa = new GPAService();
         var semesters = gpa.getMyPublishedGpa(identity);
         assertEquals(1,semesters.size());
+        assertNull("Unsaved GPA stays pending for students",semesters.getFirst().result().getSgpa());
+        assertTrue(semesters.getFirst().status().contains("not been saved"));
+        saveGpa();
+        identity = SessionManager.requireSession();
+        semesters = gpa.getMyPublishedGpa(identity);
         assertEquals(4.0,semesters.getFirst().result().getSgpa(),0.001);
         assertEquals(4.0,semesters.getFirst().result().getCgpa(),0.001);
         var combined = results.getMyPublishedRecords(identity);
@@ -93,13 +98,15 @@ public class StudentPortalMySqlIT extends TestCase {
         assertEquals(1,combined.semesters().size());
         assertEquals(4.0,combined.semesters().getFirst().result().getCgpa(),0.001);
         StudentAccessTest.denied(() -> gpa.getCourseRows(4,9));
-        StudentAccessTest.denied(() -> gpa.saveSemesterResult(semesters.getFirst().result()));
+        var saved = semesters.getFirst().result();
+        StudentAccessTest.denied(() -> gpa.saveSemesterResult(saved));
         StudentAccessTest.denied(() -> results.calculateAndSaveResult(100));
         StudentAccessTest.denied(() -> results.publishResult(10,null));
-        assertEquals(0L,((Number)db.academic.scalar("SELECT COUNT(*) FROM semester_results")).longValue());
+        assertEquals(2L,((Number)db.academic.scalar("SELECT COUNT(*) FROM semester_results")).longValue());
         db.academic.login(4,"STUDENT");
-        StudentAccessTest.denied(() -> results.getMyPublishedResults(identity));
-        StudentAccessTest.denied(() -> results.getMyPublishedRecords(identity));
+        var earlierLogin = identity;
+        StudentAccessTest.denied(() -> results.getMyPublishedResults(earlierLogin));
+        StudentAccessTest.denied(() -> results.getMyPublishedRecords(earlierLogin));
         assertEquals("B",results.getMyPublishedResults(SessionManager.requireSession()).getFirst().grade());
         assertEquals("B",results.getMyPublishedRecords(SessionManager.requireSession()).grades().getFirst().grade());
     }
@@ -114,6 +121,7 @@ public class StudentPortalMySqlIT extends TestCase {
         new MarkService().saveMark(new lk.ac.ruhuna.ftms.model.Mark(200,20,60.0,1));
         db.academic.confirmedFixtureEligibility(200);
         results.publishResult(20,results.calculateAndSaveResult(200).publicationSnapshot());
+        saveGpa();
         db.academic.login(3,"STUDENT");
         var view = results.getMyPublishedRecords(SessionManager.requireSession());
         assertEquals(2,view.grades().size());
@@ -125,7 +133,7 @@ public class StudentPortalMySqlIT extends TestCase {
         db.academic.execute("UPDATE grade_rules SET grade_point=0,is_pass=FALSE");
         assertEquals(3.6,results.getMyPublishedRecords(SessionManager.requireSession())
                 .semesters().getLast().result().getCgpa(),0.001);
-        assertEquals(0L,((Number)db.academic.scalar("SELECT COUNT(*) FROM semester_results")).longValue());
+        assertEquals(2L,((Number)db.academic.scalar("SELECT COUNT(*) FROM semester_results")).longValue());
     }
 
     public void testPendingGpaForUnresolvedRepeatAndNoApplicablePublishedGrades() throws Exception {
@@ -182,6 +190,7 @@ public class StudentPortalMySqlIT extends TestCase {
 
     public void testRepeatableReadDoesNotDependOnDatabaseDefaultIsolation() throws Exception {
         db.publishSamples();
+        saveGpa();
         db.academic.login(3,"STUDENT");
         db.academic.connection.setTransactionIsolation(java.sql.Connection.TRANSACTION_READ_COMMITTED);
         var dao = new lk.ac.ruhuna.ftms.dao.CourseResultDAO() {
@@ -199,5 +208,12 @@ public class StudentPortalMySqlIT extends TestCase {
                 .semesters().getFirst().result().getCgpa(),0.001);
         assertEquals("Grades and GPA must share one connection",opened+1,db.academic.connectionsOpened());
         assertTrue(db.academic.connection.getAutoCommit());
+    }
+
+    private void saveGpa() throws Exception {
+        db.academic.login(1,"LECTURER");
+        var gpa = new GPAService();
+        gpa.saveSemesterResult(gpa.calculateSemesterGPA(3,9));
+        db.academic.login(3,"STUDENT");
     }
 }

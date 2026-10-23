@@ -5,9 +5,14 @@ import lk.ac.ruhuna.ftms.database.DBConnection;
 import lk.ac.ruhuna.ftms.model.CourseMaterial;
 public class CourseMaterialDAO {
     public List<CourseMaterial> findByOffering(int offering) throws SQLException {
+        try (var connection = DBConnection.getConnection()) { return findByOffering(connection, offering); }
+    }
+    /** Reuses the student's authorized transaction so permission and metadata cannot diverge. */
+    public List<CourseMaterial> findByOffering(Connection connection, int offering) throws SQLException {
         var rows=new ArrayList<CourseMaterial>();
-        try(var c=DBConnection.getConnection();var p=c.prepareStatement("SELECT m.material_id,m.offering_id,m.title,m.description,m.material_type,m.resource_path,m.uploaded_by,m.uploaded_at,CONCAT_WS(' ',u.first_name,u.last_name) FROM course_materials m LEFT JOIN users u ON u.user_id=m.uploaded_by WHERE m.offering_id=? ORDER BY m.uploaded_at DESC,m.material_id DESC")) {
+        try(var p=connection.prepareStatement("SELECT m.material_id,m.offering_id,m.title,m.description,m.material_type,m.resource_path,m.uploaded_by,m.uploaded_at,CONCAT_WS(' ',u.first_name,u.last_name) FROM course_materials m LEFT JOIN users u ON u.user_id=m.uploaded_by WHERE m.offering_id=? ORDER BY m.uploaded_at DESC,m.material_id DESC")) {
             p.setInt(1,offering);
+            p.setQueryTimeout(15);
             try(var r=p.executeQuery()) {while(r.next()) rows.add(new CourseMaterial(r.getInt(1),r.getInt(2),r.getString(3),r.getString(4),r.getString(5),r.getString(6),r.getInt(7),r.getTimestamp(8)==null?null:r.getTimestamp(8).toLocalDateTime(),r.getString(9),"Not checked"));}
         }
         return rows;

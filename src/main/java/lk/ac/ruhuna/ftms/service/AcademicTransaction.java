@@ -17,6 +17,7 @@ final class AcademicTransaction {
             try {
                 T result = work.run(c, identity);
                 SessionManager.requireSession(identity);
+                if(Thread.currentThread().isInterrupted()) throw new java.util.concurrent.CancellationException("Academic operation cancelled.");
                 c.commit();
                 return result;
             } catch (SQLException | RuntimeException error) {

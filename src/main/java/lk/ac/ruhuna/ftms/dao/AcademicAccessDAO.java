@@ -78,10 +78,21 @@ public class AcademicAccessDAO {
     /** Full GPA is visible only to the student or a lecturer assigned to every included offering. */
     public void transcript(Connection c, SessionManager.SessionIdentity identity, int student, boolean write) throws SQLException {
         User actor = actor(c, identity);
-        if (!write && "STUDENT".equals(actor.getRole()) && student == identity.userId()) return;
+        if (!write && "STUDENT".equals(actor.getRole()) && student == identity.userId()) {
+            try(var p=c.prepareStatement("SELECT student_id FROM students WHERE student_id=? FOR SHARE")) {
+                p.setInt(1,student);
+                try(var rows=p.executeQuery()) {
+                    if(!rows.next()) throw new SecurityException("Your student profile is unavailable. Contact the administrator.");
+                }
+            }
+            return;
+        }
         if (!"LECTURER".equals(actor.getRole())) throw new SecurityException("This academic record is not accessible.");
         int count = 0;
-        try (var p = c.prepareStatement("SELECT DISTINCT offering_id FROM enrollments WHERE student_id=? AND status<>'WITHDRAWN'")) {
+        try (var p = c.prepareStatement("""
+                SELECT DISTINCT e.offering_id FROM enrollments e JOIN course_offerings o ON o.offering_id=e.offering_id
+                WHERE e.student_id=? AND e.status<>'WITHDRAWN' AND o.status<>'CANCELLED'
+                """)) {
             p.setInt(1, student);
             try (var r = p.executeQuery()) {
                 while (r.next()) {

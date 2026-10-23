@@ -12,7 +12,7 @@ import java.util.concurrent.*;
 
 /** Real FXML/controller/SQL workflow with only connection-local fixture writes and no visible window. */
 public final class AcademicViewsSmokeTest {
-    private static Scene scene;private static int checks;
+    private static Scene scene;private static javafx.stage.Stage stage;private static int checks;
     public static void main(String[] args)throws Exception{
         try(var db=new AcademicDatabaseFixture()){
             db.login(1,"LECTURER");
@@ -47,10 +47,12 @@ public final class AcademicViewsSmokeTest {
                     check(button("publishButton").isDisabled(),"duplicate publication disabled");
                     return null;
                 });
+                if(Arrays.asList(args).contains("--screenshots"))snapshot("result-publication");
                 open("gpa");ready();
                 fx(()->{combo("studentCombo").getSelectionModel().selectFirst();return null;});ready();
                 fx(()->{combo("semesterCombo").getSelectionModel().selectFirst();return null;});ready();
                 fx(()->{check(label("sgpaLabel").getText().equals("4.00"),"GPA loads current publication");return null;});
+                if(Arrays.asList(args).contains("--screenshots"))snapshot("gpa-management");
                 open("reports");ready();
                 fx(()->{combo("batchCombo").getSelectionModel().selectFirst();button("batchReportButton").fire();return null;});ready();
                 fx(()->{
@@ -74,6 +76,7 @@ public final class AcademicViewsSmokeTest {
                         fx(()->{scene.getRoot().applyCss();scene.getRoot().layout();button(entry.getKey()+suffix).fire();return null;});ready();
                         fx(()->{
                             check(scene.getRoot().lookup("#"+entry.getValue())!=null,entry.getKey()+suffix+" opens the correct academic screen");
+                            check(scene.getWindow()==stage && stage.getWidth()==1180 && stage.getHeight()==820,"academic route preserves stage dimensions");
                             button("dashboardButton").fire();
                             check("lecturerRoot".equals(scene.getRoot().getId()),entry.getKey()+suffix+" returns to lecturer dashboard");
                             check(SessionManager.isCurrentSession(identity),entry.getKey()+suffix+" preserves session");return null;
@@ -83,25 +86,32 @@ public final class AcademicViewsSmokeTest {
                 if(Arrays.asList(args).contains("--screenshots"))snapshot("lecturer-dashboard");
                 db.login(3,"STUDENT");open("student_dashboard");
                 var studentIdentity=SessionManager.requireSession();
-                for(String suffix:List.of("Nav","Card")){
-                    fx(()->{button("studentResults"+suffix).fire();return null;});ready();
+                for(String entry:List.of("My Grades and GPA","View Results")){
+                    fx(()->{textButton(entry).fire();return null;});ready();
                     fx(()->{
                         check(scene.getRoot().lookup("#studentCombo")==null,"student cannot select another identity");
                         check(table("recordsTable").getItems().size()==1,"only published student results load automatically");
                         check(!table("recordsTable").isEditable(),"student results are read only");
-                        button("dashboardButton").fire();
-                        check("studentRoot".equals(scene.getRoot().getId()),"results return to student dashboard");
-                        scene.getRoot().applyCss();scene.getRoot().layout();
-                        button("studentGpa"+suffix).fire();return null;
-                    });ready();
-                    fx(()->{
                         check(table("summaryTable").getItems().size()==1,"student GPA shows published semesters only");
+                        check(table("summaryTable").getItems().toString().contains("Pending"),"unsaved GPA is pending");
                         check(scene.getRoot().lookup("#saveButton")==null,"student GPA is read only");
                         button("dashboardButton").fire();
-                        check("studentRoot".equals(scene.getRoot().getId()),"GPA returns to student dashboard");
+                        check("studentRoot".equals(scene.getRoot().getId()),"results return to student dashboard");
                         check(SessionManager.isCurrentSession(studentIdentity),"student navigation preserves session");return null;
                     });
                 }
+                // Legacy GPA route is also self-only and has no student calculation/save controls.
+                fx(()->{lk.ac.ruhuna.ftms.util.NavigationUtil.navigate(scene.getRoot(),"/fxml/gpa.fxml","GPA");return null;});ready();
+                fx(()->{
+                    check(combo("studentCombo").isDisabled(),"student selector is locked");
+                    check(!button("calculateButton").isVisible() && !button("saveButton").isVisible(),"student mutation controls hidden");
+                    button("dashboardButton").fire();return null;
+                });
+                for(String resource:List.of("/fxml/assessments.fxml","/fxml/eligibility.fxml","/fxml/admin_enrollments.fxml","/fxml/course_materials.fxml"))
+                    deniedRoute(resource);
+                db.login(5,"ADMIN");deniedRoute("/fxml/results.fxml");deniedRoute("/fxml/gpa.fxml");
+                db.login(6,"TECHNICAL_OFFICER");deniedRoute("/fxml/results.fxml");deniedRoute("/fxml/gpa.fxml");
+                db.login(3,"STUDENT");
                 if(Arrays.asList(args).contains("--screenshots"))snapshot("student-dashboard");
                 System.out.println("Academic JavaFX workflow checks passed: "+checks);
             }finally{Platform.exit();}
@@ -109,7 +119,8 @@ public final class AcademicViewsSmokeTest {
     }
     private static void open(String name)throws Exception{
         fx(()->{var root=FXMLLoader.<javafx.scene.Parent>load(AcademicViewsSmokeTest.class.getResource("/fxml/"+name+".fxml"));
-            if(scene==null)scene=new Scene(root,1280,900);else scene.setRoot(root);root.applyCss();root.layout();return null;});
+            if(scene==null){scene=new Scene(root,1280,900);stage=new javafx.stage.Stage();stage.setScene(scene);stage.setWidth(1180);stage.setHeight(820);}
+            else scene.setRoot(root);root.applyCss();root.layout();return null;});
     }
     private static void snapshot(String name)throws Exception{
         fx(()->{
@@ -135,6 +146,19 @@ public final class AcademicViewsSmokeTest {
     private static Button button(String id){
         scene.getRoot().applyCss();scene.getRoot().layout();
         return (Button)scene.getRoot().lookup("#"+id);
+    }
+    private static Button textButton(String text){
+        scene.getRoot().applyCss();scene.getRoot().layout();
+        return scene.getRoot().lookupAll(".button").stream().filter(n->n instanceof Button b && text.equals(b.getText()))
+                .map(n->(Button)n).findFirst().orElseThrow();
+    }
+    private static void deniedRoute(String resource)throws Exception{
+        fx(()->{
+            var before=scene.getRoot();
+            try{lk.ac.ruhuna.ftms.util.NavigationUtil.navigate(before,resource,"Denied");throw new AssertionError("Route should be denied: "+resource);}
+            catch(SecurityException expected){check(scene.getRoot()==before,"denied route preserves scene");}
+            return null;
+        });
     }
     private static TextField field(String id){return (TextField)scene.getRoot().lookup("#"+id);}
     private static Label label(String id){return (Label)scene.getRoot().lookup("#"+id);}

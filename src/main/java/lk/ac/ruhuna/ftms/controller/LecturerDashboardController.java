@@ -181,6 +181,7 @@ public class LecturerDashboardController {
     private void handleLogout() {
 
         try {
+            SessionManager.requireSession(identity);
             SessionManager.logout();
 
             NavigationUtil.navigate(
@@ -188,8 +189,6 @@ public class LecturerDashboardController {
                     "/fxml/login.fxml",
                     "FTMS - Login"
             );
-
-            SessionManager.logout();
 
         } catch (IOException | SecurityException e) {
             showError("Logout failed: " + e.getMessage());

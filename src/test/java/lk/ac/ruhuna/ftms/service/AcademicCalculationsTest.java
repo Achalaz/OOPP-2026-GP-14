@@ -49,7 +49,19 @@ public class AcademicCalculationsTest extends TestCase {
         assertNull(GPAService.totals(List.of(row("A",3,null,"PENDING",false))).gpa());
     }
     public void testRepeatPolicyRemainsPending(){
-        assertNull(GPAService.totals(List.of(row("A",3,4.0,"PASS",true),row("A",3,2.0,"PASS",true))).gpa());
+        var total=GPAService.totals(List.of(row("A",3,4.0,"PASS",true),row("A",3,2.0,"PASS",true),row("B",2,3.0,"PASS",true)));
+        assertNull(total.gpa());
+        assertTrue(total.repeatPending());
+        assertEquals(5.0,total.registered(),0.00001);
+        assertEquals(2.0,total.earned(),0.00001);
+        assertEquals(6.0,total.quality(),0.00001);
+        assertEquals(2.0,total.includedCredits(),0.00001);
+        assertEquals(2,total.excludedCourses());
+    }
+    public void testGpaUsesConsistentHalfUpRounding(){
+        var total=GPAService.totals(List.of(row("A",1,3.125,"PASS",true)));
+        assertEquals(3.13,total.gpa(),0.00001);
+        assertEquals(3.13,total.quality(),0.00001);
     }
     public void testAttendanceMissingVersusZero(){
         var missing=new AttendanceCounts(1,0,0,0,0,0,0,0,0,0,0);
