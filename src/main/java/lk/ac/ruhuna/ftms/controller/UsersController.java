@@ -8,8 +8,10 @@ import javafx.scene.control.cell.PropertyValueFactory;
 import lk.ac.ruhuna.ftms.dao.UserDAO;
 import lk.ac.ruhuna.ftms.model.User;
 import lk.ac.ruhuna.ftms.service.UserService;
+import lk.ac.ruhuna.ftms.util.NavigationUtil;
 import lk.ac.ruhuna.ftms.util.PasswordUtil;
 
+import java.io.IOException;
 import java.sql.SQLException;
 import java.util.Arrays;
 
@@ -100,6 +102,19 @@ public class UsersController {
                 });
 
         loadUsers();
+    }
+
+    @FXML
+    private void handleBackToDashboard() {
+        try {
+            NavigationUtil.navigate(
+                    usersTable,
+                    "/fxml/admin_dashboard.fxml",
+                    "FTMS - Admin Dashboard"
+            );
+        } catch (IOException | RuntimeException e) {
+            showError("Cannot open admin dashboard: " + e.getMessage());
+        }
     }
 
     @FXML

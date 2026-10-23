@@ -72,6 +72,7 @@ public class ResultsController {
     private final ObjectProperty<Integer> readyEnrollment = new SimpleObjectProperty<>();
     private final BooleanProperty publicationAuthorized = new SimpleBooleanProperty();
     private final BooleanProperty publishableSelection = new SimpleBooleanProperty();
+    private final BooleanProperty publishedSelection = new SimpleBooleanProperty();
     private boolean updatingSelection;
     private Task<?> activeTask;
     private boolean disposed;
@@ -112,7 +113,7 @@ public class ResultsController {
         offeringCombo.disableProperty().bind(busy);
         enrollmentCombo.disableProperty().bind(busy.or(offeringCombo.valueProperty().isNull()));
         batchTable.disableProperty().bind(busy);
-        calculateButton.disableProperty().bind(busy.or(enrollmentCombo.valueProperty().isNull()));
+        calculateButton.disableProperty().bind(busy.or(enrollmentCombo.valueProperty().isNull()).or(publishedSelection));
         saveButton.disableProperty().bind(busy.or(readyEnrollment.isNull()));
         publishButton.visibleProperty().bind(publicationAuthorized);
         publishButton.managedProperty().bind(publicationAuthorized);
@@ -185,9 +186,11 @@ public class ResultsController {
     private void handleCalculate() {
         ResultRow selected = enrollmentCombo.getValue();
         if (selected == null) { return; }
+        int offering = offeringCombo.getValue().offeringId();
         readyEnrollment.set(null);
-        runTask("Calculating result...", () -> resultService.calculateResult(selected.enrollmentId()), result -> {
-            replaceRow(selected.withResult(result));
+        runTask("Calculating result...", () -> refreshedRow(offering, selected,
+                resultService.calculateResult(selected.enrollmentId())), row -> {
+            replaceRow(row);
             readyEnrollment.set(selected.enrollmentId());
             statusLabel.setText("Result calculated. Save / Update recalculates and saves an unpublished draft.");
         });
@@ -197,10 +200,11 @@ public class ResultsController {
     private void handleSave() {
         ResultRow selected = enrollmentCombo.getValue();
         if (selected == null || !Objects.equals(readyEnrollment.get(), selected.enrollmentId())) { return; }
+        int offering = offeringCombo.getValue().offeringId();
         readyEnrollment.set(null);
         runTask("Recalculating and saving result...",
-                () -> resultService.calculateAndSaveResult(selected.enrollmentId()), result -> {
-                    replaceRow(selected.withResult(result));
+                () -> refreshedRow(offering, selected, resultService.calculateAndSaveResult(selected.enrollmentId())), row -> {
+                    replaceRow(row);
                     statusLabel.setText("Unpublished result saved for enrollment " + selected.enrollmentId() + ".");
                 });
     }
@@ -246,6 +250,12 @@ public class ResultsController {
 
     @FXML private void handleGpa() { navigate("/fxml/gpa.fxml", "FTMS - SGPA / CGPA"); }
     @FXML private void handleReports() { navigate("/fxml/reports.fxml", "FTMS - Reports"); }
+    private ResultRow refreshedRow(int offering,ResultRow selected,CourseResult calculated) {
+        return resultService.getBatchResults(offering).stream()
+                .filter(row -> row.enrollmentId()==selected.enrollmentId()).findFirst()
+                .orElseThrow(() -> new ResultCalculationException("Enrollment is unavailable. Refresh the offering."))
+                .withResult(calculated);
+    }
     private void replaceRow(ResultRow replacement) {
         updatingSelection = true;
         try {
@@ -304,7 +314,7 @@ public class ResultsController {
 
     private void display(ResultRow row) {
         CourseResult result = row == null ? null : row.result();
-        EligibilityOffering offering = offeringCombo.getValue();
+        publishedSelection.set(result!=null && result.isPublished());
         publicationPolicyLabel.setText(publicationAuthorized.get() ? "Review a saved draft before publishing."
                 : ResultService.PUBLICATION_POLICY_PENDING);
         publishableSelection.set(result != null && result.getResultId() > 0 && !result.isPublished()
@@ -323,7 +333,7 @@ public class ResultsController {
         resultStateLabel.setText(row == null ? "No enrollment selected" : row + " | " + state(result));
         reasonLabel.setText(row == null ? "Select an enrollment to view a result." : resultService.describe(result));
         eligibilityLabel.setText(row==null ? "Eligibility: select an enrollment." : "Eligibility: " + eligibility(row)
-                + ". " + Objects.toString(row.eligibilityReason(),"Refresh after eligibility is evaluated."));
+                + ". " + Objects.toString(row.eligibilityReason(),"No eligibility reason recorded."));
     }
 
     private static String number(CourseResult result, Function<CourseResult, BigDecimal> property) {
