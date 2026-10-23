@@ -41,6 +41,9 @@
                     styleClass="nav-button"
                     onAction="#handleCourseOfferings"/>
 
+            <Button text="Student Enrollments" maxWidth="Infinity"
+                    styleClass="nav-button" onAction="#handleEnrollments"/>
+
             <Button text="✉  Notices"
                     maxWidth="Infinity"
                     styleClass="nav-button"
@@ -175,6 +178,13 @@
                                     onAction="#handleCourseOfferings"/>
                         </VBox>
 
+                        <VBox styleClass="dashboard-card" GridPane.columnIndex="1" GridPane.rowIndex="2">
+                            <Label text="Student Enrollments" styleClass="card-title"/>
+                            <Label text="Enroll students in course offerings and manage enrollment status."
+                                   styleClass="card-description" wrapText="true"/>
+                            <Button text="Manage Student Enrollments" styleClass="card-button"
+                                    wrapText="true" onAction="#handleEnrollments"/>
+                        </VBox>
                     </GridPane>
 
                 </VBox>
