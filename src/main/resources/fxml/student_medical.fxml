@@ -1,38 +1,188 @@
+
 <?xml version="1.0" encoding="UTF-8"?>
+
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1"
-            fx:id="studentRecordsRoot" userData="medical"
-            fx:controller="lk.ac.ruhuna.ftms.controller.StudentRecordsController"
-            prefWidth="1100" prefHeight="700" minWidth="0" styleClass="profile-root" stylesheets="@../css/profile.css">
+
+<BorderPane xmlns:fx="http://javafx.com/fxml"
+            fx:id="studentMedicalRoot"
+            fx:controller="lk.ac.ruhuna.ftms.controller.StudentMedicalController"
+            prefWidth="1150"
+            prefHeight="790"
+            style="-fx-background-color: #F3F6FB;">
+
+    <!-- HEADER -->
     <top>
-        <VBox spacing="12" styleClass="profile-header">
-            <FlowPane hgap="12" vgap="8">
-                <Button fx:id="dashboardButton" text="Back to Student Dashboard" onAction="#handleDashboard" styleClass="secondary-button"/>
-                <Button fx:id="refreshButton" text="Refresh" onAction="#handleRefresh" styleClass="primary-button"/>
-                <Button fx:id="logoutButton" text="Logout" onAction="#handleLogout" styleClass="secondary-button"/>
-            </FlowPane>
-            <Label fx:id="titleLabel" styleClass="page-title"/>
-            <Label fx:id="descriptionLabel" wrapText="true" styleClass="muted"/>
-        </VBox>
-    </top>
-    <center>
-        <ScrollPane fitToWidth="true" minWidth="0" styleClass="profile-scroll">
-            <VBox spacing="16" minWidth="0" style="-fx-padding: 24;">
-                <VBox fx:id="summaryBox" spacing="10" minWidth="0">
-                    <Label fx:id="summaryLabel" styleClass="section-title"/>
-                    <TableView fx:id="summaryTable" editable="false" minWidth="0" prefHeight="200"/>
-                </VBox>
-                <Label text="My records" styleClass="section-title"/>
-                <TableView fx:id="recordsTable" editable="false" minWidth="0" prefHeight="340"/>
+        <HBox alignment="CENTER_LEFT"
+              spacing="16"
+              style="-fx-background-color: #102C4C; -fx-padding: 18 24;">
+
+            <VBox spacing="5">
+
+                <Label text="My Medical Records"
+                       style="-fx-text-fill: white; -fx-font-size: 24; -fx-font-weight: bold;"/>
+
+                <Label fx:id="studentNameLabel"
+                       text="Student Medical History"
+                       style="-fx-text-fill: #D8E8F7; -fx-font-size: 13;"/>
+
             </VBox>
+
+            <Region HBox.hgrow="ALWAYS"/>
+
+            <Button fx:id="backButton"
+                    text="Back to Dashboard"
+                    onAction="#handleBack"
+                    style="-fx-background-color: #2E5279; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 15;"/>
+
+        </HBox>
+    </top>
+
+    <!-- MAIN CONTENT -->
+    <center>
+        <ScrollPane fitToWidth="true"
+                    hbarPolicy="NEVER"
+                    style="-fx-background: #F3F6FB; -fx-background-color: transparent;">
+
+            <content>
+                <VBox spacing="18"
+                      style="-fx-padding: 22;">
+
+                    <!-- SUMMARY -->
+                    <VBox spacing="12"
+                          style="-fx-background-color: white; -fx-padding: 18; -fx-background-radius: 9;">
+
+                        <Label text="Your Medical Summary"
+                               style="-fx-font-size: 18; -fx-font-weight: bold; -fx-text-fill: #102C4C;"/>
+
+                        <Label fx:id="summaryLabel"
+                               text="Loading..."
+                               wrapText="true"
+                               style="-fx-text-fill: #334155; -fx-font-size: 14;"/>
+
+                        <HBox alignment="CENTER_LEFT"
+                              spacing="12">
+
+                            <Label text="Filter Status:"
+                                   style="-fx-font-weight: bold; -fx-text-fill: #334155;"/>
+
+                            <ComboBox fx:id="statusFilter"
+                                      prefWidth="180"/>
+
+                            <Button fx:id="refreshButton"
+                                    text="Refresh"
+                                    onAction="#handleRefresh"
+                                    style="-fx-background-color: #2E5279; -fx-text-fill: white; -fx-padding: 9 18;"/>
+
+                        </HBox>
+                    </VBox>
+
+                    <!-- MEDICAL TABLE -->
+                    <VBox spacing="10"
+                          style="-fx-background-color: white; -fx-padding: 18; -fx-background-radius: 9;">
+
+                        <Label text="My Medical History"
+                               style="-fx-font-size: 18; -fx-font-weight: bold; -fx-text-fill: #102C4C;"/>
+
+                        <TableView fx:id="medicalTable"
+                                   prefHeight="310"
+                                   minHeight="225">
+
+                            <columns>
+
+                                <TableColumn fx:id="idColumn"
+                                             text="Medical ID"
+                                             prefWidth="95"/>
+
+                                <TableColumn fx:id="offeringColumn"
+                                             text="Course Offering"
+                                             prefWidth="160"/>
+
+                                <TableColumn fx:id="fromColumn"
+                                             text="From Date"
+                                             prefWidth="155"/>
+
+                                <TableColumn fx:id="toColumn"
+                                             text="To Date"
+                                             prefWidth="155"/>
+
+                                <TableColumn fx:id="statusColumn"
+                                             text="Status"
+                                             prefWidth="145"/>
+
+                                <TableColumn fx:id="submittedColumn"
+                                             text="Submitted At"
+                                             prefWidth="195"/>
+
+                            </columns>
+                        </TableView>
+
+                        <Label text="Select a record below to view its reason and review details."
+                               style="-fx-text-fill: #64748B; -fx-font-size: 12;"/>
+
+                    </VBox>
+
+                    <!-- READ-ONLY DETAILS -->
+                    <VBox spacing="10"
+                          style="-fx-background-color: white; -fx-padding: 18; -fx-background-radius: 9;">
+
+                        <Label text="Medical Details (Read Only)"
+                               style="-fx-font-size: 18; -fx-font-weight: bold; -fx-text-fill: #102C4C;"/>
+
+                        <Label fx:id="selectedMedicalLabel"
+                               text="Select a record to view details."
+                               style="-fx-font-weight: bold; -fx-text-fill: #334155;"/>
+
+                        <Label text="Medical Reason"/>
+
+                        <TextArea fx:id="reasonArea"
+                                  editable="false"
+                                  wrapText="true"
+                                  prefRowCount="3"/>
+
+                        <Label text="Review Note"/>
+
+                        <TextArea fx:id="reviewNoteArea"
+                                  editable="false"
+                                  wrapText="true"
+                                  prefRowCount="2"/>
+
+                        <Label fx:id="reviewerLabel"
+                               text="Review: -"
+                               style="-fx-text-fill: #475569;"/>
+
+                        <Label fx:id="documentLabel"
+                               text="Document: -"
+                               wrapText="true"
+                               style="-fx-text-fill: #475569;"/>
+
+                        <Label text="Medical approval status does not automatically change attendance unless the absence-linking feature is implemented."
+                               wrapText="true"
+                               style="-fx-text-fill: #64748B; -fx-font-size: 12;"/>
+
+                    </VBox>
+
+                </VBox>
+            </content>
         </ScrollPane>
     </center>
+
+    <!-- STATUS BAR -->
     <bottom>
-        <HBox spacing="12" alignment="CENTER_LEFT" styleClass="profile-status">
-            <ProgressIndicator fx:id="progressIndicator" prefWidth="20" prefHeight="20" maxWidth="20" maxHeight="20"/>
-            <Label fx:id="statusLabel" wrapText="true" styleClass="status-info"/>
+        <HBox alignment="CENTER_LEFT"
+              style="-fx-background-color: #E8EFF7; -fx-padding: 12 24;">
+
+            <Label fx:id="statusLabel"
+                   text="Loading your medical records..."
+                   wrapText="true"
+                   style="-fx-text-fill: #334155; -fx-font-size: 12;"/>
+
+            <Region HBox.hgrow="ALWAYS"/>
+
+            <Label text="STUDENT | VIEW ONLY"
+                   style="-fx-text-fill: #64748B; -fx-font-weight: bold; -fx-font-size: 11;"/>
+
         </HBox>
     </bottom>
-</BorderPane>
 
+</BorderPane>
