@@ -1,15 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
-<BorderPane xmlns:fx="http://javafx.com/fxml"
+<BorderPane xmlns:fx="http://javafx.com/fxml/1"
             fx:id="medicalRoot"
             fx:controller="lk.ac.ruhuna.ftms.controller.MedicalController"
             prefWidth="1100"
             prefHeight="760">
 
-    <!-- Header -->
+    <!-- HEADER -->
     <top>
         <VBox spacing="5"
               style="-fx-background-color: #1f2937;">
@@ -20,17 +21,15 @@
             </padding>
 
             <Label text="Medical Management"
-                   style="-fx-font-size: 24px;
-                          -fx-font-weight: bold;
-                          -fx-text-fill: white;"/>
+                   style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: white;"/>
 
             <Label text="FTMS - Student Medical Management"
-                   style="-fx-font-size: 13px;
-                          -fx-text-fill: #d1d5db;"/>
+                   style="-fx-font-size: 13px; -fx-text-fill: #d1d5db;"/>
+
         </VBox>
     </top>
 
-    <!-- Main Content -->
+    <!-- MAIN CONTENT -->
     <center>
         <ScrollPane fitToWidth="true"
                     hbarPolicy="AS_NEEDED">
@@ -43,28 +42,22 @@
                                 bottom="25" left="25"/>
                     </padding>
 
-                    <!-- Medical Request Details -->
+                    <!-- MEDICAL REQUEST DETAILS -->
                     <VBox spacing="12"
-                          style="-fx-border-color: #d1d5db;
-                                 -fx-border-radius: 6;
-                                 -fx-padding: 15;">
+                          style="-fx-border-color: #d1d5db; -fx-border-radius: 6; -fx-padding: 15;">
 
                         <Label text="Medical Request Details"
-                               style="-fx-font-size: 18px;
-                                      -fx-font-weight: bold;"/>
+                               style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
 
                         <GridPane hgap="14" vgap="12">
 
                             <columnConstraints>
                                 <ColumnConstraints minWidth="125"/>
-                                <ColumnConstraints minWidth="190"
-                                                   hgrow="ALWAYS"/>
+                                <ColumnConstraints minWidth="190" hgrow="ALWAYS"/>
                                 <ColumnConstraints minWidth="125"/>
-                                <ColumnConstraints minWidth="190"
-                                                   hgrow="ALWAYS"/>
+                                <ColumnConstraints minWidth="190" hgrow="ALWAYS"/>
                             </columnConstraints>
 
-                            <!-- Medical ID -->
                             <Label text="Medical ID"
                                    GridPane.columnIndex="0"
                                    GridPane.rowIndex="0"/>
@@ -74,7 +67,6 @@
                                        GridPane.columnIndex="1"
                                        GridPane.rowIndex="0"/>
 
-                            <!-- Student ID -->
                             <Label text="Student ID *"
                                    GridPane.columnIndex="2"
                                    GridPane.rowIndex="0"/>
@@ -84,7 +76,6 @@
                                        GridPane.columnIndex="3"
                                        GridPane.rowIndex="0"/>
 
-                            <!-- Offering ID -->
                             <Label text="Offering ID"
                                    GridPane.columnIndex="0"
                                    GridPane.rowIndex="1"/>
@@ -94,7 +85,6 @@
                                        GridPane.columnIndex="1"
                                        GridPane.rowIndex="1"/>
 
-                            <!-- From Date -->
                             <Label text="From Date *"
                                    GridPane.columnIndex="2"
                                    GridPane.rowIndex="1"/>
@@ -104,7 +94,6 @@
                                         GridPane.columnIndex="3"
                                         GridPane.rowIndex="1"/>
 
-                            <!-- To Date -->
                             <Label text="To Date *"
                                    GridPane.columnIndex="0"
                                    GridPane.rowIndex="2"/>
@@ -114,7 +103,6 @@
                                         GridPane.columnIndex="1"
                                         GridPane.rowIndex="2"/>
 
-                            <!-- Reason -->
                             <Label text="Reason"
                                    GridPane.columnIndex="0"
                                    GridPane.rowIndex="3"/>
@@ -127,7 +115,6 @@
                                       GridPane.rowIndex="3"
                                       GridPane.columnSpan="3"/>
 
-                            <!-- Document -->
                             <Label text="Document Path"
                                    GridPane.columnIndex="0"
                                    GridPane.rowIndex="4"/>
@@ -145,7 +132,7 @@
 
                         </GridPane>
 
-                        <!-- Medical Buttons -->
+                        <!-- MEDICAL CRUD BUTTONS -->
                         <FlowPane hgap="10" vgap="10">
 
                             <Button text="Submit Medical"
@@ -173,15 +160,12 @@
 
                     </VBox>
 
-                    <!-- Medical Review -->
+                    <!-- MEDICAL REVIEW -->
                     <VBox spacing="12"
-                          style="-fx-border-color: #d1d5db;
-                                 -fx-border-radius: 6;
-                                 -fx-padding: 15;">
+                          style="-fx-border-color: #d1d5db; -fx-border-radius: 6; -fx-padding: 15;">
 
                         <Label text="Medical Review"
-                               style="-fx-font-size: 18px;
-                                      -fx-font-weight: bold;"/>
+                               style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
 
                         <Label text="Enter a valid reviewer ID for testing."
                                wrapText="true"/>
@@ -190,11 +174,9 @@
 
                             <columnConstraints>
                                 <ColumnConstraints minWidth="125"/>
-                                <ColumnConstraints minWidth="300"
-                                                   hgrow="ALWAYS"/>
+                                <ColumnConstraints minWidth="300" hgrow="ALWAYS"/>
                             </columnConstraints>
 
-                            <!-- Reviewer ID -->
                             <Label text="Reviewer ID *"
                                    GridPane.columnIndex="0"
                                    GridPane.rowIndex="0"/>
@@ -204,7 +186,6 @@
                                        GridPane.columnIndex="1"
                                        GridPane.rowIndex="0"/>
 
-                            <!-- Review Note -->
                             <Label text="Review Note"
                                    GridPane.columnIndex="0"
                                    GridPane.rowIndex="1"/>
@@ -218,7 +199,6 @@
 
                         </GridPane>
 
-                        <!-- Approve / Reject -->
                         <HBox spacing="10">
 
                             <Button text="Approve Medical"
@@ -228,15 +208,67 @@
                                     onAction="#handleRejectMedical"/>
 
                         </HBox>
+                    </VBox>
+
+                    <!-- STEP 20: MEDICAL ATTENDANCE LINKING -->
+                    <VBox fx:id="medicalLinkSection"
+                          spacing="10"
+                          style="-fx-background-color: #eef5fd; -fx-background-radius: 8; -fx-padding: 15;">
+
+                        <Label text="Medical - Attendance Absence Linking"
+                               style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
+
+                        <Label text="Select a medical record, load matching absences, then link or unlink an attendance record. Only Technical Officers can perform linking. Raw attendance percentage does not change."
+                               wrapText="true"/>
+
+                        <FlowPane hgap="10" vgap="10">
+
+                            <Button text="Load Matching Absences"
+                                    onAction="#handleLoadMedicalAbsences"/>
+
+                            <Button text="Link Selected Absence"
+                                    onAction="#handleLinkMedicalAbsence"/>
+
+                            <Button text="Unlink Selected Absence"
+                                    onAction="#handleUnlinkMedicalAbsence"/>
+
+                        </FlowPane>
+
+                        <TableView fx:id="absenceTable"
+                                   prefHeight="205">
+
+                            <columns>
+
+                                <TableColumn fx:id="absenceIdColumn"
+                                             text="Attendance ID"
+                                             prefWidth="120"/>
+
+                                <TableColumn fx:id="absenceDateColumn"
+                                             text="Date"
+                                             prefWidth="125"/>
+
+                                <TableColumn fx:id="absenceTypeColumn"
+                                             text="Session Type"
+                                             prefWidth="120"/>
+
+                                <TableColumn fx:id="absenceStatusColumn"
+                                             text="Status"
+                                             prefWidth="115"/>
+
+                                <TableColumn fx:id="linkedMedicalColumn"
+                                             text="Linked Medical"
+                                             prefWidth="145"/>
+
+                            </columns>
+                        </TableView>
 
                     </VBox>
 
-                    <!-- Medical Records Table -->
+                    <!-- MEDICAL RECORDS TABLE -->
                     <VBox spacing="10">
 
                         <Label text="Medical Records"
-                               style="-fx-font-size: 18px;
-                                      -fx-font-weight: bold;"/>
+                               style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
 
                         <Label text="Select a record to view its details."
                                wrapText="true"/>
@@ -267,7 +299,6 @@
                                              prefWidth="130"/>
 
                             </columns>
-
                         </TableView>
 
                     </VBox>
@@ -277,10 +308,9 @@
         </ScrollPane>
     </center>
 
-    <!-- Status Bar -->
+    <!-- STATUS BAR -->
     <bottom>
-        <HBox style="-fx-background-color: #f3f4f6;
-                     -fx-padding: 12;">
+        <HBox style="-fx-background-color: #f3f4f6; -fx-padding: 12;">
 
             <Label fx:id="statusLabel"
                    text="Medical Management Ready"
