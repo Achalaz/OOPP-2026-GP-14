@@ -1,15 +1,24 @@
+
 package lk.ac.ruhuna.ftms.dao;
+
+import lk.ac.ruhuna.ftms.database.DBConnection;
 
 import java.sql.Connection;
 import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Types;
+
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
 public class MedicalAttendanceLinkDAO {
+
+    // =========================================
+    // MEDICAL PERIOD RECORD
+    // =========================================
 
     public record MedicalPeriod(
             int studentId,
@@ -17,6 +26,10 @@ public class MedicalAttendanceLinkDAO {
             LocalDate fromDate,
             LocalDate toDate
     ) {}
+
+    // =========================================
+    // ATTENDANCE ABSENCE RECORD
+    // =========================================
 
     public record AbsenceRow(
             int attendanceRecordId,
@@ -28,13 +41,19 @@ public class MedicalAttendanceLinkDAO {
             Integer linkedMedicalId
     ) {}
 
+    // =========================================
+    // FIND AND LOCK MEDICAL RECORD
+    // =========================================
+
     public MedicalPeriod requireMedical(
             Connection connection,
             int medicalId) throws SQLException {
 
         String sql = """
-                SELECT student_id, offering_id,
-                       from_date, to_date
+                SELECT student_id,
+                       offering_id,
+                       from_date,
+                       to_date
                 FROM medicals
                 WHERE medical_id = ?
                 FOR UPDATE
@@ -45,27 +64,43 @@ public class MedicalAttendanceLinkDAO {
 
             statement.setInt(1, medicalId);
 
-            try (ResultSet rows = statement.executeQuery()) {
+            try (ResultSet rows =
+                         statement.executeQuery()) {
 
                 if (!rows.next()) {
+
                     throw new IllegalArgumentException(
-                            "Medical record not found.");
+                            "Medical record not found."
+                    );
                 }
 
-                int offering = rows.getInt("offering_id");
+                int offering =
+                        rows.getInt("offering_id");
 
                 Integer offeringId =
                         rows.wasNull() ? null : offering;
 
+                LocalDate fromDate =
+                        rows.getDate("from_date")
+                                .toLocalDate();
+
+                LocalDate toDate =
+                        rows.getDate("to_date")
+                                .toLocalDate();
+
                 return new MedicalPeriod(
                         rows.getInt("student_id"),
                         offeringId,
-                        rows.getDate("from_date").toLocalDate(),
-                        rows.getDate("to_date").toLocalDate()
+                        fromDate,
+                        toDate
                 );
             }
         }
     }
+
+    // =========================================
+    // FIND MATCHING ABSENCE RECORDS
+    // =========================================
 
     public List<AbsenceRow> findCandidates(
             Connection connection,
@@ -74,13 +109,14 @@ public class MedicalAttendanceLinkDAO {
             int departmentId) throws SQLException {
 
         String sql = """
-                SELECT ar.attendance_record_id,
-                       ar.session_id,
-                       s.offering_id,
-                       s.session_date,
-                       s.session_type,
-                       ar.attendance_status,
-                       aml.medical_id AS linked_medical_id
+                SELECT
+                    ar.attendance_record_id,
+                    ar.session_id,
+                    s.offering_id,
+                    s.session_date,
+                    s.session_type,
+                    ar.attendance_status,
+                    aml.medical_id AS linked_medical_id
 
                 FROM attendance_records ar
 
@@ -102,61 +138,152 @@ public class MedicalAttendanceLinkDAO {
                        ar.attendance_record_id
 
                 WHERE e.student_id = ?
+
                   AND c.department_id = ?
+
                   AND s.session_date BETWEEN ? AND ?
-                  AND (? IS NULL OR s.offering_id = ?)
+
                   AND (
-                      ar.attendance_status IN ('ABSENT', 'MEDICAL')
+                      ? IS NULL
+                      OR s.offering_id = ?
+                  )
+
+                  AND (
+                      ar.attendance_status IN (
+                          'ABSENT',
+                          'MEDICAL'
+                      )
                       OR aml.medical_id = ?
                   )
 
-                ORDER BY s.session_date,
-                         s.session_id,
-                         ar.attendance_record_id
+                ORDER BY
+                    s.session_date,
+                    s.session_id,
+                    ar.attendance_record_id
                 """;
 
-        List<AbsenceRow> result = new ArrayList<>();
+        List<AbsenceRow> result =
+                new ArrayList<>();
 
         try (PreparedStatement statement =
                      connection.prepareStatement(sql)) {
 
-            statement.setInt(1, medical.studentId());
-            statement.setInt(2, departmentId);
-            statement.setDate(3, Date.valueOf(medical.fromDate()));
-            statement.setDate(4, Date.valueOf(medical.toDate()));
+            // Student ID
+            statement.setInt(
+                    1,
+                    medical.studentId()
+            );
 
+            // Technical Officer department
+            statement.setInt(
+                    2,
+                    departmentId
+            );
+
+            // Medical start date
+            statement.setDate(
+                    3,
+                    Date.valueOf(medical.fromDate())
+            );
+
+            // Medical end date
+            statement.setDate(
+                    4,
+                    Date.valueOf(medical.toDate())
+            );
+
+            // Optional offering ID
             if (medical.offeringId() == null) {
-                statement.setNull(5, java.sql.Types.INTEGER);
-                statement.setNull(6, java.sql.Types.INTEGER);
+
+                statement.setNull(
+                        5,
+                        Types.INTEGER
+                );
+
+                statement.setNull(
+                        6,
+                        Types.INTEGER
+                );
+
             } else {
-                statement.setInt(5, medical.offeringId());
-                statement.setInt(6, medical.offeringId());
+
+                statement.setInt(
+                        5,
+                        medical.offeringId()
+                );
+
+                statement.setInt(
+                        6,
+                        medical.offeringId()
+                );
             }
 
-            statement.setInt(7, medicalId);
+            // Current medical ID
+            statement.setInt(
+                    7,
+                    medicalId
+            );
 
-            try (ResultSet rows = statement.executeQuery()) {
+            try (ResultSet rows =
+                         statement.executeQuery()) {
 
                 while (rows.next()) {
+
+                    // =================================
+                    // FIX: CORRECT NULL HANDLING
+                    // =================================
 
                     int linked =
                             rows.getInt("linked_medical_id");
 
-                    result.add(new AbsenceRow(
-                            rows.getInt("attendance_record_id"),
-                            rows.getInt("session_id"),
-                            rows.getInt("offering_id"),
-                            rows.getDate("session_date").toLocalDate(),
-                            rows.getString("session_type"),
-                            rows.getString("attendance_status"),
-                            rows.wasNull() ? null : linked
-                    ));
+                    // Check NULL immediately after getInt()
+                    Integer linkedMedicalId =
+                            rows.wasNull()
+                                    ? null
+                                    : linked;
+
+                    // Read remaining attendance details
+                    int attendanceRecordId =
+                            rows.getInt("attendance_record_id");
+
+                    int sessionId =
+                            rows.getInt("session_id");
+
+                    int offeringId =
+                            rows.getInt("offering_id");
+
+                    LocalDate sessionDate =
+                            rows.getDate("session_date")
+                                    .toLocalDate();
+
+                    String sessionType =
+                            rows.getString("session_type");
+
+                    String attendanceStatus =
+                            rows.getString("attendance_status");
+
+                    // Add attendance row
+                    result.add(
+                            new AbsenceRow(
+                                    attendanceRecordId,
+                                    sessionId,
+                                    offeringId,
+                                    sessionDate,
+                                    sessionType,
+                                    attendanceStatus,
+                                    linkedMedicalId
+                            )
+                    );
                 }
             }
         }
 
         return List.copyOf(result);
     }
+
+    // =========================================
+    // LOCK ATTENDANCE RECORD
+    // =========================================
 
     public void lockAttendanceRecord(
             Connection connection,
@@ -172,17 +299,27 @@ public class MedicalAttendanceLinkDAO {
         try (PreparedStatement statement =
                      connection.prepareStatement(sql)) {
 
-            statement.setInt(1, attendanceRecordId);
+            statement.setInt(
+                    1,
+                    attendanceRecordId
+            );
 
-            try (ResultSet rows = statement.executeQuery()) {
+            try (ResultSet rows =
+                         statement.executeQuery()) {
 
                 if (!rows.next()) {
+
                     throw new IllegalArgumentException(
-                            "Attendance record not found.");
+                            "Attendance record not found."
+                    );
                 }
             }
         }
     }
+
+    // =========================================
+    // LINK MEDICAL TO ATTENDANCE
+    // =========================================
 
     public void insertLink(
             Connection connection,
@@ -192,20 +329,39 @@ public class MedicalAttendanceLinkDAO {
 
         String sql = """
                 INSERT INTO attendance_medical_links
-                (medical_id, attendance_record_id, linked_by)
+                (
+                    medical_id,
+                    attendance_record_id,
+                    linked_by
+                )
                 VALUES (?, ?, ?)
                 """;
 
         try (PreparedStatement statement =
                      connection.prepareStatement(sql)) {
 
-            statement.setInt(1, medicalId);
-            statement.setInt(2, attendanceRecordId);
-            statement.setInt(3, officerUserId);
+            statement.setInt(
+                    1,
+                    medicalId
+            );
+
+            statement.setInt(
+                    2,
+                    attendanceRecordId
+            );
+
+            statement.setInt(
+                    3,
+                    officerUserId
+            );
 
             statement.executeUpdate();
         }
     }
+
+    // =========================================
+    // UNLINK MEDICAL FROM ATTENDANCE
+    // =========================================
 
     public boolean removeLink(
             Connection connection,
@@ -221,30 +377,50 @@ public class MedicalAttendanceLinkDAO {
         try (PreparedStatement statement =
                      connection.prepareStatement(sql)) {
 
-            statement.setInt(1, medicalId);
-            statement.setInt(2, attendanceRecordId);
+            statement.setInt(
+                    1,
+                    medicalId
+            );
+
+            statement.setInt(
+                    2,
+                    attendanceRecordId
+            );
 
             return statement.executeUpdate() == 1;
         }
     }
 
+    // =========================================
+    // CHECK IF MEDICAL HAS ATTENDANCE LINKS
+    // =========================================
+
     public boolean hasLinks(int medicalId)
             throws SQLException {
 
+        String sql = """
+                SELECT 1
+                FROM attendance_medical_links
+                WHERE medical_id = ?
+                LIMIT 1
+                """;
+
         try (
                 Connection connection =
-                        lk.ac.ruhuna.ftms.database.DBConnection
-                                .getConnection();
+                        DBConnection.getConnection();
 
                 PreparedStatement statement =
-                        connection.prepareStatement(
-                                "SELECT 1 FROM attendance_medical_links "
-                                        + "WHERE medical_id = ? LIMIT 1")
+                        connection.prepareStatement(sql)
         ) {
 
-            statement.setInt(1, medicalId);
+            statement.setInt(
+                    1,
+                    medicalId
+            );
 
-            try (ResultSet rows = statement.executeQuery()) {
+            try (ResultSet rows =
+                         statement.executeQuery()) {
+
                 return rows.next();
             }
         }
