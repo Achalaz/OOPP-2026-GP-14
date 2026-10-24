@@ -4,14 +4,17 @@ package lk.ac.ruhuna.ftms.service;
 import lk.ac.ruhuna.ftms.dao.MedicalDAO;
 import lk.ac.ruhuna.ftms.dao.MedicalAttendanceLinkDAO;
 import lk.ac.ruhuna.ftms.model.Medical;
+import lk.ac.ruhuna.ftms.util.SessionManager;
 
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 
 public class MedicalService {
+
+    private final SessionManager.SessionIdentity serviceIdentity =
+            SessionManager.requireSession();
 
     private final MedicalDAO medicalDAO;
 
@@ -21,44 +24,42 @@ public class MedicalService {
 
     public MedicalService(MedicalDAO medicalDAO) {
         this.medicalDAO = Objects.requireNonNull(
-                medicalDAO,
-                "MedicalDAO cannot be null."
-        );
+                medicalDAO, "MedicalDAO cannot be null.");
     }
 
-    // Students view only their own medical records
+    // STUDENT: View own medical records
     public List<Medical> getMyMedicals(
-            lk.ac.ruhuna.ftms.util.SessionManager.SessionIdentity identity
-    ) throws SQLException {
+            SessionManager.SessionIdentity identity)
+            throws SQLException {
+
+        SessionManager.requireSession(serviceIdentity);
 
         return new StudentAccessService(identity)
                 .read(medicalDAO::findByStudentId);
     }
 
-    // Existing staff authorization
+    // FIX 1: Only active Technical Officers
     private void requireStaff() {
 
-        var user =
-                lk.ac.ruhuna.ftms.util.SessionManager
-                        .getCurrentUser();
+        SessionManager.requireSession(serviceIdentity);
+
+        var user = SessionManager.getCurrentUser();
 
         if (user == null
                 || !user.isActive()
-                || user.getRole() == null
-                || !Set.of(
-                "ADMIN",
-                "TECHNICAL_OFFICER"
-        ).contains(user.getRole())) {
+                || !"TECHNICAL_OFFICER".equals(user.getRole())) {
 
             throw new SecurityException(
-                    "Staff access is required. "
-                            + "Students can only view their own medical records.");
+                    "Only active Technical Officers may manage medical records.");
         }
     }
 
-    // Lecturer receives restricted medical status data
+    // LECTURER: Read restricted medical statuses
     public lk.ac.ruhuna.ftms.model.LecturerTable
-    getLecturerStatuses(int offeringId) throws SQLException {
+    getLecturerStatuses(int offeringId)
+            throws SQLException {
+
+        SessionManager.requireSession(serviceIdentity);
 
         var access = new LecturerAccessService();
 
@@ -73,7 +74,7 @@ public class MedicalService {
         return rows;
     }
 
-    // Submit medical
+    // SUBMIT NEW MEDICAL
     public Medical submitMedical(Medical medical)
             throws SQLException {
 
@@ -81,7 +82,6 @@ public class MedicalService {
         validateMedical(medical);
 
         if (medical.getMedicalId() > 0) {
-
             throw new IllegalArgumentException(
                     "New medical must not have an existing ID.");
         }
@@ -96,7 +96,7 @@ public class MedicalService {
         return medical;
     }
 
-    // Update pending medical
+    // UPDATE PENDING MEDICAL
     public boolean updatePendingMedical(Medical medical)
             throws SQLException {
 
@@ -104,7 +104,6 @@ public class MedicalService {
         validateMedical(medical);
 
         if (medical.getMedicalId() <= 0) {
-
             throw new IllegalArgumentException(
                     "Valid medical ID is required.");
         }
@@ -113,37 +112,31 @@ public class MedicalService {
                 medicalDAO.findById(medical.getMedicalId());
 
         if (existing == null) {
-
             throw new IllegalArgumentException(
                     "Medical record not found.");
         }
 
         if (!"PENDING".equals(existing.getStatus())) {
-
             throw new IllegalStateException(
                     "Only pending medical records can be updated.");
         }
 
         if (existing.getStudentId() != medical.getStudentId()) {
-
             throw new IllegalArgumentException(
                     "Student ID cannot be changed.");
         }
 
-        // Do not invalidate existing attendance links
+        // Prevent linked attendance from becoming invalid
         boolean changesLinkScope =
                 !Objects.equals(
                         existing.getOfferingId(),
-                        medical.getOfferingId()
-                )
+                        medical.getOfferingId())
                         || !Objects.equals(
                         existing.getFromDate(),
-                        medical.getFromDate()
-                )
+                        medical.getFromDate())
                         || !Objects.equals(
                         existing.getToDate(),
-                        medical.getToDate()
-                );
+                        medical.getToDate());
 
         if (changesLinkScope
                 && new MedicalAttendanceLinkDAO()
@@ -159,7 +152,7 @@ public class MedicalService {
         return medicalDAO.update(medical);
     }
 
-    // Approve medical
+    // APPROVE MEDICAL
     public boolean approveMedical(
             int medicalId,
             int reviewedBy,
@@ -169,11 +162,10 @@ public class MedicalService {
                 medicalId,
                 "APPROVED",
                 reviewedBy,
-                reviewNote
-        );
+                reviewNote);
     }
 
-    // Reject medical
+    // REJECT MEDICAL
     public boolean rejectMedical(
             int medicalId,
             int reviewedBy,
@@ -183,11 +175,10 @@ public class MedicalService {
                 medicalId,
                 "REJECTED",
                 reviewedBy,
-                reviewNote
-        );
+                reviewNote);
     }
 
-    // Common approve/reject logic
+    // FIX 1: Secure medical approval/rejection
     private boolean reviewMedical(
             int medicalId,
             String status,
@@ -199,23 +190,25 @@ public class MedicalService {
         validateId(medicalId, "Medical ID");
         validateId(reviewedBy, "Reviewer ID");
 
-        if (reviewNote != null && reviewNote.length() > 500) {
+        // Stop reviewer ID impersonation
+        if (reviewedBy != serviceIdentity.userId()) {
+            throw new SecurityException(
+                    "Reviewer ID must match the logged-in Technical Officer.");
+        }
 
+        if (reviewNote != null && reviewNote.length() > 500) {
             throw new IllegalArgumentException(
                     "Review note cannot exceed 500 characters.");
         }
 
-        Medical medical =
-                medicalDAO.findById(medicalId);
+        Medical medical = medicalDAO.findById(medicalId);
 
         if (medical == null) {
-
             throw new IllegalArgumentException(
                     "Medical record not found.");
         }
 
         if (!"PENDING".equals(medical.getStatus())) {
-
             throw new IllegalStateException(
                     "This medical record has already been reviewed.");
         }
@@ -224,11 +217,9 @@ public class MedicalService {
                 medicalId,
                 status,
                 reviewedBy,
-                cleanText(reviewNote)
-        );
+                cleanText(reviewNote));
 
         if (!updated) {
-
             throw new IllegalStateException(
                     "Medical review could not be completed. "
                             + "The record may have changed.");
@@ -237,7 +228,7 @@ public class MedicalService {
         return true;
     }
 
-    // Find medical by ID
+    // FIND MEDICAL BY ID
     public Medical getMedicalById(int medicalId)
             throws SQLException {
 
@@ -247,9 +238,9 @@ public class MedicalService {
         return medicalDAO.findById(medicalId);
     }
 
-    // Find medical records of student
-    public List<Medical> getMedicalsByStudent(
-            int studentId) throws SQLException {
+    // GET MEDICALS BY STUDENT
+    public List<Medical> getMedicalsByStudent(int studentId)
+            throws SQLException {
 
         requireStaff();
         validateId(studentId, "Student ID");
@@ -257,7 +248,7 @@ public class MedicalService {
         return medicalDAO.findByStudentId(studentId);
     }
 
-    // Load all medicals
+    // LOAD ALL MEDICALS
     public List<Medical> getAllMedicals()
             throws SQLException {
 
@@ -266,7 +257,7 @@ public class MedicalService {
         return medicalDAO.findAll();
     }
 
-    // Delete pending medical
+    // DELETE PENDING MEDICAL
     public boolean deletePendingMedical(
             int medicalId,
             int studentId) throws SQLException {
@@ -276,23 +267,19 @@ public class MedicalService {
         validateId(medicalId, "Medical ID");
         validateId(studentId, "Student ID");
 
-        Medical medical =
-                medicalDAO.findById(medicalId);
+        Medical medical = medicalDAO.findById(medicalId);
 
         if (medical == null) {
-
             throw new IllegalArgumentException(
                     "Medical record not found.");
         }
 
         if (medical.getStudentId() != studentId) {
-
             throw new IllegalArgumentException(
                     "Medical does not belong to this student.");
         }
 
         if (!"PENDING".equals(medical.getStatus())) {
-
             throw new IllegalStateException(
                     "Only pending medical records can be deleted.");
         }
@@ -300,11 +287,10 @@ public class MedicalService {
         return medicalDAO.delete(medicalId);
     }
 
-    // Medical validation
+    // VALIDATE MEDICAL DATA
     private void validateMedical(Medical medical) {
 
         if (medical == null) {
-
             throw new IllegalArgumentException(
                     "Medical record cannot be null.");
         }
@@ -314,7 +300,6 @@ public class MedicalService {
         Integer offeringId = medical.getOfferingId();
 
         if (offeringId != null && offeringId <= 0) {
-
             throw new IllegalArgumentException(
                     "Invalid course offering ID.");
         }
@@ -323,33 +308,25 @@ public class MedicalService {
         LocalDate toDate = medical.getToDate();
 
         if (fromDate == null) {
-
             throw new IllegalArgumentException(
                     "Medical start date is required.");
         }
 
         if (toDate == null) {
-
             throw new IllegalArgumentException(
                     "Medical end date is required.");
         }
 
         if (toDate.isBefore(fromDate)) {
-
             throw new IllegalArgumentException(
                     "End date cannot be before start date.");
         }
 
-        String reason = cleanText(
-                medical.getReason()
-        );
-
+        String reason = cleanText(medical.getReason());
         String documentPath = cleanText(
-                medical.getDocumentPath()
-        );
+                medical.getDocumentPath());
 
         if (reason != null && reason.length() > 500) {
-
             throw new IllegalArgumentException(
                     "Medical reason cannot exceed 500 characters.");
         }
@@ -368,7 +345,6 @@ public class MedicalService {
     private void validateId(int id, String fieldName) {
 
         if (id <= 0) {
-
             throw new IllegalArgumentException(
                     fieldName + " must be greater than zero.");
         }

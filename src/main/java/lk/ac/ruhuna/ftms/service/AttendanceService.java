@@ -25,8 +25,7 @@ public class AttendanceService {
     public static final int MAX_SESSIONS_PER_TYPE = 15;
 
     private static final Set<String> VALID_STATUSES =
-            Set.of("PRESENT", "ABSENT", "LATE",
-                    "EXCUSED", "MEDICAL");
+            Set.of("PRESENT", "ABSENT", "LATE", "EXCUSED", "MEDICAL");
 
     private final AttendanceSessionDAO sessionDAO =
             new AttendanceSessionDAO();
@@ -70,16 +69,14 @@ public class AttendanceService {
 
             throw new SecurityException(
                     "Active Technical Officer access "
-                            + "is required for attendance management."
-            );
+                            + "is required for attendance management.");
         }
     }
 
     // STUDENT ATTENDANCE
     public record StudentSummary(
             lk.ac.ruhuna.ftms.dao.EnrollmentDAO.StudentCourse course,
-            AttendanceSummary attendance) {
-    }
+            AttendanceSummary attendance) {}
 
     public record StudentSession(
             String courseCode,
@@ -89,13 +86,11 @@ public class AttendanceService {
             LocalDate date,
             String type,
             String topic,
-            String status) {
-    }
+            String status) {}
 
     public record StudentAttendance(
             List<StudentSummary> summaries,
-            List<StudentSession> sessions) {
-    }
+            List<StudentSession> sessions) {}
 
     public StudentAttendance getMyAttendance()
             throws SQLException {
@@ -108,8 +103,7 @@ public class AttendanceService {
 
                     for (var course :
                             new lk.ac.ruhuna.ftms.dao.EnrollmentDAO()
-                                    .findByStudent(
-                                            connection, studentId)) {
+                                    .findByStudent(connection, studentId)) {
 
                         summaries.add(
                                 new StudentSummary(
@@ -125,13 +119,12 @@ public class AttendanceService {
                     return new StudentAttendance(
                             List.copyOf(summaries),
                             recordDAO.findStudentSessions(
-                                    connection, studentId
-                            )
+                                    connection, studentId)
                     );
                 });
     }
 
-    // DEPARTMENT-SCOPED DATABASE TRANSACTIONS
+    // DATABASE TRANSACTIONS
     @FunctionalInterface
     private interface DepartmentOperation<T> {
 
@@ -155,12 +148,10 @@ public class AttendanceService {
                 int departmentId =
                         accessDAO.requireOfficerDepartment(
                                 connection,
-                                identity.userId()
-                        );
+                                identity.userId());
 
                 T result = operation.run(
-                        connection, departmentId
-                );
+                        connection, departmentId);
 
                 requireManagementSession();
 
@@ -185,12 +176,11 @@ public class AttendanceService {
             throw new IllegalStateException(
                     "Attendance could not be accessed. "
                             + "Check the database connection.",
-                    error
-            );
+                    error);
         }
     }
 
-    // AUTHORIZED COURSE OFFERINGS
+    // AUTHORIZED OFFERINGS
     public List<AttendanceOffering> getAuthorizedOfferings() {
 
         return inDepartment(accessDAO::findOfferings);
@@ -202,16 +192,14 @@ public class AttendanceService {
         return inDepartment((connection, departmentId) -> {
 
             accessDAO.requireOffering(
-                    connection, departmentId, offeringId
-            );
+                    connection, departmentId, offeringId);
 
             return accessDAO.findEnrollments(
-                    connection, offeringId
-            );
+                    connection, offeringId);
         });
     }
 
-    // STEP 19 - SAVE SESSION WITH MAXIMUM LIMIT
+    // SAVE SESSION - MAX 15 THEORY AND 15 PRACTICAL
     public void saveSession(AttendanceSession session) {
 
         requireManagementSession();
@@ -221,8 +209,7 @@ public class AttendanceService {
                 && session.getTopic().length() > 255) {
 
             throw new IllegalArgumentException(
-                    "Session topic must be 255 characters or fewer."
-            );
+                    "Session topic must be 255 characters or fewer.");
         }
 
         int originalId = session.getSessionId();
@@ -231,14 +218,11 @@ public class AttendanceService {
 
             inDepartment((connection, departmentId) -> {
 
-                // Lock the authorized course offering
                 lockAuthorizedOffering(
                         connection,
                         departmentId,
-                        session.getOfferingId()
-                );
+                        session.getOfferingId());
 
-                // Maximum 15 Theory and 15 Practical
                 requireSessionSlot(connection, session);
 
                 if (session.getSessionId() > 0) {
@@ -246,27 +230,21 @@ public class AttendanceService {
                     int savedOffering =
                             accessDAO.sessionOffering(
                                     connection,
-                                    session.getSessionId()
-                            );
+                                    session.getSessionId());
 
-                    if (savedOffering
-                            != session.getOfferingId()) {
-
+                    if (savedOffering != session.getOfferingId()) {
                         throw new SecurityException(
                                 "Attendance session cannot "
-                                        + "be moved to another offering."
-                        );
+                                        + "be moved to another offering.");
                     }
 
                     AttendanceSession existing =
                             sessionDAO.findById(
                                     connection,
-                                    session.getSessionId()
-                            );
+                                    session.getSessionId());
 
                     session.setConductedBy(
-                            existing.getConductedBy()
-                    );
+                            existing.getConductedBy());
 
                     sessionDAO.update(connection, session);
 
@@ -287,13 +265,12 @@ public class AttendanceService {
         }
     }
 
-    // STEP 19 - SESSION PROGRESS
+    // SESSION PROGRESS
     public record SessionProgress(
             int theory,
             int practical) {
 
         public boolean isComplete() {
-
             return theory == MAX_SESSIONS_PER_TYPE
                     && practical == MAX_SESSIONS_PER_TYPE;
         }
@@ -303,17 +280,14 @@ public class AttendanceService {
             int offeringId) {
 
         if (offeringId <= 0) {
-
             throw new IllegalArgumentException(
-                    "Invalid course offering ID."
-            );
+                    "Invalid course offering ID.");
         }
 
         return inDepartment((connection, departmentId) -> {
 
             accessDAO.requireOffering(
-                    connection, departmentId, offeringId
-            );
+                    connection, departmentId, offeringId);
 
             String sql = """
                     SELECT
@@ -322,13 +296,11 @@ public class AttendanceService {
                                 WHEN session_type = 'THEORY'
                                 THEN 1 ELSE 0 END), 0
                         ) AS theory_count,
-
                         COALESCE(
                             SUM(CASE
                                 WHEN session_type = 'PRACTICAL'
                                 THEN 1 ELSE 0 END), 0
                         ) AS practical_count
-
                     FROM attendance_sessions
                     WHERE offering_id = ?
                     """;
@@ -345,14 +317,12 @@ public class AttendanceService {
 
                     return new SessionProgress(
                             results.getInt("theory_count"),
-                            results.getInt("practical_count")
-                    );
+                            results.getInt("practical_count"));
                 }
             }
         });
     }
 
-    // LOCK COURSE OFFERING FOR SAFE SESSION CREATION
     private static void lockAuthorizedOffering(
             Connection connection,
             int departmentId,
@@ -381,14 +351,12 @@ public class AttendanceService {
 
                     throw new SecurityException(
                             "This course offering is outside "
-                                    + "your authorized department."
-                    );
+                                    + "your authorized department.");
                 }
             }
         }
     }
 
-    // CHECK THE 15-SESSION LIMIT
     private static void requireSessionSlot(
             Connection connection,
             AttendanceSession session) throws SQLException {
@@ -411,60 +379,46 @@ public class AttendanceService {
         try (PreparedStatement statement =
                      connection.prepareStatement(sql)) {
 
-            statement.setInt(
-                    1, session.getOfferingId()
-            );
-
+            statement.setInt(1, session.getOfferingId());
             statement.setString(2, type);
-
-            // Exclude the current session when editing
-            statement.setInt(
-                    3, session.getSessionId()
-            );
+            statement.setInt(3, session.getSessionId());
 
             try (ResultSet results =
                          statement.executeQuery()) {
 
                 results.next();
 
-                if (results.getInt(1)
-                        >= MAX_SESSIONS_PER_TYPE) {
+                if (results.getInt(1) >= MAX_SESSIONS_PER_TYPE) {
 
                     throw new IllegalArgumentException(
                             "Maximum " + MAX_SESSIONS_PER_TYPE
                                     + " " + type
-                                    + " sessions allowed per course offering."
-                    );
+                                    + " sessions allowed per course offering.");
                 }
             }
         }
     }
 
-    // VIEW COURSE SESSIONS
     public List<AttendanceSession> getSessionsByOffering(
             int offeringId) {
 
         return inDepartment((connection, departmentId) -> {
 
             accessDAO.requireOffering(
-                    connection, departmentId, offeringId
-            );
+                    connection, departmentId, offeringId);
 
             return sessionDAO.findByOfferingId(
-                    connection, offeringId
-            );
+                    connection, offeringId);
         });
     }
 
-    // SESSION DELETION IS NOT ENABLED
     public void deleteSession(int sessionId) {
 
         throw new SecurityException(
-                "Attendance session deletion is not enabled."
-        );
+                "Attendance session deletion is not enabled.");
     }
 
-    // SAVE OR UPDATE STUDENT ATTENDANCE
+    // FIX 2: SAVE ATTENDANCE SAFELY
     public void saveAttendance(AttendanceRecord record) {
 
         requireManagementSession();
@@ -474,25 +428,26 @@ public class AttendanceService {
 
         inDepartment((connection, departmentId) -> {
 
-            int offering = accessDAO.sessionOffering(
-                    connection,
-                    record.getSessionId()
-            );
+            int offering =
+                    accessDAO.sessionOffering(
+                            connection,
+                            record.getSessionId());
 
             accessDAO.requireOffering(
-                    connection, departmentId, offering
-            );
+                    connection, departmentId, offering);
 
             if (accessDAO.enrollmentOffering(
                     connection,
-                    record.getEnrollmentId()
-            ) != offering) {
+                    record.getEnrollmentId()) != offering) {
 
                 throw new SecurityException(
                         "Student enrollment does not belong "
-                                + "to this session."
-                );
+                                + "to this session.");
             }
+
+            // Block incompatible status changes
+            // while linked medical evidence exists
+            protectLinkedMedicalStatus(connection, record);
 
             recordDAO.saveOrUpdate(connection, record);
 
@@ -500,7 +455,74 @@ public class AttendanceService {
         });
     }
 
-    // VIEW ATTENDANCE BY SESSION
+    // FIX 2: PROTECT LINKED MEDICAL ABSENCES
+    private void protectLinkedMedicalStatus(
+            Connection connection,
+            AttendanceRecord record) throws SQLException {
+
+        String status = record.getAttendanceStatus();
+
+        // These statuses are still compatible with
+        // an existing medical link.
+        if ("ABSENT".equals(status)
+                || "MEDICAL".equals(status)) {
+            return;
+        }
+
+        Integer attendanceRecordId = null;
+
+        String findSql = """
+                SELECT attendance_record_id
+                FROM attendance_records
+                WHERE session_id = ?
+                  AND enrollment_id = ?
+                FOR UPDATE
+                """;
+
+        try (PreparedStatement statement =
+                     connection.prepareStatement(findSql)) {
+
+            statement.setInt(1, record.getSessionId());
+            statement.setInt(2, record.getEnrollmentId());
+
+            try (ResultSet rows = statement.executeQuery()) {
+
+                if (rows.next()) {
+                    attendanceRecordId = rows.getInt(1);
+                }
+            }
+        }
+
+        if (attendanceRecordId == null) {
+            return;
+        }
+
+        String checkSql = """
+                SELECT 1
+                FROM attendance_medical_links
+                WHERE attendance_record_id = ?
+                LIMIT 1
+                """;
+
+        try (PreparedStatement statement =
+                     connection.prepareStatement(checkSql)) {
+
+            statement.setInt(1, attendanceRecordId);
+
+            try (ResultSet rows = statement.executeQuery()) {
+
+                if (rows.next()) {
+
+                    throw new IllegalStateException(
+                            "This absence has a linked medical. "
+                                    + "Unlink the medical before changing status to "
+                                    + status + ".");
+                }
+            }
+        }
+    }
+
+    // ATTENDANCE RECORDS BY SESSION
     public List<AttendanceRecord> getAttendanceBySession(
             int sessionId) {
 
@@ -510,17 +532,14 @@ public class AttendanceService {
                     connection,
                     departmentId,
                     accessDAO.sessionOffering(
-                            connection, sessionId
-                    )
-            );
+                            connection, sessionId));
 
             return recordDAO.findBySessionId(
-                    connection, sessionId
-            );
+                    connection, sessionId);
         });
     }
 
-    // VIEW ATTENDANCE BY ENROLLMENT
+    // ATTENDANCE RECORDS BY ENROLLMENT
     public List<AttendanceRecord> getAttendanceByEnrollment(
             int enrollmentId) {
 
@@ -530,17 +549,14 @@ public class AttendanceService {
                     connection,
                     departmentId,
                     accessDAO.enrollmentOffering(
-                            connection, enrollmentId
-                    )
-            );
+                            connection, enrollmentId));
 
             return recordDAO.findByEnrollmentId(
-                    connection, enrollmentId
-            );
+                    connection, enrollmentId);
         });
     }
 
-    // LECTURER / TECHNICAL OFFICER BATCH SUMMARY
+    // BATCH SUMMARY - TO AND LECTURER
     public List<AttendanceSummary> getSummariesByOffering(
             int offeringId) {
 
@@ -558,11 +574,9 @@ public class AttendanceService {
                 access.requireOffering(offeringId);
 
                 var rows = summaryDAO.findByOfferingId(
-                        offeringId
-                );
+                        offeringId);
 
                 access.requireOffering(offeringId);
-
                 SessionManager.requireSession(identity);
 
                 return rows;
@@ -571,24 +585,21 @@ public class AttendanceService {
 
                 throw new IllegalStateException(
                         "Failed to load attendance summaries.",
-                        error
-                );
+                        error);
             }
         }
 
         return inDepartment((connection, departmentId) -> {
 
             accessDAO.requireOffering(
-                    connection, departmentId, offeringId
-            );
+                    connection, departmentId, offeringId);
 
             return summaryDAO.findByOfferingId(
-                    connection, offeringId
-            );
+                    connection, offeringId);
         });
     }
 
-    // INDIVIDUAL ATTENDANCE SUMMARY
+    // INDIVIDUAL SUMMARY
     public AttendanceSummary getSummaryByEnrollment(
             int enrollmentId) {
 
@@ -598,17 +609,14 @@ public class AttendanceService {
                     connection,
                     departmentId,
                     accessDAO.enrollmentOffering(
-                            connection, enrollmentId
-                    )
-            );
+                            connection, enrollmentId));
 
             return summaryDAO.findByEnrollmentId(
-                    connection, enrollmentId
-            );
+                    connection, enrollmentId);
         });
     }
 
-    // ATTENDANCE PERCENTAGE
+    // EXISTING ATTENDANCE PERCENTAGE
     public double calculateAttendancePercentage(
             int enrollmentId) {
 
@@ -618,14 +626,11 @@ public class AttendanceService {
                     connection,
                     departmentId,
                     accessDAO.enrollmentOffering(
-                            connection, enrollmentId
-                    )
-            );
+                            connection, enrollmentId));
 
             int totalSessions =
                     sessionDAO.countSessionsByEnrollment(
-                            connection, enrollmentId
-                    );
+                            connection, enrollmentId);
 
             if (totalSessions == 0) {
                 return 0.0;
@@ -633,16 +638,13 @@ public class AttendanceService {
 
             int presentSessions =
                     recordDAO.countPresentByEnrollment(
-                            connection, enrollmentId
-                    );
+                            connection, enrollmentId);
 
             double percentage =
-                    ((double) presentSessions / totalSessions)
-                            * 100.0;
+                    ((double) presentSessions / totalSessions) * 100.0;
 
             return Math.round(
-                    percentage * 100.0
-            ) / 100.0;
+                    percentage * 100.0) / 100.0;
         });
     }
 
@@ -652,40 +654,33 @@ public class AttendanceService {
 
         if (session == null) {
             throw new IllegalArgumentException(
-                    "Attendance session cannot be null."
-            );
+                    "Attendance session cannot be null.");
         }
 
         if (session.getOfferingId() <= 0) {
             throw new IllegalArgumentException(
-                    "Invalid course offering."
-            );
+                    "Invalid course offering.");
         }
 
         if (session.getSessionDate() == null) {
             throw new IllegalArgumentException(
-                    "Session date is required."
-            );
+                    "Session date is required.");
         }
 
         if (session.getStartTime() == null) {
             throw new IllegalArgumentException(
-                    "Start time is required."
-            );
+                    "Start time is required.");
         }
 
         if (session.getEndTime() == null) {
             throw new IllegalArgumentException(
-                    "End time is required."
-            );
+                    "End time is required.");
         }
 
         if (!session.getEndTime()
                 .isAfter(session.getStartTime())) {
-
             throw new IllegalArgumentException(
-                    "End time must be after start time."
-            );
+                    "End time must be after start time.");
         }
 
         if (session.getSessionType() == null
@@ -697,11 +692,9 @@ public class AttendanceService {
         ).contains(session.getSessionType())) {
 
             throw new IllegalArgumentException(
-                    "Choose a valid session type."
-            );
+                    "Choose a valid session type.");
         }
 
-        // THEORY and PRACTICAL must be exactly 2 hours
         if (("THEORY".equals(session.getSessionType())
                 || "PRACTICAL".equals(session.getSessionType()))
                 && !Duration.between(
@@ -711,8 +704,7 @@ public class AttendanceService {
 
             throw new IllegalArgumentException(
                     "Theory and Practical sessions "
-                            + "must be exactly 2 hours."
-            );
+                            + "must be exactly 2 hours.");
         }
     }
 
@@ -722,36 +714,30 @@ public class AttendanceService {
 
         if (record == null) {
             throw new IllegalArgumentException(
-                    "Attendance record cannot be null."
-            );
+                    "Attendance record cannot be null.");
         }
 
         if (record.getSessionId() <= 0) {
             throw new IllegalArgumentException(
-                    "Invalid session ID."
-            );
+                    "Invalid session ID.");
         }
 
         if (record.getEnrollmentId() <= 0) {
             throw new IllegalArgumentException(
-                    "Invalid enrollment ID."
-            );
+                    "Invalid enrollment ID.");
         }
 
         if (record.getAttendanceStatus() == null
                 || !VALID_STATUSES.contains(
                 record.getAttendanceStatus()
-                        .toUpperCase(Locale.ROOT)
-        )) {
+                        .toUpperCase(Locale.ROOT))) {
 
             throw new IllegalArgumentException(
-                    "Invalid attendance status."
-            );
+                    "Invalid attendance status.");
         }
 
         record.setAttendanceStatus(
                 record.getAttendanceStatus()
-                        .toUpperCase(Locale.ROOT)
-        );
+                        .toUpperCase(Locale.ROOT));
     }
 }
