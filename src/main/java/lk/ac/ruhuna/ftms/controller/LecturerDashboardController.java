@@ -113,12 +113,8 @@ public class LecturerDashboardController {
 
 
     @FXML
-    private void handleCourseMaterials() throws IOException {
-        NavigationUtil.navigate(
-                lecturerRoot,
-                "/lk/ac/ruhuna/ftms/view/course_materials.fxml",
-                "FTMS - Course Materials"
-        );
+    private void handleCourseMaterials() {
+        openWorkspace("materials", "Course Materials");
     }
 
 
