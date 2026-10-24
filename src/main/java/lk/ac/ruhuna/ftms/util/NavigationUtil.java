@@ -82,6 +82,12 @@ public final class NavigationUtil {
             Node source,
             String resource,
             String title) throws IOException {
+        navigate(source, resource, title, controller -> {});
+    }
+
+    /** Configures screen context without a second Stage or a separate navigation/authorization path. */
+    public static void navigate(Node source, String resource, String title,
+                                java.util.function.Consumer<Object> configure) throws IOException {
 
         if ("/fxml/dashboard.fxml".equals(resource)) {
             resource = dashboardResource();
@@ -98,6 +104,26 @@ public final class NavigationUtil {
             );
         }
         var user = SessionManager.getCurrentUser();
+
+        // Student result links always enter the existing self-only published-results viewer.
+        if ("/fxml/results.fxml".equals(resource) && user != null && "STUDENT".equals(user.getRole()))
+            resource = "/fxml/student_results.fxml";
+        Set<String> lecturerAcademicViews = Set.of("/fxml/assessments.fxml", "/fxml/results.fxml",
+                "/fxml/eligibility.fxml", "/fxml/marks_entry.fxml");
+        if (lecturerAcademicViews.contains(resource)
+                && (user == null || !user.isActive() || !"LECTURER".equals(user.getRole())))
+            throw new SecurityException("An active assigned lecturer is required for academic management.");
+        if (Set.of("/fxml/gpa.fxml", "/fxml/reports.fxml").contains(resource)
+                && (user == null || !user.isActive() || !Set.of("LECTURER", "STUDENT").contains(user.getRole())))
+            throw new SecurityException("An active lecturer or student account is required for this academic view.");
+
+        String requiredRole = switch (resource) {
+            case "/fxml/admin_enrollments.fxml", "/fxml/admin_dashboard.fxml" -> "ADMIN";
+            case "/fxml/lecturer_workspace.fxml", "/fxml/course_materials.fxml" -> "LECTURER";
+            default -> null;
+        };
+        if (requiredRole != null && (user == null || !user.isActive() || !requiredRole.equals(user.getRole())))
+            throw new SecurityException("Active " + requiredRole + " access is required for this screen.");
 
         String timetableRole = switch (resource) {
             case "/fxml/admin_timetable.fxml" -> "ADMIN";
@@ -128,6 +154,7 @@ public final class NavigationUtil {
                 "/fxml/student_eligibility.fxml",
                 "/fxml/student_medical.fxml",
                 "/fxml/student_courses.fxml",
+                "/fxml/student_materials.fxml",
                 "/fxml/student_results.fxml",
                 "/fxml/student_timetable.fxml"
         );
@@ -150,8 +177,7 @@ public final class NavigationUtil {
                 && !Set.of(
                 "/fxml/profile.fxml",
                 "/fxml/view_notices.fxml",
-                "/fxml/assessments.fxml", "/fxml/results.fxml", "/fxml/eligibility.fxml",
-                    "/fxml/reports.fxml", "/fxml/gpa.fxml",
+                "/fxml/reports.fxml", "/fxml/gpa.fxml",
                     "/fxml/login.fxml"
         ).contains(resource)))) {
 
@@ -166,7 +192,13 @@ public final class NavigationUtil {
                 && !Set.of(
                 "/fxml/lecturer_dashboard.fxml",
                 "/fxml/lecturer_workspace.fxml",
+                "/fxml/course_materials.fxml",
                 "/fxml/marks_entry.fxml",
+                "/fxml/assessments.fxml",
+                "/fxml/results.fxml",
+                "/fxml/eligibility.fxml",
+                "/fxml/gpa.fxml",
+                "/fxml/reports.fxml",
                 "/fxml/profile.fxml",
                 "/fxml/view_notices.fxml",
                 "/fxml/login.fxml"
@@ -185,6 +217,7 @@ public final class NavigationUtil {
 
         FXMLLoader loader = new FXMLLoader(location);
         Parent root = loader.load();
+        configure.accept(loader.getController());
 
         // Preserve CourseService dependency injection
         if ("/fxml/courses.fxml".equals(resource)) {
@@ -204,8 +237,11 @@ public final class NavigationUtil {
         // Preserve responsive window dimensions
         boolean preserveWindowSize =
                 timetableRole != null
+                        || lecturerAcademicViews.contains(resource)
+                        || Set.of("/fxml/gpa.fxml", "/fxml/reports.fxml", "/fxml/lecturer_dashboard.fxml").contains(resource)
                         || studentViews.contains(resource)
                         || "/fxml/admin_dashboard.fxml".equals(resource)
+                        || "/fxml/admin_enrollments.fxml".equals(resource)
                         || "/fxml/courses.fxml".equals(resource)
                         || "/fxml/course_offerings.fxml".equals(resource)
                 || Set.of("adminTimetableRoot", "timetableRoot", "studentTimetableRoot")

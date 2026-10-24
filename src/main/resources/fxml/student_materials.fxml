@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1"
+            fx:id="studentMaterialsRoot" fx:controller="lk.ac.ruhuna.ftms.controller.StudentCourseMaterialsController"
+            prefWidth="1100" prefHeight="700" minWidth="0" styleClass="profile-root" stylesheets="@../css/profile.css">
+    <top>
+        <VBox spacing="12" styleClass="profile-header">
+            <FlowPane hgap="12" vgap="8">
+                <Button text="Back to My Courses" onAction="#handleCourses" styleClass="secondary-button"/>
+                <Button text="Back to Student Dashboard" onAction="#handleDashboard" styleClass="secondary-button"/>
+                <Button fx:id="refreshButton" text="Refresh" onAction="#handleRefresh" styleClass="primary-button"/>
+                <Button text="Logout" onAction="#handleLogout" styleClass="secondary-button"/>
+            </FlowPane>
+            <Label text="Course Materials" styleClass="page-title"/>
+            <FlowPane hgap="14" vgap="8">
+                <Label fx:id="courseCodeLabel" styleClass="section-title"/>
+                <Label fx:id="courseNameLabel" styleClass="section-title" wrapText="true"/>
+            </FlowPane>
+            <Label fx:id="courseDetailsLabel" text="Select an enrolled course in My Courses." wrapText="true" styleClass="muted"/>
+        </VBox>
+    </top>
+    <center>
+        <ScrollPane fitToWidth="true" minWidth="0" styleClass="profile-scroll">
+            <VBox spacing="16" minWidth="0" style="-fx-padding: 24;">
+                <Label text="Learning resources" styleClass="section-title"/>
+                <Label text="View lecturer materials for this course and save available files to your computer."
+                       wrapText="true" styleClass="muted"/>
+                <TableView fx:id="materialsTable" editable="false" minWidth="0" prefHeight="320"/>
+                <Label fx:id="descriptionLabel" text="Select a material to see its description." wrapText="true"/>
+                <Button fx:id="downloadButton" text="Download Selected" onAction="#handleDownload" disable="true" styleClass="primary-button"/>
+            </VBox>
+        </ScrollPane>
+    </center>
+    <bottom>
+        <HBox spacing="12" alignment="CENTER_LEFT" styleClass="profile-status">
+            <ProgressIndicator fx:id="progressIndicator" prefWidth="20" prefHeight="20" maxWidth="20" maxHeight="20"/>
+            <Label fx:id="statusLabel" wrapText="true" styleClass="status-info"/>
+        </HBox>
+    </bottom>
+</BorderPane>

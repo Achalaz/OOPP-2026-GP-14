@@ -140,4 +140,9 @@ public class AdminDashboardController {
         navigate("course_offerings.fxml");
     }
 
+    @FXML
+    private void handleEnrollments() {
+        navigate("admin_enrollments.fxml");
+    }
+
 }

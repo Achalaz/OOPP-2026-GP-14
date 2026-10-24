@@ -1,162 +1,54 @@
 package lk.ac.ruhuna.ftms.service;
 
-import lk.ac.ruhuna.ftms.dao.CourseMaterialsDAO;
-import lk.ac.ruhuna.ftms.dao.LecturerCourseAssignmentDAO;
-import lk.ac.ruhuna.ftms.model.CourseMaterials;
-import lk.ac.ruhuna.ftms.model.User;
-import lk.ac.ruhuna.ftms.util.SessionManager;
-
+import java.io.IOException;
 import java.sql.SQLException;
-import java.util.List;
-import java.util.Locale;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
+import lk.ac.ruhuna.ftms.dao.*;
+import lk.ac.ruhuna.ftms.model.CourseMaterials;
 
+/** Compatibility API. All reads and metadata edits use the managed-file authorization policy. */
 public class CourseMaterialsService {
-
-    private final CourseMaterialsDAO materialsDAO;
-    private final LecturerCourseAssignmentDAO assignmentDAO;
-
-    private static final Set<String> VALID_TYPES = Set.of(
-            "LECTURE_NOTE",
-            "PRACTICAL",
-            "ASSIGNMENT",
-            "LINK",
-            "OTHER"
-    );
-
-    public CourseMaterialsService(
-            CourseMaterialsDAO materialsDAO,
-            LecturerCourseAssignmentDAO assignmentDAO) {
-
-        this.materialsDAO =
-                Objects.requireNonNull(materialsDAO);
-
-        this.assignmentDAO =
-                Objects.requireNonNull(assignmentDAO);
+    private final LecturerAccessService access = new LecturerAccessService();
+    private final CourseMaterialService primary = new CourseMaterialService();
+    private final LecturerCourseAssignmentDAO assignments;
+    public CourseMaterialsService(CourseMaterialsDAO ignored, LecturerCourseAssignmentDAO assignments) {
+        Objects.requireNonNull(ignored);
+        this.assignments=Objects.requireNonNull(assignments);
     }
-
-    private int requireLecturer() {
-
-        SessionManager.SessionIdentity identity =
-                SessionManager.requireSession();
-
-        User user = SessionManager.getCurrentUser();
-
-        SessionManager.requireSession(identity);
-
-        if (user == null
-                || user.getUserId() != identity.userId()
-                || !user.isActive()
-                || !"LECTURER".equalsIgnoreCase(user.getRole())) {
-
-            throw new SecurityException(
-                    "Access denied. Active lecturer login required.");
+    public List<CourseMaterials> getMyMaterials() throws SQLException {
+        int lecturer=access.requireLecturer();
+        var rows=new ArrayList<CourseMaterials>();
+        for(var offering:assignments.findAssigned(lecturer)) {
+            for(var m:primary.list(offering.offeringId())) {
+                if(m.uploadedBy()!=lecturer) continue;
+                var row=new CourseMaterials(m.offeringId(),m.title(),m.description(),m.materialType(),m.resourcePath(),m.uploadedBy());
+                row.setMaterialId(m.materialId());row.setUploadedAt(m.uploadedAt());rows.add(row);
+            }
         }
-
-        return identity.userId();
+        access.requireLecturer();return rows;
     }
-
-    private void requireOfferingAccess(
-            int lecturerId,
-            int offeringId) throws SQLException {
-
-        if (offeringId <= 0
-                || !assignmentDAO.isAssignedToOffering(
-                lecturerId, offeringId)) {
-
-            throw new SecurityException(
-                    "You are not assigned to this course offering.");
-        }
+    public List<CourseMaterials> searchMyMaterials(String keyword) throws SQLException {
+        String query=Objects.toString(keyword, "").strip().toLowerCase(Locale.ROOT);
+        return getMyMaterials().stream().filter(m->(m.getTitle()+" "+Objects.toString(m.getDescription(), ""))
+                .toLowerCase(Locale.ROOT).contains(query)).toList();
     }
-
-    public List<CourseMaterials> getMyMaterials()
-            throws SQLException {
-
-        int lecturerId = requireLecturer();
-
-        return materialsDAO.getByUploader(lecturerId);
+    public boolean save(CourseMaterials material) throws SQLException {
+        access.requireLecturer();
+        if(material==null || material.getMaterialId()<=0)
+            throw new IllegalArgumentException("Use Choose File in Course Materials to upload a new material.");
+        var existing=primary.list(material.getOfferingId()).stream()
+                .filter(m->m.materialId()==material.getMaterialId()).findFirst()
+                .orElseThrow(()->new SecurityException("Material is unavailable in this offering."));
+        if(!Objects.equals(existing.resourcePath(),material.getResourcePath()))
+            throw new IllegalArgumentException("Use Choose File to replace a managed file.");
+        try {
+            primary.save(material.getOfferingId(),material.getMaterialId(),material.getTitle(),
+                    material.getDescription(),material.getMaterialType(),null);
+            return true;
+        } catch(IOException error) { throw new SQLException("Unable to save material metadata.",error); }
     }
-
-    public List<CourseMaterials> searchMyMaterials(
-            String keyword) throws SQLException {
-
-        int lecturerId = requireLecturer();
-
-        return materialsDAO.searchByUploader(
-                lecturerId, keyword);
-    }
-
-    public boolean save(CourseMaterials material)
-            throws SQLException {
-
-        int lecturerId = requireLecturer();
-
-        if (material == null) {
-            throw new IllegalArgumentException(
-                    "Material cannot be null.");
-        }
-
-        String title = material.getTitle();
-
-        if (title == null || title.isBlank()) {
-            throw new IllegalArgumentException(
-                    "Please enter a material title.");
-        }
-
-        title = title.trim();
-
-        if (title.length() > 180) {
-            throw new IllegalArgumentException(
-                    "Title cannot exceed 180 characters.");
-        }
-
-        String type = material.getMaterialType();
-
-        if (type == null || type.isBlank()) {
-            throw new IllegalArgumentException(
-                    "Please select a material type.");
-        }
-
-        type = type.trim().toUpperCase(Locale.ROOT);
-
-        if (!VALID_TYPES.contains(type)) {
-            throw new IllegalArgumentException(
-                    "Invalid material type.");
-        }
-
-        String path = material.getResourcePath();
-
-        if (path == null || path.isBlank()
-                || path.trim().length() > 500) {
-            throw new IllegalArgumentException(
-                    "A valid resource path or URL is required.");
-        }
-
-
-        requireOfferingAccess(
-                lecturerId, material.getOfferingId());
-
-
-        material.setUploadedBy(lecturerId);
-        material.setTitle(title);
-        material.setMaterialType(type);
-        material.setResourcePath(path.trim());
-
-        return materialsDAO.save(material);
-    }
-
-    public boolean delete(int materialId)
-            throws SQLException {
-
-        int lecturerId = requireLecturer();
-
-        if (materialId <= 0) {
-            throw new IllegalArgumentException(
-                    "Invalid material ID.");
-        }
-
-        return materialsDAO.delete(
-                materialId, lecturerId);
+    public boolean delete(int materialId) throws SQLException {
+        access.requireLecturer();
+        throw new SecurityException("Material deletion is not supported; existing records are retained.");
     }
 }

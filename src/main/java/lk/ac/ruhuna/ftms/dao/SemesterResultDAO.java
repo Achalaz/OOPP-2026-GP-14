@@ -88,7 +88,13 @@ public class SemesterResultDAO {
         }
     }
     public SemesterResult getByStudentAndSemester(int student,int semester)throws SQLException {
-        return getSemesterResultsByStudent(student).stream().filter(r->r.getSemesterId()==semester).findFirst().orElse(null);
+        try(var c=DBConnection.getConnection()){return getByStudentAndSemester(c,student,semester);}
+    }
+    public SemesterResult getByStudentAndSemester(Connection c,int student,int semester)throws SQLException {
+        try(var p=c.prepareStatement("SELECT * FROM semester_results WHERE student_id=? AND semester_id=?")) {
+            p.setInt(1,student);p.setInt(2,semester);p.setQueryTimeout(15);
+            try(var rows=p.executeQuery()){return rows.next()?map(rows):null;}
+        }
     }
     public List<SemesterResult> getSemesterResultsByStudent(int student)throws SQLException {
         var rows=new ArrayList<SemesterResult>();
@@ -98,11 +104,15 @@ public class SemesterResultDAO {
             WHERE r.student_id=? ORDER BY ay.start_date,ay.academic_year_name,s.semester_no,s.semester_id
             """)){
             p.setInt(1,student);try(var rs=p.executeQuery()){while(rs.next()){
-                var r=new SemesterResult(student,rs.getInt("semester_id"),rs.getDouble("total_registered_credits"),
-                    rs.getDouble("total_earned_credits"),rs.getDouble("total_quality_points"),
-                    rs.getObject("sgpa")==null?null:rs.getDouble("sgpa"),rs.getObject("cgpa")==null?null:rs.getDouble("cgpa"));
-                r.setSemesterResultId(rs.getInt("semester_result_id"));r.setCalculatedAt(rs.getTimestamp("calculated_at").toLocalDateTime());rows.add(r);
+                rows.add(map(rs));
             }}
         }return rows;
+    }
+    private SemesterResult map(ResultSet rs)throws SQLException {
+        var r=new SemesterResult(rs.getInt("student_id"),rs.getInt("semester_id"),rs.getDouble("total_registered_credits"),
+                rs.getDouble("total_earned_credits"),rs.getDouble("total_quality_points"),
+                rs.getObject("sgpa")==null?null:rs.getDouble("sgpa"),rs.getObject("cgpa")==null?null:rs.getDouble("cgpa"));
+        r.setSemesterResultId(rs.getInt("semester_result_id"));
+        var time=rs.getTimestamp("calculated_at");r.setCalculatedAt(time==null?null:time.toLocalDateTime());return r;
     }
 }

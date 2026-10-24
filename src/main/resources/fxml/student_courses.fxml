@@ -10,6 +10,7 @@
             <FlowPane hgap="12" vgap="8">
                 <Button fx:id="dashboardButton" text="Back to Student Dashboard" onAction="#handleDashboard" styleClass="secondary-button"/>
                 <Button fx:id="refreshButton" text="Refresh" onAction="#handleRefresh" styleClass="primary-button"/>
+                <Button fx:id="viewMaterialsButton" text="View Course Materials" onAction="#handleViewMaterials" disable="true" styleClass="primary-button"/>
                 <Button fx:id="logoutButton" text="Logout" onAction="#handleLogout" styleClass="secondary-button"/>
             </FlowPane>
             <Label fx:id="titleLabel" styleClass="page-title"/>

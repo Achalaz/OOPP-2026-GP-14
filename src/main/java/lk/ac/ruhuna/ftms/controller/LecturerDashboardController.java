@@ -1,4 +1,3 @@
-
 package lk.ac.ruhuna.ftms.controller;
 
 import javafx.fxml.FXML;
@@ -14,6 +13,8 @@ import lk.ac.ruhuna.ftms.util.SessionManager.SessionIdentity;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+
+import lk.ac.ruhuna.ftms.util.NavigationUtil;
 
 public class LecturerDashboardController {
 
@@ -112,10 +113,12 @@ public class LecturerDashboardController {
         );
     }
 
+
     @FXML
     private void handleCourseMaterials() {
         openWorkspace("materials", "Course Materials");
     }
+
 
     @FXML
     private void handleAssessments() {
@@ -174,6 +177,7 @@ public class LecturerDashboardController {
     private void handleLogout() {
 
         try {
+            SessionManager.requireSession(identity);
             SessionManager.logout();
 
             NavigationUtil.navigate(
@@ -181,8 +185,6 @@ public class LecturerDashboardController {
                     "/fxml/login.fxml",
                     "FTMS - Login"
             );
-
-            SessionManager.logout();
 
         } catch (IOException | SecurityException e) {
             showError("Logout failed: " + e.getMessage());
