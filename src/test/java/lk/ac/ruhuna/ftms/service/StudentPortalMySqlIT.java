@@ -73,6 +73,9 @@ public class StudentPortalMySqlIT extends TestCase {
     public void testPublishedResultsGpaAndDraftPrivacy() throws Exception {
         var results = new ResultService();
         assertTrue(results.getMyPublishedResults(SessionManager.requireSession()).isEmpty());
+        var empty = results.getMyPublishedRecords(SessionManager.requireSession());
+        assertTrue(empty.grades().isEmpty());
+        assertTrue(empty.semesters().isEmpty());
         db.publishSamples();
         db.academic.login(3,"STUDENT");
         var identity = SessionManager.requireSession();
@@ -83,15 +86,134 @@ public class StudentPortalMySqlIT extends TestCase {
         var gpa = new GPAService();
         var semesters = gpa.getMyPublishedGpa(identity);
         assertEquals(1,semesters.size());
+        assertNull("Unsaved GPA stays pending for students",semesters.getFirst().result().getSgpa());
+        assertTrue(semesters.getFirst().status().contains("not been saved"));
+        saveGpa();
+        identity = SessionManager.requireSession();
+        semesters = gpa.getMyPublishedGpa(identity);
         assertEquals(4.0,semesters.getFirst().result().getSgpa(),0.001);
         assertEquals(4.0,semesters.getFirst().result().getCgpa(),0.001);
+        var combined = results.getMyPublishedRecords(identity);
+        assertEquals(rows,combined.grades());
+        assertEquals(1,combined.semesters().size());
+        assertEquals(4.0,combined.semesters().getFirst().result().getCgpa(),0.001);
         StudentAccessTest.denied(() -> gpa.getCourseRows(4,9));
-        StudentAccessTest.denied(() -> gpa.saveSemesterResult(semesters.getFirst().result()));
+        var saved = semesters.getFirst().result();
+        StudentAccessTest.denied(() -> gpa.saveSemesterResult(saved));
         StudentAccessTest.denied(() -> results.calculateAndSaveResult(100));
         StudentAccessTest.denied(() -> results.publishResult(10,null));
-        assertEquals(0L,((Number)db.academic.scalar("SELECT COUNT(*) FROM semester_results")).longValue());
+        assertEquals(2L,((Number)db.academic.scalar("SELECT COUNT(*) FROM semester_results")).longValue());
         db.academic.login(4,"STUDENT");
-        StudentAccessTest.denied(() -> results.getMyPublishedResults(identity));
+        var earlierLogin = identity;
+        StudentAccessTest.denied(() -> results.getMyPublishedResults(earlierLogin));
+        StudentAccessTest.denied(() -> results.getMyPublishedRecords(earlierLogin));
         assertEquals("B",results.getMyPublishedResults(SessionManager.requireSession()).getFirst().grade());
+        assertEquals("B",results.getMyPublishedRecords(SessionManager.requireSession()).grades().getFirst().grade());
+    }
+
+    public void testPublishedSemesterChronologyRefreshAndHistoricalGradePoints() throws Exception {
+        db.publishSamples();
+        db.academic.login(3,"STUDENT");
+        var results = new ResultService();
+        assertEquals(1,results.getMyPublishedRecords(SessionManager.requireSession()).semesters().size());
+        // Publish through the existing lecturer workflow; no production tables are written.
+        db.academic.login(1,"LECTURER");
+        new MarkService().saveMark(new lk.ac.ruhuna.ftms.model.Mark(200,20,60.0,1));
+        db.academic.confirmedFixtureEligibility(200);
+        results.publishResult(20,results.calculateAndSaveResult(200).publicationSnapshot());
+        saveGpa();
+        db.academic.login(3,"STUDENT");
+        var view = results.getMyPublishedRecords(SessionManager.requireSession());
+        assertEquals(2,view.grades().size());
+        assertEquals(java.util.List.of(9,1),view.semesters().stream().map(s -> s.semester().semesterId()).toList());
+        assertEquals(4.0,view.semesters().getFirst().result().getSgpa(),0.001);
+        assertEquals(4.0,view.semesters().getFirst().result().getCgpa(),0.001);
+        assertEquals(3.0,view.semesters().getLast().result().getSgpa(),0.001);
+        assertEquals(3.6,view.semesters().getLast().result().getCgpa(),0.001);
+        db.academic.execute("UPDATE grade_rules SET grade_point=0,is_pass=FALSE");
+        assertEquals(3.6,results.getMyPublishedRecords(SessionManager.requireSession())
+                .semesters().getLast().result().getCgpa(),0.001);
+        assertEquals(2L,((Number)db.academic.scalar("SELECT COUNT(*) FROM semester_results")).longValue());
+    }
+
+    public void testPendingGpaForUnresolvedRepeatAndNoApplicablePublishedGrades() throws Exception {
+        db.publishSamples();
+        db.academic.login(3,"STUDENT");
+        var results = new ResultService();
+        db.academic.execute("UPDATE enrollments SET attempt_no=2 WHERE enrollment_id=100");
+        var repeated = results.getMyPublishedRecords(SessionManager.requireSession());
+        assertEquals(2,repeated.grades().getFirst().attempt());
+        assertEquals("A",repeated.grades().getFirst().grade());
+        assertNull(repeated.semesters().getFirst().result().getSgpa());
+        assertNull(repeated.semesters().getFirst().result().getCgpa());
+        db.academic.execute("UPDATE enrollments SET attempt_no=1 WHERE enrollment_id=100");
+        db.academic.execute("UPDATE course_results SET grade_point=NULL,grade_letter=NULL,result_status='PENDING' WHERE enrollment_id=100");
+        var pending = results.getMyPublishedRecords(SessionManager.requireSession());
+        assertNull(pending.grades().getFirst().gradePoint());
+        assertNull(pending.semesters().getFirst().result().getSgpa());
+        assertNull(pending.semesters().getFirst().result().getCgpa());
+    }
+
+    public void testWithdrawnAndCancelledExcludedFromBothTables() throws Exception {
+        db.publishSamples();
+        db.academic.login(3,"STUDENT");
+        var results = new ResultService();
+        db.academic.execute("UPDATE enrollments SET status='WITHDRAWN' WHERE enrollment_id=100");
+        var withdrawn = results.getMyPublishedRecords(SessionManager.requireSession());
+        assertTrue(withdrawn.grades().isEmpty());
+        assertTrue(withdrawn.semesters().isEmpty());
+        db.academic.execute("UPDATE enrollments SET status='ENROLLED' WHERE enrollment_id=100");
+        db.academic.execute("UPDATE course_offerings SET status='CANCELLED' WHERE offering_id=10");
+        var cancelled = results.getMyPublishedRecords(SessionManager.requireSession());
+        assertTrue(cancelled.grades().isEmpty());
+        assertTrue(cancelled.semesters().isEmpty());
+    }
+
+    public void testSnapshotRequiresActiveDatabaseStudentAndSameLogin() throws Exception {
+        db.publishSamples();
+        db.academic.login(3,"STUDENT");
+        db.academic.execute("UPDATE users SET is_active=FALSE WHERE user_id=3");
+        StudentAccessTest.denied(() -> new ResultService().getMyPublishedRecords(SessionManager.requireSession()));
+        db.academic.execute("UPDATE users SET is_active=TRUE WHERE user_id=3");
+        var dao = new lk.ac.ruhuna.ftms.dao.CourseResultDAO() {
+            @Override public java.util.List<PublishedStudentResult> findPublishedForStudent(java.sql.Connection c,int student)
+                    throws java.sql.SQLException {
+                var rows = super.findPublishedForStudent(c,student);
+                db.academic.login(4,"STUDENT");
+                return rows;
+            }
+        };
+        var results = new ResultService(dao,new lk.ac.ruhuna.ftms.dao.GradeRuleDAO(),new lk.ac.ruhuna.ftms.dao.EligibilityDAO());
+        StudentAccessTest.denied(() -> results.getMyPublishedRecords(SessionManager.requireSession()));
+        assertTrue(db.academic.connection.getAutoCommit());
+    }
+
+    public void testRepeatableReadDoesNotDependOnDatabaseDefaultIsolation() throws Exception {
+        db.publishSamples();
+        saveGpa();
+        db.academic.login(3,"STUDENT");
+        db.academic.connection.setTransactionIsolation(java.sql.Connection.TRANSACTION_READ_COMMITTED);
+        var dao = new lk.ac.ruhuna.ftms.dao.CourseResultDAO() {
+            @Override public java.util.List<PublishedStudentResult> findPublishedForStudent(java.sql.Connection c,int student)
+                    throws java.sql.SQLException {
+                assertEquals(3,student);
+                assertFalse(c.getAutoCommit());
+                assertEquals(java.sql.Connection.TRANSACTION_REPEATABLE_READ,c.getTransactionIsolation());
+                return super.findPublishedForStudent(c,student);
+            }
+        };
+        var results = new ResultService(dao,new lk.ac.ruhuna.ftms.dao.GradeRuleDAO(),new lk.ac.ruhuna.ftms.dao.EligibilityDAO());
+        int opened = db.academic.connectionsOpened();
+        assertEquals(4.0,results.getMyPublishedRecords(SessionManager.requireSession())
+                .semesters().getFirst().result().getCgpa(),0.001);
+        assertEquals("Grades and GPA must share one connection",opened+1,db.academic.connectionsOpened());
+        assertTrue(db.academic.connection.getAutoCommit());
+    }
+
+    private void saveGpa() throws Exception {
+        db.academic.login(1,"LECTURER");
+        var gpa = new GPAService();
+        gpa.saveSemesterResult(gpa.calculateSemesterGPA(3,9));
+        db.academic.login(3,"STUDENT");
     }
 }

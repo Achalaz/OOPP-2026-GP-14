@@ -14,12 +14,16 @@
  <HBox fx:id="markEditor" spacing="12"><Label text="Mark for selected assessment"/><TextField fx:id="markValue" promptText="Blank = Pending"/><Button text="Save Mark" onAction="#saveMark" styleClass="primary-action"/></HBox>
  <VBox fx:id="materialEditor" spacing="14" styleClass="feature-card" VBox.vgrow="ALWAYS">
    <Label text="Select a material to view or edit" styleClass="section-title"/>
+   <TableView fx:id="materialTable" prefHeight="200" minHeight="100" VBox.vgrow="ALWAYS">
+     <placeholder><Label text="No materials to display. Choose an offering or clear your search."/></placeholder>
+   </TableView>
    <ComboBox fx:id="materials" maxWidth="Infinity" promptText="Existing materials"/>
+   <Label fx:id="materialDetails" wrapText="true"/>
    <HBox spacing="12"><Button text="New Material" onAction="#newMaterial"/><Button text="Download Selected" onAction="#download"/></HBox>
    <TextField fx:id="materialTitle" promptText="Material title"/>
    <ComboBox fx:id="materialType" promptText="Material type"/>
    <TextArea fx:id="description" promptText="Description" prefRowCount="4" wrapText="true"/>
-   <HBox spacing="12"><Button text="Choose File" onAction="#chooseFile"/><Label fx:id="fileLabel" text="No file selected"/></HBox>
-   <Button text="Save Material" onAction="#saveMaterial" styleClass="primary-action"/>
+   <HBox spacing="12"><Button fx:id="chooseFileButton" text="Choose File" onAction="#chooseFile"/><Label fx:id="fileLabel" text="No file selected"/></HBox>
+   <Button fx:id="saveMaterialButton" text="Save Material" onAction="#saveMaterial" styleClass="primary-action"/>
  </VBox>
 </VBox>

@@ -31,7 +31,7 @@ public final class ResultsViewSmokeTest {
     private static int confirmations;
 
     public static void main(String[] args) throws Exception {
-        SessionManager.startSession(new User(12, "test", "Test", null, "ADMIN", true));
+        SessionManager.startSession(new User(12, "test", "Test", null, "LECTURER", true));
         CountDownLatch started = new CountDownLatch(1);
         Platform.startup(started::countDown);
         if (!started.await(10, TimeUnit.SECONDS)) { throw new AssertionError("JavaFX startup timed out"); }
@@ -101,8 +101,45 @@ public final class ResultsViewSmokeTest {
                 check(button("saveButton").isDisabled(), "clear disables saving");
                 return null;
             });
+            service.waitForLoad = true;
+            onFx(() -> { combo("offeringCombo").getSelectionModel().selectFirst(); return null; });
+            check(service.entered.await(5,TimeUnit.SECONDS),"background result read started");
+            SessionManager.startSession(new User(12,"test","Test",null,"LECTURER",true));
+            service.release.countDown();
+            await(() -> !button("refreshButton").isDisabled());
+            onFx(() -> {
+                check(combo("enrollmentCombo").getItems().isEmpty(),"replaced login cannot receive late result rows");
+                check(label("statusLabel").getText().contains("session has ended"),"expired result screen explains reauthentication");
+                return null;
+            });
+            checkGpaStaleSession();
             System.out.println("Results FXML and controller smoke checks passed.");
         } finally { Platform.exit(); SessionManager.logout(); }
+    }
+
+    private static void checkGpaStaleSession() throws Exception {
+        var entered=new CountDownLatch(1);var release=new CountDownLatch(1);
+        var gpa=new lk.ac.ruhuna.ftms.service.GPAService(){
+            @Override public List<lk.ac.ruhuna.ftms.dao.SemesterResultDAO.StudentOption> getStudents(){
+                check(!Platform.isFxApplicationThread(),"GPA data loads off the FX thread");
+                entered.countDown();
+                try { if(!release.await(5,TimeUnit.SECONDS))throw new AssertionError("GPA read timeout"); }
+                catch(InterruptedException error){throw new RuntimeException(error);}
+                return List.of(new lk.ac.ruhuna.ftms.dao.SemesterResultDAO.StudentOption(3,"PRIVATE/3","Private Student"));
+            }
+        };
+        onFx(()->{
+            var loader=new FXMLLoader(ResultsViewSmokeTest.class.getResource("/fxml/gpa.fxml"));
+            loader.setControllerFactory(type->new GPAController(gpa));
+            root=loader.load();new Scene(root,1160,780);root.applyCss();root.layout();return null;
+        });
+        check(entered.await(5,TimeUnit.SECONDS),"GPA background read started");
+        SessionManager.logout();release.countDown();
+        await(()->!button("refreshButton").isDisabled());
+        onFx(()->{
+            check(combo("studentCombo").getItems().isEmpty(),"late GPA response discarded after logout");
+            check(label("sgpaLabel").getText().equals("Pending"),"stale GPA display cleared");return null;
+        });
     }
 
     private static Button button(String id) { return (Button) root.lookup("#" + id); }
@@ -126,11 +163,22 @@ public final class ResultsViewSmokeTest {
         private CourseResult saved;
         private boolean authorized;
         private int publications;
-        @Override public boolean canPublishResult(int offeringId) { return authorized && offeringId == 1; }
+        private boolean waitForLoad;
+        private final CountDownLatch entered=new CountDownLatch(1),release=new CountDownLatch(1);
+        @Override public boolean canPublishResult(int offeringId) {
+            check(!Platform.isFxApplicationThread(),"publication authority loads off the FX thread");
+            return authorized && offeringId == 1;
+        }
         @Override public List<EligibilityOffering> getOfferings() {
             return List.of(new EligibilityOffering(1, "TEST", "Test offering", "A"));
         }
         @Override public List<ResultRow> getBatchResults(int offeringId) {
+            check(!Platform.isFxApplicationThread(),"result rows load off the FX thread");
+            if(waitForLoad){
+                entered.countDown();
+                try { if(!release.await(5,TimeUnit.SECONDS))throw new AssertionError("Result read timeout"); }
+                catch(InterruptedException error){throw new RuntimeException(error);}
+            }
             return List.of(new ResultRow(1, "TEST/1", "Test Student", 1, saved));
         }
         @Override public CourseResult calculateResult(int enrollmentId) {

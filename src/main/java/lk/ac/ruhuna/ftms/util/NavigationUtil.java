@@ -6,6 +6,8 @@ import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
+import javafx.stage.Screen;
+import javafx.geometry.Rectangle2D;
 
 import lk.ac.ruhuna.ftms.controller.CourseController;
 import lk.ac.ruhuna.ftms.controller.CourseOfferingController;
@@ -80,6 +82,12 @@ public final class NavigationUtil {
             Node source,
             String resource,
             String title) throws IOException {
+        navigate(source, resource, title, controller -> {});
+    }
+
+    /** Configures screen context without a second Stage or a separate navigation/authorization path. */
+    public static void navigate(Node source, String resource, String title,
+                                java.util.function.Consumer<Object> configure) throws IOException {
 
         if ("/fxml/dashboard.fxml".equals(resource)) {
             resource = dashboardResource();
@@ -96,6 +104,37 @@ public final class NavigationUtil {
             );
         }
         var user = SessionManager.getCurrentUser();
+
+        // Student result links always enter the existing self-only published-results viewer.
+        if ("/fxml/results.fxml".equals(resource) && user != null && "STUDENT".equals(user.getRole()))
+            resource = "/fxml/student_results.fxml";
+        Set<String> lecturerAcademicViews = Set.of("/fxml/assessments.fxml", "/fxml/results.fxml",
+                "/fxml/eligibility.fxml", "/fxml/marks_entry.fxml");
+        if (lecturerAcademicViews.contains(resource)
+                && (user == null || !user.isActive() || !"LECTURER".equals(user.getRole())))
+            throw new SecurityException("An active assigned lecturer is required for academic management.");
+        if (Set.of("/fxml/gpa.fxml", "/fxml/reports.fxml").contains(resource)
+                && (user == null || !user.isActive() || !Set.of("LECTURER", "STUDENT").contains(user.getRole())))
+            throw new SecurityException("An active lecturer or student account is required for this academic view.");
+
+        String requiredRole = switch (resource) {
+            case "/fxml/admin_enrollments.fxml", "/fxml/admin_dashboard.fxml" -> "ADMIN";
+            case "/fxml/lecturer_workspace.fxml", "/fxml/course_materials.fxml" -> "LECTURER";
+            default -> null;
+        };
+        if (requiredRole != null && (user == null || !user.isActive() || !requiredRole.equals(user.getRole())))
+            throw new SecurityException("Active " + requiredRole + " access is required for this screen.");
+
+        String timetableRole = switch (resource) {
+            case "/fxml/admin_timetable.fxml" -> "ADMIN";
+            case "/fxml/timetable.fxml" -> "TECHNICAL_OFFICER";
+            case "/fxml/student_timetable.fxml" -> "STUDENT";
+            default -> null;
+        };
+        if (timetableRole != null && (user == null || !user.isActive()
+                || !timetableRole.equals(user.getRole()))) {
+            throw new SecurityException("Active " + timetableRole + " access is required for this timetable.");
+        }
 
         // Technical Officer attendance management
         if ("/fxml/attendance.fxml".equals(resource)
@@ -115,7 +154,9 @@ public final class NavigationUtil {
                 "/fxml/student_eligibility.fxml",
                 "/fxml/student_medical.fxml",
                 "/fxml/student_courses.fxml",
-                "/fxml/student_results.fxml"
+                "/fxml/student_materials.fxml",
+                "/fxml/student_results.fxml",
+                "/fxml/student_timetable.fxml"
         );
 
         // Protect Student Portal
@@ -136,8 +177,7 @@ public final class NavigationUtil {
                 && !Set.of(
                 "/fxml/profile.fxml",
                 "/fxml/view_notices.fxml",
-                "/fxml/assessments.fxml", "/fxml/results.fxml", "/fxml/eligibility.fxml",
-                    "/fxml/reports.fxml", "/fxml/gpa.fxml",
+                "/fxml/reports.fxml", "/fxml/gpa.fxml",
                     "/fxml/login.fxml"
         ).contains(resource)))) {
 
@@ -152,7 +192,13 @@ public final class NavigationUtil {
                 && !Set.of(
                 "/fxml/lecturer_dashboard.fxml",
                 "/fxml/lecturer_workspace.fxml",
+                "/fxml/course_materials.fxml",
                 "/fxml/marks_entry.fxml",
+                "/fxml/assessments.fxml",
+                "/fxml/results.fxml",
+                "/fxml/eligibility.fxml",
+                "/fxml/gpa.fxml",
+                "/fxml/reports.fxml",
                 "/fxml/profile.fxml",
                 "/fxml/view_notices.fxml",
                 "/fxml/login.fxml"
@@ -171,6 +217,7 @@ public final class NavigationUtil {
 
         FXMLLoader loader = new FXMLLoader(location);
         Parent root = loader.load();
+        configure.accept(loader.getController());
 
         // Preserve CourseService dependency injection
         if ("/fxml/courses.fxml".equals(resource)) {
@@ -189,10 +236,16 @@ public final class NavigationUtil {
 
         // Preserve responsive window dimensions
         boolean preserveWindowSize =
-                studentViews.contains(resource)
+                timetableRole != null
+                        || lecturerAcademicViews.contains(resource)
+                        || Set.of("/fxml/gpa.fxml", "/fxml/reports.fxml", "/fxml/lecturer_dashboard.fxml").contains(resource)
+                        || studentViews.contains(resource)
                         || "/fxml/admin_dashboard.fxml".equals(resource)
+                        || "/fxml/admin_enrollments.fxml".equals(resource)
                         || "/fxml/courses.fxml".equals(resource)
                         || "/fxml/course_offerings.fxml".equals(resource)
+                || Set.of("adminTimetableRoot", "timetableRoot", "studentTimetableRoot")
+                        .contains(String.valueOf(scene.getRoot().getId()))
                 || "courseOfferingsRoot".equals(scene.getRoot().getId())
                 || "coursesRoot".equals(scene.getRoot().getId())
                         || "/fxml/technical_officer_dashboard.fxml".equals(resource)
@@ -216,6 +269,19 @@ public final class NavigationUtil {
             if (!preserveWindowSize) {
                 stage.sizeToScene();
             }
+            if (timetableRole != null) fitTimetableWindow(stage);
         }
+    }
+
+    /** Clamp outer window bounds, including native title-bar controls, to the current display. */
+    private static void fitTimetableWindow(Stage stage) {
+        if (stage.isMaximized() || stage.isFullScreen()) return;
+        var screens = Screen.getScreensForRectangle(stage.getX(), stage.getY(),
+                stage.getWidth(), stage.getHeight());
+        Rectangle2D bounds = (screens.isEmpty() ? Screen.getPrimary() : screens.getFirst()).getVisualBounds();
+        stage.setWidth(Math.min(stage.getWidth(), bounds.getWidth()));
+        stage.setHeight(Math.min(stage.getHeight(), bounds.getHeight()));
+        stage.setX(Math.max(bounds.getMinX(), Math.min(stage.getX(), bounds.getMaxX() - stage.getWidth())));
+        stage.setY(Math.max(bounds.getMinY(), Math.min(stage.getY(), bounds.getMaxY() - stage.getHeight())));
     }
 }

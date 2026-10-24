@@ -1,12 +1,15 @@
 package lk.ac.ruhuna.ftms.controller;
 
 import javafx.beans.property.ReadOnlyStringWrapper;
+import javafx.animation.PauseTransition;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.VBox;
+import javafx.util.Duration;
 import lk.ac.ruhuna.ftms.service.*;
+import lk.ac.ruhuna.ftms.dao.EnrollmentDAO.StudentCourse;
 import lk.ac.ruhuna.ftms.util.NavigationUtil;
 import lk.ac.ruhuna.ftms.util.SessionManager;
 
@@ -31,16 +34,37 @@ public class StudentRecordsController {
 
     private final SessionManager.SessionIdentity identity = SessionManager.requireSession();
     private final StudentAccessService access = new StudentAccessService(identity);
+    private final ResultService resultService;
     private Task<View> activeTask;
+    private final PauseTransition loadTimeout = new PauseTransition(Duration.seconds(30));
     private boolean disposed;
     private String feature;
+    // Identity keys preserve the original record even when visible rows are equal or sorted.
+    private java.util.Map<List<String>, StudentCourse> courseRows = new java.util.IdentityHashMap<>();
+    private Button viewMaterialsButton;
 
     private record Table(List<String> columns, List<List<String>> rows) {}
-    private record View(Table details, Table summary, String emptyMessage) {}
+    private record View(Table details, Table summary, String emptyMessage,
+                        java.util.Map<List<String>, StudentCourse> courses) {
+        View(Table details, Table summary, String emptyMessage) {
+            this(details, summary, emptyMessage, java.util.Map.of());
+        }
+    }
+
+    public StudentRecordsController() { this(new ResultService()); }
+    StudentRecordsController(ResultService resultService) {
+        this.resultService = Objects.requireNonNull(resultService);
+    }
 
     @FXML public void initialize() {
         access.requireSession();
         feature = Objects.toString(studentRecordsRoot.getUserData());
+        if ("courses".equals(feature)) {
+            viewMaterialsButton = (Button) studentRecordsRoot.lookup("#viewMaterialsButton");
+            viewMaterialsButton.setDisable(true);
+            recordsTable.getSelectionModel().selectedItemProperty().addListener((value, old, selected) ->
+                    viewMaterialsButton.setDisable(activeTask != null || !courseRows.containsKey(selected)));
+        }
         titleLabel.setText(switch (feature) {
             case "attendance" -> "My Attendance";
             case "medical" -> "My Medical";
@@ -60,7 +84,11 @@ public class StudentRecordsController {
         studentRecordsRoot.sceneProperty().addListener((observable, old, scene) -> {
             if (old != null && scene == null) {
                 disposed = true;
-                if (activeTask != null) activeTask.cancel(true);
+                Task<View> task = activeTask;
+                activeTask = null;
+                loadTimeout.stop();
+                if (task != null) task.cancel(true);
+                setBusy(false);
                 clear();
             }
         });
@@ -68,10 +96,10 @@ public class StudentRecordsController {
     }
 
     @FXML private void handleRefresh() {
-        if (disposed || activeTask != null && activeTask.isRunning()) return;
+        if (disposed || activeTask != null) return;
         clear();
         try { access.requireSession(); }
-        catch (SecurityException error) { statusLabel.setText(error.getMessage()); return; }
+        catch (SecurityException error) { showMessage(error.getMessage()); return; }
         setBusy(true);
         statusLabel.setText("Loading your records...");
         recordsTable.setPlaceholder(new Label("Loading your records..."));
@@ -87,8 +115,9 @@ public class StudentRecordsController {
         task.setOnSucceeded(event -> {
             if (!accept(task)) return;
             View view = task.getValue();
+            courseRows = new java.util.IdentityHashMap<>(view.courses());
             populate(recordsTable, view.details());
-            boolean summary = view.summary() != null;
+            boolean summary = view.summary() != null && !view.summary().rows().isEmpty();
             summaryBox.setManaged(summary);
             summaryBox.setVisible(summary);
             if (summary) populate(summaryTable, view.summary());
@@ -101,12 +130,27 @@ public class StudentRecordsController {
             if (!accept(task)) return;
             clear();
             Throwable error = task.getException();
+            while (!(error instanceof SecurityException) && error.getCause() != null && error.getCause() != error)
+                error = error.getCause();
             String message = error instanceof SecurityException ? error.getMessage()
-                    : "Unable to load your records. Please refresh or check the database connection.";
+                    : "Unable to load your records: " + Objects.toString(error.getMessage(),error.getClass().getSimpleName())
+                    + ". Please try Refresh.";
             statusLabel.setText(message);
             recordsTable.setPlaceholder(new Label(message));
             setBusy(false);
         });
+        task.setOnCancelled(event -> {
+            if (!accept(task)) return;
+            clear();
+            showMessage("Loading cancelled. Please try Refresh.");
+        });
+        loadTimeout.setOnFinished(event -> {
+            if (!accept(task)) return;
+            task.cancel(true);
+            clear();
+            showMessage("Loading took too long. Please check the database connection and try Refresh.");
+        });
+        loadTimeout.playFromStart();
         Thread worker = new Thread(task, "student-" + feature);
         worker.setDaemon(true);
         worker.start();
@@ -114,10 +158,12 @@ public class StudentRecordsController {
 
     private boolean accept(Task<View> task) {
         if (disposed || activeTask != task) return false;
+        activeTask = null;
+        loadTimeout.stop();
+        setBusy(false);
         if (!SessionManager.isCurrentSession(identity)) {
             clear();
-            setBusy(false);
-            statusLabel.setText("Your session has ended. Please sign in again.");
+            showMessage("Your session has ended. Please sign in again.");
             return false;
         }
         return true;
@@ -135,10 +181,14 @@ public class StudentRecordsController {
 
     private View courses() throws Exception {
         var rows = new ArrayList<List<String>>();
-        for (var c : new StudentCourseService().getMyCourses())
-            rows.add(row(c.courseCode(),c.courseName(),c.semester(),c.credits(),c.attempt(),c.status()));
+        var mapping = new java.util.IdentityHashMap<List<String>, StudentCourse>();
+        for (var c : new StudentCourseService().getMyCourses()) {
+            var display = row(c.courseCode(),c.courseName(),c.semester(),c.credits(),c.attempt(),c.status());
+            rows.add(display);
+            mapping.put(display, c);
+        }
         return new View(new Table(List.of("Course code","Course name","Semester","Credits","Attempt","Status"),rows),
-                null,"No enrolled courses available.");
+                null,"No enrolled courses available.", mapping);
     }
 
     private View medical() throws Exception {
@@ -169,15 +219,15 @@ public class StudentRecordsController {
     }
 
     private View results() throws Exception {
-        var published = new ResultService().getMyPublishedResults(identity);
+        var published = resultService.getMyPublishedRecords(identity);
         var rows = new ArrayList<List<String>>();
-        for (var r : published) rows.add(row(r.courseCode(),r.courseName(),r.semester(),r.grade(),
+        for (var r : published.grades()) rows.add(row(r.courseCode(),r.courseName(),r.semester(),r.grade(),
                 r.gradePoint(),r.credits(),r.attempt()));
         var summaries = new ArrayList<List<String>>();
-        if (!published.isEmpty()) for (var semester : new GPAService().getMyPublishedGpa(identity))
-            summaries.add(row(semester.semester(),decimal(semester.result().getSgpa()),decimal(semester.result().getCgpa())));
+        for (var semester : published.semesters())
+            summaries.add(row(semester.semester(),decimal(semester.result().getSgpa()),decimal(semester.result().getCgpa()),semester.status()));
         return new View(new Table(List.of("Course code","Course name","Semester","Published grade","Grade point","Credits","Attempt"),rows),
-                new Table(List.of("Semester","SGPA","CGPA"),summaries),"No published results available.");
+                new Table(List.of("Semester","SGPA","CGPA","GPA status"),summaries),"No published results available.");
     }
 
     private static List<String> row(Object... values) {
@@ -201,8 +251,21 @@ public class StudentRecordsController {
         table.setPlaceholder(new Label("No records available."));
     }
 
-    private void clear() { recordsTable.getItems().clear(); summaryTable.getItems().clear(); }
+    private void clear() {
+        courseRows.clear();
+        if (viewMaterialsButton != null) viewMaterialsButton.setDisable(true);
+        recordsTable.getItems().clear();
+        summaryTable.getItems().clear();
+        summaryBox.setVisible(false);
+        summaryBox.setManaged(false);
+    }
+    private void showMessage(String message) {
+        statusLabel.setText(message);
+        recordsTable.setPlaceholder(new Label(message));
+    }
     private void setBusy(boolean busy) {
+        if (viewMaterialsButton != null) viewMaterialsButton.setDisable(busy
+                || !courseRows.containsKey(recordsTable.getSelectionModel().getSelectedItem()));
         refreshButton.setDisable(busy);
         progressIndicator.setVisible(busy);
         progressIndicator.setManaged(busy);
@@ -213,6 +276,16 @@ public class StudentRecordsController {
             access.requireSession();
             NavigationUtil.navigate(studentRecordsRoot,"/fxml/student_dashboard.fxml","FTMS - Student Dashboard");
         } catch (IOException | SecurityException error) { clear(); statusLabel.setText(error.getMessage()); }
+    }
+
+    @FXML private void handleViewMaterials() {
+        StudentCourse course = courseRows.get(recordsTable.getSelectionModel().getSelectedItem());
+        if (course == null || activeTask != null) return;
+        try {
+            access.requireSession();
+            NavigationUtil.navigate(studentRecordsRoot, "/fxml/student_materials.fxml", "FTMS - Course Materials",
+                    controller -> ((StudentCourseMaterialsController) controller).setCourse(course));
+        } catch (IOException | SecurityException error) { statusLabel.setText(error.getMessage()); }
     }
 
     @FXML private void handleLogout() {

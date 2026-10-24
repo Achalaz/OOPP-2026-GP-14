@@ -28,6 +28,24 @@ import java.util.List;
 import java.util.Objects;
 
 public class ResultService {
+    public record StudentPublishedRecords(List<CourseResultDAO.PublishedStudentResult> grades,
+                                          List<GPAService.PublishedSemester> semesters) {
+        public StudentPublishedRecords {
+            grades = List.copyOf(grades);
+            semesters = List.copyOf(semesters);
+        }
+    }
+
+    /** Grades and GPA belong to one login and one database snapshot; this operation never saves GPA. */
+    public StudentPublishedRecords getMyPublishedRecords(SessionIdentity identity) throws SQLException {
+        return new StudentAccessService(identity).readSnapshot((connection, student) -> {
+            var grades = resultDAO.findPublishedForStudent(connection, student);
+            var semesters = grades.isEmpty() ? List.<GPAService.PublishedSemester>of()
+                    : new GPAService().getPublishedGpa(connection, student);
+            return new StudentPublishedRecords(grades, semesters);
+        });
+    }
+
     public List<CourseResultDAO.PublishedStudentResult> getMyPublishedResults(SessionIdentity identity)
             throws SQLException {
         return new StudentAccessService(identity).read(resultDAO::findPublishedForStudent);
@@ -124,7 +142,9 @@ public class ResultService {
         if (calculatedBy != null && calculatedBy != identity.userId()) {
             throw new SecurityException("Calculated-by must be the signed-in user.");
         }
-        requirePublicationAuthority(SessionManager.getCurrentUser(), 1);
+        User sessionUser = SessionManager.getCurrentUser();
+        if (sessionUser == null || !sessionUser.isActive() || !"LECTURER".equals(sessionUser.getRole()))
+            throw new SecurityException(PUBLICATION_POLICY_PENDING);
         return calculateInTransaction(enrollmentId, identity, true);
     }
 
@@ -152,6 +172,7 @@ public class ResultService {
                 result.setPublishedAt(null);
                 if (save) { result = resultDAO.saveOrUpdate(connection, result); }
                 SessionManager.requireSession(identity);
+                if (Thread.currentThread().isInterrupted()) throw new java.util.concurrent.CancellationException("Result action cancelled.");
                 connection.commit();
                 return result;
             } catch (SQLException | RuntimeException error) {
@@ -211,6 +232,8 @@ public class ResultService {
                     throw new ResultCalculationException("The enrollment is no longer available.");
                 }
                 CourseResult current = calculate(data, connection);
+                if (!resultDAO.draftInputsCurrent(connection, reviewed.enrollmentId(), saved.getCalculatedAt()))
+                    throw new ResultCalculationException("The draft inputs changed. Recalculate, save and review before publishing.");
                 if (!resultDAO.eligibilityInputsCurrent(connection, reviewed.enrollmentId()))
                     throw new ResultCalculationException("Eligibility is stale or attendance is unresolved. Re-evaluate eligibility before publishing.");
                 if (data.assessments().stream().anyMatch(a -> !"FINAL_EXAM".equals(a.assessmentType()) && a.weightPercentage().signum() > 0)) {
@@ -224,6 +247,7 @@ public class ResultService {
                 CourseResult published = resultDAO.publishDraft(connection, reviewed.enrollmentId(), reviewed.resultId());
                 resultDAO.invalidateStoredGpa(connection, reviewed.enrollmentId());
                 SessionManager.requireSession(identity);
+                if (Thread.currentThread().isInterrupted()) throw new java.util.concurrent.CancellationException("Publication cancelled.");
                 connection.commit();
                 return published;
             } catch (SQLException | RuntimeException error) {

@@ -11,6 +11,13 @@ import java.util.*;
 public class EligibilityService {
     private final EligibilityDAO dao=new EligibilityDAO();
     private final AcademicAccessDAO access=new AcademicAccessDAO();
+    private final AttendanceEligibilityService attendancePolicy;
+
+    public EligibilityService() { this(new AttendanceEligibilityService()); }
+    /** Only backend wiring with an approved policy supplies this service; UI percentages are never trusted. */
+    public EligibilityService(AttendanceEligibilityService attendancePolicy) {
+        this.attendancePolicy=Objects.requireNonNull(attendancePolicy);
+    }
     public List<EligibilityOffering> getOfferings() throws SQLException {
         return new LecturerCourseAssignmentDAO().findAssigned(new LecturerAccessService().requireLecturer());
     }
@@ -59,8 +66,13 @@ public class EligibilityService {
                 reason += counts==null || counts.getTotalSessions()==0 ? "No Theory/Practical attendance sessions. "
                     : "Raw PRESENT/session ratios - Theory: "+counts.getTheoryPercentage()+"%; Practical: "+counts.getPracticalPercentage()+"%. ";
                 if(counts!=null && counts.requiresPolicyDecision())reason+="Attendance is incomplete or contains unresolved special statuses. ";
-                reason += "Attendance cutoff and special-status policy are unconfirmed; overall eligibility is pending.";
-                var result=new EligibilityResult(enrollment,ca.percentage(),ca.eligible(),attendance,null,null,reason);
+                var confirmed=attendancePolicy.findByEnrollmentId(c,enrollment);
+                Boolean attendanceEligible=confirmed.map(AttendanceEligibilityProvider.AttendanceEligibility::eligible).orElse(null);
+                Boolean overall=ca.eligible()==null || attendanceEligible==null ? null : ca.eligible() && attendanceEligible;
+                reason += confirmed.isEmpty()
+                        ? "Attendance cutoff/special-status policy or attendance data is unresolved; overall eligibility is pending."
+                        : "Attendance evaluated by the configured confirmed policy; overall eligibility requires both CA and attendance.";
+                var result=new EligibilityResult(enrollment,ca.percentage(),ca.eligible(),attendance,attendanceEligible,overall,reason);
                 if(save) {
                     dao.saveOrUpdateEligibility(c,result,id.userId());
                     access.invalidateDraft(c,enrollment);

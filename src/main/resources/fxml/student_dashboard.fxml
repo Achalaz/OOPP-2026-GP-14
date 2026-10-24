@@ -509,7 +509,7 @@
 
                                 <Region HBox.hgrow="ALWAYS"/>
 
-                                <Label text="COMING SOON"
+                                <Label text="READ ONLY"
                                        styleClass="coming-soon"/>
                             </HBox>
 
