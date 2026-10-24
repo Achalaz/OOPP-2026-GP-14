@@ -9,86 +9,68 @@ import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 
 import lk.ac.ruhuna.ftms.model.Medical;
 import lk.ac.ruhuna.ftms.service.MedicalService;
+import lk.ac.ruhuna.ftms.service.MedicalAttendanceLinkService;
+import lk.ac.ruhuna.ftms.dao.MedicalAttendanceLinkDAO.AbsenceRow;
 
 import java.io.File;
-import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.function.Consumer;
 
 public class MedicalController {
 
-    // Main layout
+    @FXML private BorderPane medicalRoot;
 
-    @FXML
-    private BorderPane medicalRoot;
+    // Medical form fields
+    @FXML private TextField medicalIdField;
+    @FXML private TextField studentIdField;
+    @FXML private TextField offeringIdField;
+    @FXML private DatePicker fromDatePicker;
+    @FXML private DatePicker toDatePicker;
+    @FXML private TextArea reasonArea;
+    @FXML private TextField documentPathField;
 
-    // Medical information fields
+    // Medical review
+    @FXML private TextField reviewerIdField;
+    @FXML private TextArea reviewNoteArea;
 
-    @FXML
-    private TextField medicalIdField;
+    // Medical table
+    @FXML private TableView<Medical> medicalTable;
+    @FXML private TableColumn<Medical, Integer> medicalIdColumn;
+    @FXML private TableColumn<Medical, Integer> studentIdColumn;
+    @FXML private TableColumn<Medical, String> periodColumn;
+    @FXML private TableColumn<Medical, String> reasonColumn;
+    @FXML private TableColumn<Medical, String> statusColumn;
+    @FXML private Label statusLabel;
 
-    @FXML
-    private TextField studentIdField;
-
-    @FXML
-    private TextField offeringIdField;
-
-    @FXML
-    private DatePicker fromDatePicker;
-
-    @FXML
-    private DatePicker toDatePicker;
-
-    @FXML
-    private TextArea reasonArea;
-
-    @FXML
-    private TextField documentPathField;
-
-    // Medical review fields
-
-    @FXML
-    private TextField reviewerIdField;
-
-    @FXML
-    private TextArea reviewNoteArea;
-
-    // Medical records table
-
-    @FXML
-    private TableView<Medical> medicalTable;
-
-    @FXML
-    private TableColumn<Medical, Integer> medicalIdColumn;
-
-    @FXML
-    private TableColumn<Medical, Integer> studentIdColumn;
-
-    @FXML
-    private TableColumn<Medical, String> periodColumn;
-
-    @FXML
-    private TableColumn<Medical, String> reasonColumn;
-
-    @FXML
-    private TableColumn<Medical, String> statusColumn;
-
-    @FXML
-    private Label statusLabel;
-
-    // Service layer
+    // Step 20: Absence linking controls
+    @FXML private VBox medicalLinkSection;
+    @FXML private TableView<AbsenceRow> absenceTable;
+    @FXML private TableColumn<AbsenceRow, Integer> absenceIdColumn;
+    @FXML private TableColumn<AbsenceRow, String> absenceDateColumn;
+    @FXML private TableColumn<AbsenceRow, String> absenceTypeColumn;
+    @FXML private TableColumn<AbsenceRow, String> absenceStatusColumn;
+    @FXML private TableColumn<AbsenceRow, String> linkedMedicalColumn;
 
     private final MedicalService medicalService =
             new MedicalService();
 
+    private final MedicalAttendanceLinkService linkService =
+            new MedicalAttendanceLinkService();
+
     private final ObservableList<Medical> medicalRecords =
             FXCollections.observableArrayList();
 
-    // Initialize table
+    private final ObservableList<AbsenceRow> absenceRows =
+            FXCollections.observableArrayList();
+
+    // =========================================
+    // INITIALIZE
+    // =========================================
 
     @FXML
     public void initialize() {
@@ -127,19 +109,71 @@ public class MedicalController {
 
         medicalTable.setItems(medicalRecords);
 
+        absenceIdColumn.setCellValueFactory(
+                cell -> new SimpleIntegerProperty(
+                        cell.getValue().attendanceRecordId()
+                ).asObject()
+        );
+
+        absenceDateColumn.setCellValueFactory(
+                cell -> new SimpleStringProperty(
+                        cell.getValue().sessionDate().toString()
+                )
+        );
+
+        absenceTypeColumn.setCellValueFactory(
+                cell -> new SimpleStringProperty(
+                        cell.getValue().sessionType()
+                )
+        );
+
+        absenceStatusColumn.setCellValueFactory(
+                cell -> new SimpleStringProperty(
+                        cell.getValue().attendanceStatus()
+                )
+        );
+
+        linkedMedicalColumn.setCellValueFactory(
+                cell -> new SimpleStringProperty(
+                        cell.getValue().linkedMedicalId() == null
+                                ? "Not linked"
+                                : "Medical #"
+                                + cell.getValue().linkedMedicalId()
+                )
+        );
+
+        absenceTable.setItems(absenceRows);
+
+        var current =
+                lk.ac.ruhuna.ftms.util.SessionManager
+                        .getCurrentUser();
+
+        boolean canLink =
+                current != null
+                        && current.isActive()
+                        && "TECHNICAL_OFFICER".equals(
+                        current.getRole()
+                );
+
+        medicalLinkSection.setVisible(canLink);
+        medicalLinkSection.setManaged(canLink);
+
         medicalTable.getSelectionModel()
                 .selectedItemProperty()
-                .addListener((observable, oldValue, selected) -> {
+                .addListener((obs, oldValue, selected) -> {
 
                     if (selected != null) {
                         displayMedical(selected);
+                        absenceRows.clear();
                     }
                 });
 
         statusLabel.setText("Medical Management Ready");
     }
 
-    // Submit a new medical request
+    // =========================================
+    // SUBMIT MEDICAL
+    // =========================================
 
     @FXML
     private void handleSubmitMedical() {
@@ -150,8 +184,8 @@ public class MedicalController {
 
             runTask(
                     () -> medicalService.submitMedical(medical),
-                    saved -> {
 
+                    saved -> {
                         updateTableRow(saved);
 
                         statusLabel.setText(
@@ -166,7 +200,9 @@ public class MedicalController {
         }
     }
 
-    // Update a pending medical
+    // =========================================
+    // UPDATE MEDICAL
+    // =========================================
 
     @FXML
     private void handleUpdateMedical() {
@@ -174,8 +210,7 @@ public class MedicalController {
         try {
 
             int medicalId = requiredId(
-                    medicalIdField,
-                    "Medical ID"
+                    medicalIdField, "Medical ID"
             );
 
             Medical medical = buildMedicalFromForm();
@@ -201,7 +236,6 @@ public class MedicalController {
                     },
 
                     updated -> {
-
                         updateTableRow(updated);
 
                         statusLabel.setText(
@@ -215,7 +249,9 @@ public class MedicalController {
         }
     }
 
-    // Search a medical by ID
+    // =========================================
+    // FIND MEDICAL
+    // =========================================
 
     @FXML
     private void handleFindMedical() {
@@ -223,8 +259,7 @@ public class MedicalController {
         try {
 
             int medicalId = requiredId(
-                    medicalIdField,
-                    "Medical ID"
+                    medicalIdField, "Medical ID"
             );
 
             runTask(
@@ -237,11 +272,9 @@ public class MedicalController {
                         medicalRecords.clear();
 
                         if (medical == null) {
-
                             statusLabel.setText(
                                     "Medical record not found."
                             );
-
                             return;
                         }
 
@@ -261,7 +294,9 @@ public class MedicalController {
         }
     }
 
-    // Load medical records of one student
+    // =========================================
+    // LOAD STUDENT MEDICALS
+    // =========================================
 
     @FXML
     private void handleLoadStudentMedicals() {
@@ -269,8 +304,7 @@ public class MedicalController {
         try {
 
             int studentId = requiredId(
-                    studentIdField,
-                    "Student ID"
+                    studentIdField, "Student ID"
             );
 
             runTask(
@@ -279,12 +313,10 @@ public class MedicalController {
                     ),
 
                     records -> {
-
                         medicalRecords.setAll(records);
 
                         statusLabel.setText(
-                                "Loaded "
-                                        + records.size()
+                                "Loaded " + records.size()
                                         + " medical records."
                         );
                     }
@@ -295,8 +327,9 @@ public class MedicalController {
         }
     }
 
-    // Load all records.
-    // Staff authorization must be added before deployment.
+    // =========================================
+    // LOAD ALL MEDICALS
+    // =========================================
 
     @FXML
     private void handleLoadAllMedicals() {
@@ -305,46 +338,40 @@ public class MedicalController {
                 medicalService::getAllMedicals,
 
                 records -> {
-
                     medicalRecords.setAll(records);
 
                     statusLabel.setText(
-                            "Loaded "
-                                    + records.size()
+                            "Loaded " + records.size()
                                     + " medical records."
                     );
                 }
         );
     }
 
-    // Approve a pending medical
+    // =========================================
+    // APPROVE / REJECT
+    // =========================================
 
     @FXML
     private void handleApproveMedical() {
         reviewMedical(true);
     }
 
-    // Reject a pending medical
-
     @FXML
     private void handleRejectMedical() {
         reviewMedical(false);
     }
-
-    // Common approve/reject operation
 
     private void reviewMedical(boolean approve) {
 
         try {
 
             int medicalId = requiredId(
-                    medicalIdField,
-                    "Medical ID"
+                    medicalIdField, "Medical ID"
             );
 
             int reviewerId = requiredId(
-                    reviewerIdField,
-                    "Reviewer ID"
+                    reviewerIdField, "Reviewer ID"
             );
 
             String note = reviewNoteArea.getText();
@@ -353,7 +380,6 @@ public class MedicalController {
                     () -> {
 
                         if (approve) {
-
                             medicalService.approveMedical(
                                     medicalId,
                                     reviewerId,
@@ -361,7 +387,6 @@ public class MedicalController {
                             );
 
                         } else {
-
                             medicalService.rejectMedical(
                                     medicalId,
                                     reviewerId,
@@ -375,7 +400,6 @@ public class MedicalController {
                     },
 
                     reviewed -> {
-
                         updateTableRow(reviewed);
 
                         statusLabel.setText(
@@ -391,7 +415,9 @@ public class MedicalController {
         }
     }
 
-    // Delete a pending medical
+    // =========================================
+    // DELETE PENDING MEDICAL
+    // =========================================
 
     @FXML
     private void handleDeleteMedical() {
@@ -399,13 +425,11 @@ public class MedicalController {
         try {
 
             int medicalId = requiredId(
-                    medicalIdField,
-                    "Medical ID"
+                    medicalIdField, "Medical ID"
             );
 
             int studentId = requiredId(
-                    studentIdField,
-                    "Student ID"
+                    studentIdField, "Student ID"
             );
 
             runTask(
@@ -447,7 +471,122 @@ public class MedicalController {
         }
     }
 
-    // Browse supporting document
+    // =========================================
+    // STEP 20: LOAD MATCHING ABSENCES
+    // =========================================
+
+    @FXML
+    private void handleLoadMedicalAbsences() {
+
+        try {
+
+            int medicalId = requiredId(
+                    medicalIdField, "Medical ID"
+            );
+
+            runTask(
+                    () -> linkService.getCandidateAbsences(
+                            medicalId
+                    ),
+
+                    rows -> {
+                        absenceRows.setAll(rows);
+
+                        statusLabel.setText(
+                                rows.isEmpty()
+                                        ? "No matching absent attendance records."
+                                        : "Loaded " + rows.size()
+                                        + " matching attendance records."
+                        );
+                    }
+            );
+
+        } catch (IllegalArgumentException e) {
+            showError(e.getMessage());
+        }
+    }
+
+    // =========================================
+    // STEP 20: LINK ABSENCE
+    // =========================================
+
+    @FXML
+    private void handleLinkMedicalAbsence() {
+        changeMedicalAbsenceLink(true);
+    }
+
+    // =========================================
+    // STEP 20: UNLINK ABSENCE
+    // =========================================
+
+    @FXML
+    private void handleUnlinkMedicalAbsence() {
+        changeMedicalAbsenceLink(false);
+    }
+
+    private void changeMedicalAbsenceLink(boolean link) {
+
+        try {
+
+            int medicalId = requiredId(
+                    medicalIdField, "Medical ID"
+            );
+
+            AbsenceRow selected =
+                    absenceTable.getSelectionModel()
+                            .getSelectedItem();
+
+            if (selected == null) {
+                throw new IllegalArgumentException(
+                        "Select an attendance row first."
+                );
+            }
+
+            int attendanceRecordId =
+                    selected.attendanceRecordId();
+
+            runTask(
+                    () -> {
+
+                        if (link) {
+                            linkService.linkAbsence(
+                                    medicalId,
+                                    attendanceRecordId
+                            );
+
+                        } else {
+                            linkService.unlinkAbsence(
+                                    medicalId,
+                                    attendanceRecordId
+                            );
+                        }
+
+                        return linkService.getCandidateAbsences(
+                                medicalId
+                        );
+                    },
+
+                    rows -> {
+                        absenceRows.setAll(rows);
+
+                        statusLabel.setText(
+                                link
+                                        ? "Medical linked to attendance record #"
+                                        + attendanceRecordId
+                                        : "Medical link removed from attendance record #"
+                                        + attendanceRecordId
+                        );
+                    }
+            );
+
+        } catch (IllegalArgumentException e) {
+            showError(e.getMessage());
+        }
+    }
+
+    // =========================================
+    // BROWSE DOCUMENT
+    // =========================================
 
     @FXML
     private void handleBrowseDocument() {
@@ -471,19 +610,23 @@ public class MedicalController {
         );
 
         if (selected != null) {
-
             documentPathField.setText(
                     selected.getAbsolutePath()
             );
         }
     }
 
-    // Clear input fields
+    // =========================================
+    // CLEAR FORM
+    // =========================================
 
     @FXML
     private void handleClear() {
 
-        medicalTable.getSelectionModel().clearSelection();
+        medicalTable.getSelectionModel()
+                .clearSelection();
+
+        absenceRows.clear();
 
         clearForm();
 
@@ -491,6 +634,8 @@ public class MedicalController {
     }
 
     private void clearForm() {
+
+        absenceRows.clear();
 
         medicalIdField.clear();
         studentIdField.clear();
@@ -506,18 +651,14 @@ public class MedicalController {
         reviewNoteArea.clear();
     }
 
-    // Create Medical object using form data
-
     private Medical buildMedicalFromForm() {
 
         int studentId = requiredId(
-                studentIdField,
-                "Student ID"
+                studentIdField, "Student ID"
         );
 
         Integer offeringId = optionalId(
-                offeringIdField,
-                "Offering ID"
+                offeringIdField, "Offering ID"
         );
 
         return new Medical(
@@ -529,8 +670,6 @@ public class MedicalController {
                 documentPathField.getText()
         );
     }
-
-    // Display selected medical in form
 
     private void displayMedical(Medical medical) {
 
@@ -569,7 +708,9 @@ public class MedicalController {
         );
     }
 
-    // Add or refresh one table row
+    // =========================================
+    // UPDATE TABLE
+    // =========================================
 
     private void updateTableRow(Medical medical) {
 
@@ -597,7 +738,9 @@ public class MedicalController {
                 .select(medical);
     }
 
-    // Required positive ID validation
+    // =========================================
+    // ID VALIDATION
+    // =========================================
 
     private int requiredId(
             TextField field,
@@ -623,8 +766,6 @@ public class MedicalController {
         }
     }
 
-    // Optional positive ID validation
-
     private Integer optionalId(
             TextField field,
             String fieldName) {
@@ -637,7 +778,9 @@ public class MedicalController {
         return requiredId(field, fieldName);
     }
 
-    // Execute database work outside JavaFX UI thread
+    // =========================================
+    // BACKGROUND DATABASE OPERATION
+    // =========================================
 
     private <T> void runTask(
             Callable<T> operation,
@@ -657,6 +800,7 @@ public class MedicalController {
         task.setOnSucceeded(event -> {
 
             medicalRoot.setDisable(false);
+
             onSuccess.accept(task.getValue());
         });
 
@@ -683,20 +827,20 @@ public class MedicalController {
         thread.start();
     }
 
-    // Prevent null text values
-
     private String safeText(String value) {
         return value == null ? "" : value;
     }
 
-    // Show error message
+    // =========================================
+    // ERROR ALERT
+    // =========================================
 
     private void showError(String message) {
 
-        String text = message == null
-                || message.isBlank()
-                ? "An unexpected error occurred."
-                : message;
+        String text =
+                message == null || message.isBlank()
+                        ? "An unexpected error occurred."
+                        : message;
 
         statusLabel.setText("Error: " + text);
 
