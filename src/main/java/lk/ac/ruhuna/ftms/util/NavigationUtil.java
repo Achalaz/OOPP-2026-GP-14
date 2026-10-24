@@ -1,4 +1,3 @@
-
 package lk.ac.ruhuna.ftms.util;
 
 import javafx.fxml.FXMLLoader;
