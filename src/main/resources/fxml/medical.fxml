@@ -20,6 +20,9 @@
                         bottom="20" left="25"/>
             </padding>
 
+            <Button text="Back to Dashboard"
+                    onAction="#handleBack"/>
+
             <Label text="Medical Management"
                    style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: white;"/>
 

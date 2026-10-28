@@ -16,9 +16,11 @@ import lk.ac.ruhuna.ftms.model.Medical;
 import lk.ac.ruhuna.ftms.service.MedicalService;
 import lk.ac.ruhuna.ftms.service.MedicalAttendanceLinkService;
 import lk.ac.ruhuna.ftms.dao.MedicalAttendanceLinkDAO.AbsenceRow;
+import lk.ac.ruhuna.ftms.util.NavigationUtil;
 import lk.ac.ruhuna.ftms.util.SessionManager;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.concurrent.Callable;
 import java.util.function.Consumer;
 
@@ -160,6 +162,23 @@ public class MedicalController {
         reviewerIdField.setEditable(false);
 
         statusLabel.setText("Medical Management Ready");
+    }
+
+    // =====================================
+    // BACK TO DASHBOARD
+    // =====================================
+
+    @FXML
+    private void handleBack() {
+        try {
+            NavigationUtil.navigate(
+                    medicalRoot,
+                    NavigationUtil.dashboardResource(),
+                    "FTMS - Dashboard"
+            );
+        } catch (IOException | RuntimeException exception) {
+            showError(exception.getMessage());
+        }
     }
 
     // =====================================
