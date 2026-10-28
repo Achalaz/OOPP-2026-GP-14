@@ -22,22 +22,59 @@ import java.util.Locale;
 
 /**
  * Technical Officer Dashboard.
- * Preserves existing dashboard layout and navigation.
+ *
+ * Features:
+ * - Dashboard Home
+ * - My Profile
+ * - Attendance Management
+ * - Medical Management
+ * - Department Timetable (View Only)
+ * - Notices
+ * - Logout
+ *
+ * Preserves original responsive dashboard layout.
  */
 public class TechnicalOfficerDashboardController {
 
-    @FXML private BorderPane technicalOfficerRoot;
-    @FXML private ScrollPane contentScroll;
-    @FXML private GridPane featureGrid;
+    // ==========================================
+    // FXML FIELDS
+    // ==========================================
 
-    @FXML private Label nameLabel;
-    @FXML private Label officerNameLabel;
-    @FXML private Label avatarLabel;
-    @FXML private Label dateLabel;
-    @FXML private Label statusLabel;
+    @FXML
+    private BorderPane technicalOfficerRoot;
+
+    @FXML
+    private ScrollPane contentScroll;
+
+    @FXML
+    private GridPane featureGrid;
+
+    @FXML
+    private Label nameLabel;
+
+    @FXML
+    private Label officerNameLabel;
+
+    @FXML
+    private Label avatarLabel;
+
+    @FXML
+    private Label dateLabel;
+
+    @FXML
+    private Label statusLabel;
+
+    // ==========================================
+    // SESSION AND LAYOUT
+    // ==========================================
 
     private SessionIdentity identity;
+
     private int columns;
+
+    // ==========================================
+    // INITIALIZE
+    // ==========================================
 
     @FXML
     public void initialize() {
@@ -52,7 +89,10 @@ public class TechnicalOfficerDashboardController {
                 ? "Technical Officer"
                 : name.strip();
 
-        nameLabel.setText("Welcome back, " + name + "!");
+        nameLabel.setText(
+                "Welcome back, " + name + "!"
+        );
+
         officerNameLabel.setText(name);
 
         avatarLabel.setText(
@@ -71,6 +111,7 @@ public class TechnicalOfficerDashboardController {
                 )
         );
 
+        // Preserve responsive dashboard layout
         contentScroll.viewportBoundsProperty()
                 .addListener(
                         (observable, oldBounds, bounds) ->
@@ -82,7 +123,9 @@ public class TechnicalOfficerDashboardController {
         );
     }
 
-    // Verify Technical Officer session
+    // ==========================================
+    // VERIFY TECHNICAL OFFICER SESSION
+    // ==========================================
 
     private User requireTechnicalOfficer() {
 
@@ -105,7 +148,9 @@ public class TechnicalOfficerDashboardController {
         return user;
     }
 
-    // Preserve responsive dashboard cards
+    // ==========================================
+    // RESPONSIVE DASHBOARD CARDS
+    // ==========================================
 
     private void arrangeCards(double viewportWidth) {
 
@@ -128,14 +173,22 @@ public class TechnicalOfficerDashboardController {
 
         featureGrid.getColumnConstraints().clear();
 
-        for (int column = 0; column < count; column++) {
+        for (int column = 0;
+             column < count;
+             column++) {
 
             ColumnConstraints constraint =
                     new ColumnConstraints();
 
-            constraint.setPercentWidth(100.0 / count);
+            constraint.setPercentWidth(
+                    100.0 / count
+            );
+
             constraint.setMinWidth(0);
-            constraint.setHgrow(Priority.ALWAYS);
+
+            constraint.setHgrow(
+                    Priority.ALWAYS
+            );
 
             featureGrid.getColumnConstraints()
                     .add(constraint);
@@ -161,7 +214,9 @@ public class TechnicalOfficerDashboardController {
         }
     }
 
-    // Dashboard Home
+    // ==========================================
+    // DASHBOARD HOME
+    // ==========================================
 
     @FXML
     private void handleDashboard() {
@@ -173,7 +228,8 @@ public class TechnicalOfficerDashboardController {
             contentScroll.setVvalue(0);
 
             statusLabel.setText(
-                    "Your faculty workspace. Select a service to get started."
+                    "Your faculty workspace. "
+                            + "Select a service to get started."
             );
 
         } catch (SecurityException error) {
@@ -182,7 +238,9 @@ public class TechnicalOfficerDashboardController {
         }
     }
 
-    // My Profile
+    // ==========================================
+    // MY PROFILE
+    // ==========================================
 
     @FXML
     private void handleProfile() {
@@ -203,15 +261,20 @@ public class TechnicalOfficerDashboardController {
 
         } catch (IOException error) {
 
+            error.printStackTrace();
+
             statusLabel.setText(
-                    "My Profile could not open. Please try again."
+                    "My Profile could not open. "
+                            + "Please try again."
             );
 
             contentScroll.setVvalue(1);
         }
     }
 
-    // Attendance Management
+    // ==========================================
+    // ATTENDANCE MANAGEMENT
+    // ==========================================
 
     @FXML
     private void handleAttendance() {
@@ -232,23 +295,64 @@ public class TechnicalOfficerDashboardController {
 
         } catch (IOException | RuntimeException error) {
 
+            error.printStackTrace();
+
             statusLabel.setText(
-                    "Unable to open Attendance Management. Please try again."
+                    "Unable to open Attendance Management. "
+                            + "Please try again."
             );
 
             contentScroll.setVvalue(1);
         }
     }
 
-    // Medical Management - existing behavior
+    // ==========================================
+    // NEW: MEDICAL MANAGEMENT
+    // ==========================================
 
+    /**
+     * Opens Technical Officer Medical Management.
+     *
+     * Create, Update, Approve, Reject and Delete
+     * permissions are checked in the
+     * TechnicalOfficerMedicalService.
+     */
     @FXML
     private void handleMedical() {
 
-        showComingSoon("Medical Management");
+        try {
+
+            // Verify logged-in Technical Officer
+            requireTechnicalOfficer();
+
+            // Open Medical Management screen
+            NavigationUtil.navigate(
+                    technicalOfficerRoot,
+                    "/fxml/medical.fxml",
+                    "FTMS - Medical Management"
+            );
+
+        } catch (SecurityException error) {
+
+            // Invalid or expired session
+            showSessionError(error);
+
+        } catch (IOException | RuntimeException error) {
+
+            error.printStackTrace();
+
+            statusLabel.setText(
+                    "Unable to open Medical Management. "
+                            + "Please try again."
+            );
+
+            contentScroll.setVvalue(1);
+        }
     }
 
-    // Notices - existing behavior
+    // ==========================================
+    // NOTICES - EXISTING BEHAVIOR
+    // ==========================================
 
     @FXML
     private void handleNotices() {
@@ -256,7 +360,9 @@ public class TechnicalOfficerDashboardController {
         showComingSoon("Notices");
     }
 
-    // NEW: Department Timetable navigation
+    // ==========================================
+    // DEPARTMENT TIMETABLE - VIEW ONLY
+    // ==========================================
 
     @FXML
     private void handleTimetable() {
@@ -277,17 +383,20 @@ public class TechnicalOfficerDashboardController {
 
         } catch (IOException | RuntimeException error) {
 
-            statusLabel.setText(
-                    "Unable to open Department Timetable. Please try again."
-            );
-
             error.printStackTrace();
+
+            statusLabel.setText(
+                    "Unable to open Department Timetable. "
+                            + "Please try again."
+            );
 
             contentScroll.setVvalue(1);
         }
     }
 
-    // Existing Coming Soon dialogs
+    // ==========================================
+    // COMING SOON DIALOGS
+    // ==========================================
 
     private void showComingSoon(String feature) {
 
@@ -299,7 +408,9 @@ public class TechnicalOfficerDashboardController {
                     Alert.AlertType.INFORMATION
             );
 
-            alert.setTitle("FTMS - " + feature);
+            alert.setTitle(
+                    "FTMS - " + feature
+            );
 
             alert.setHeaderText(
                     feature + " - Coming Soon"
@@ -310,7 +421,8 @@ public class TechnicalOfficerDashboardController {
             );
 
             if (technicalOfficerRoot.getScene() != null
-                    && technicalOfficerRoot.getScene()
+                    && technicalOfficerRoot
+                    .getScene()
                     .getWindow() != null) {
 
                 alert.initOwner(
@@ -328,11 +440,14 @@ public class TechnicalOfficerDashboardController {
         }
     }
 
-    // Technical Officer Logout
+    // ==========================================
+    // TECHNICAL OFFICER LOGOUT
+    // ==========================================
 
     @FXML
     private void handleLogout() {
 
+        // Old dashboard cannot end newer session
         if (SessionManager.isCurrentSession(identity)) {
 
             SessionManager.logout();
@@ -344,6 +459,7 @@ public class TechnicalOfficerDashboardController {
             );
 
             contentScroll.setVvalue(1);
+
             return;
         }
 
@@ -362,22 +478,28 @@ public class TechnicalOfficerDashboardController {
             technicalOfficerRoot.setDisable(false);
 
             statusLabel.setText(
-                    "You are logged out. The login screen "
-                            + "could not open; please try Logout again."
+                    "You are logged out. "
+                            + "The login screen could not open; "
+                            + "please try Logout again."
             );
+
+            error.printStackTrace();
 
             contentScroll.setVvalue(1);
         }
     }
 
-    // Handle Session Errors
+    // ==========================================
+    // SESSION ERROR
+    // ==========================================
 
     private void showSessionError(
             SecurityException error) {
 
         statusLabel.setText(
                 error.getMessage()
-                        + " Please use Logout to return to sign in."
+                        + " Please use Logout "
+                        + "to return to sign in."
         );
 
         contentScroll.setVvalue(1);

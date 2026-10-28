@@ -12,86 +12,78 @@ import javafx.scene.layout.BorderPane;
 import javafx.stage.FileChooser;
 
 import lk.ac.ruhuna.ftms.model.Medical;
-import lk.ac.ruhuna.ftms.service.MedicalService;
+import lk.ac.ruhuna.ftms.model.User;
+import lk.ac.ruhuna.ftms.service.TechnicalOfficerMedicalService;
+import lk.ac.ruhuna.ftms.util.NavigationUtil;
+import lk.ac.ruhuna.ftms.util.SessionManager;
+import lk.ac.ruhuna.ftms.util.SessionManager.SessionIdentity;
 
 import java.io.File;
+import java.io.IOException;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.function.Consumer;
 
-public class MedicalController {
+/**
+ * Technical Officer Medical Management.
+ * Only medical records within the officer's
+ * authorized department are accessible.
+ */
+public final class MedicalController {
 
-    // Main layout
+    // ======================================
+    // FXML FIELDS
+    // ======================================
 
-    @FXML
-    private BorderPane medicalRoot;
+    @FXML private BorderPane medicalRoot;
 
-    // Medical information fields
+    @FXML private TextField medicalIdField;
+    @FXML private TextField studentIdField;
+    @FXML private TextField offeringIdField;
 
-    @FXML
-    private TextField medicalIdField;
+    @FXML private DatePicker fromDatePicker;
+    @FXML private DatePicker toDatePicker;
 
-    @FXML
-    private TextField studentIdField;
+    @FXML private TextArea reasonArea;
+    @FXML private TextField documentPathField;
+    @FXML private TextArea reviewNoteArea;
 
-    @FXML
-    private TextField offeringIdField;
+    @FXML private TableView<Medical> medicalTable;
 
-    @FXML
-    private DatePicker fromDatePicker;
+    @FXML private TableColumn<Medical, Integer> medicalIdColumn;
+    @FXML private TableColumn<Medical, Integer> studentIdColumn;
+    @FXML private TableColumn<Medical, String> periodColumn;
+    @FXML private TableColumn<Medical, String> reasonColumn;
+    @FXML private TableColumn<Medical, String> statusColumn;
 
-    @FXML
-    private DatePicker toDatePicker;
+    @FXML private Label statusLabel;
 
-    @FXML
-    private TextArea reasonArea;
+    // ======================================
+    // SERVICE AND SESSION
+    // ======================================
 
-    @FXML
-    private TextField documentPathField;
-
-    // Medical review fields
-
-    @FXML
-    private TextField reviewerIdField;
-
-    @FXML
-    private TextArea reviewNoteArea;
-
-    // Medical records table
-
-    @FXML
-    private TableView<Medical> medicalTable;
-
-    @FXML
-    private TableColumn<Medical, Integer> medicalIdColumn;
-
-    @FXML
-    private TableColumn<Medical, Integer> studentIdColumn;
-
-    @FXML
-    private TableColumn<Medical, String> periodColumn;
-
-    @FXML
-    private TableColumn<Medical, String> reasonColumn;
-
-    @FXML
-    private TableColumn<Medical, String> statusColumn;
-
-    @FXML
-    private Label statusLabel;
-
-    // Service layer
-
-    private final MedicalService medicalService =
-            new MedicalService();
-
-    private final ObservableList<Medical> medicalRecords =
+    private final ObservableList<Medical> records =
             FXCollections.observableArrayList();
 
-    // Initialize table
+    private SessionIdentity loginIdentity;
+
+    private TechnicalOfficerMedicalService service;
+
+    private boolean busy;
+
+    // ======================================
+    // INITIALIZE
+    // ======================================
 
     @FXML
     public void initialize() {
+
+        loginIdentity = SessionManager.requireSession();
+
+        requireOfficer();
+
+        service = new TechnicalOfficerMedicalService();
 
         medicalIdColumn.setCellValueFactory(
                 cell -> new SimpleIntegerProperty(
@@ -115,379 +107,630 @@ public class MedicalController {
 
         reasonColumn.setCellValueFactory(
                 cell -> new SimpleStringProperty(
-                        safeText(cell.getValue().getReason())
+                        safe(cell.getValue().getReason())
                 )
         );
 
         statusColumn.setCellValueFactory(
                 cell -> new SimpleStringProperty(
-                        safeText(cell.getValue().getStatus())
+                        safe(cell.getValue().getStatus())
                 )
         );
 
-        medicalTable.setItems(medicalRecords);
+        medicalTable.setItems(records);
+
+        medicalTable.setPlaceholder(
+                new Label("No medical records found.")
+        );
 
         medicalTable.getSelectionModel()
                 .selectedItemProperty()
-                .addListener((observable, oldValue, selected) -> {
+                .addListener((obs, oldRow, row) -> {
 
-                    if (selected != null) {
-                        displayMedical(selected);
+                    if (row != null) {
+                        displayMedical(row);
                     }
                 });
 
-        statusLabel.setText("Medical Management Ready");
+        handleLoadAllMedicals();
     }
 
-    // Submit a new medical request
+    // ======================================
+    // TECHNICAL OFFICER AUTHORIZATION
+    // ======================================
+
+    private User requireOfficer() {
+
+        SessionManager.requireSession(loginIdentity);
+
+        User user = SessionManager.getCurrentUser();
+
+        if (user == null
+                || !user.isActive()
+                || !"TECHNICAL_OFFICER".equals(user.getRole())
+                || user.getUserId() != loginIdentity.userId()) {
+
+            throw new SecurityException(
+                    "Active Technical Officer login required."
+            );
+        }
+
+        return user;
+    }
+
+    // ======================================
+    // CREATE MEDICAL
+    // ======================================
 
     @FXML
     private void handleSubmitMedical() {
 
         try {
 
-            Medical medical = buildMedicalFromForm();
+            requireOfficer();
+
+            if (medicalIdField.getText() != null
+                    && !medicalIdField.getText().isBlank()) {
+
+                throw new IllegalArgumentException(
+                        "Clear the form before creating a new medical record."
+                );
+            }
+
+            Medical medical = readMedicalForm();
 
             runTask(
-                    () -> medicalService.submitMedical(medical),
+                    "Saving medical...",
+
+                    () -> service.createMedical(medical),
+
                     saved -> {
 
                         updateTableRow(saved);
 
                         statusLabel.setText(
-                                "Medical submitted successfully. ID: "
+                                "Created medical #"
                                         + saved.getMedicalId()
                         );
                     }
             );
 
-        } catch (IllegalArgumentException e) {
-            showError(e.getMessage());
+        } catch (IllegalArgumentException | SecurityException error) {
+
+            showError(error.getMessage());
         }
     }
 
-    // Update a pending medical
+    // ======================================
+    // UPDATE PENDING MEDICAL
+    // ======================================
 
     @FXML
     private void handleUpdateMedical() {
 
         try {
 
-            int medicalId = requiredId(
+            requireOfficer();
+
+            int id = requiredId(
                     medicalIdField,
                     "Medical ID"
             );
 
-            Medical medical = buildMedicalFromForm();
-            medical.setMedicalId(medicalId);
+            Medical medical = readMedicalForm();
+
+            medical.setMedicalId(id);
 
             runTask(
-                    () -> {
+                    "Updating medical...",
 
-                        boolean updated =
-                                medicalService.updatePendingMedical(
-                                        medical
-                                );
-
-                        if (!updated) {
-                            throw new IllegalStateException(
-                                    "Medical could not be updated."
-                            );
-                        }
-
-                        return medicalService.getMedicalById(
-                                medicalId
-                        );
-                    },
+                    () -> service.updatePendingMedical(medical),
 
                     updated -> {
 
                         updateTableRow(updated);
 
                         statusLabel.setText(
-                                "Medical updated successfully."
+                                "Updated medical #" + id
                         );
                     }
             );
 
-        } catch (IllegalArgumentException e) {
-            showError(e.getMessage());
+        } catch (IllegalArgumentException | SecurityException error) {
+
+            showError(error.getMessage());
         }
     }
 
-    // Search a medical by ID
+    // ======================================
+    // FIND MEDICAL BY ID
+    // ======================================
 
     @FXML
     private void handleFindMedical() {
 
         try {
 
-            int medicalId = requiredId(
+            requireOfficer();
+
+            int id = requiredId(
                     medicalIdField,
                     "Medical ID"
             );
 
             runTask(
-                    () -> medicalService.getMedicalById(
-                            medicalId
-                    ),
+                    "Finding medical...",
 
-                    medical -> {
+                    () -> service.getMedical(id),
 
-                        medicalRecords.clear();
-
-                        if (medical == null) {
-
-                            statusLabel.setText(
-                                    "Medical record not found."
-                            );
-
-                            return;
-                        }
-
-                        medicalRecords.add(medical);
+                    result -> {
 
                         medicalTable.getSelectionModel()
-                                .select(medical);
+                                .clearSelection();
 
-                        statusLabel.setText(
-                                "Medical record found."
-                        );
+                        records.clear();
+
+                        if (result == null) {
+
+                            statusLabel.setText(
+                                    "Medical not found in your department."
+                            );
+
+                        } else {
+
+                            records.add(result);
+
+                            medicalTable.getSelectionModel()
+                                    .select(result);
+
+                            statusLabel.setText(
+                                    "Medical #" + id + " loaded."
+                            );
+                        }
                     }
             );
 
-        } catch (IllegalArgumentException e) {
-            showError(e.getMessage());
+        } catch (IllegalArgumentException | SecurityException error) {
+
+            showError(error.getMessage());
         }
     }
 
-    // Load medical records of one student
+    // ======================================
+    // LOAD STUDENT MEDICALS
+    // ======================================
 
     @FXML
     private void handleLoadStudentMedicals() {
 
         try {
 
-            int studentId = requiredId(
+            requireOfficer();
+
+            int id = requiredId(
                     studentIdField,
                     "Student ID"
             );
 
             runTask(
-                    () -> medicalService.getMedicalsByStudent(
-                            studentId
-                    ),
+                    "Loading student medicals...",
 
-                    records -> {
+                    () -> service.getStudentMedicals(id),
 
-                        medicalRecords.setAll(records);
-
-                        statusLabel.setText(
-                                "Loaded "
-                                        + records.size()
-                                        + " medical records."
-                        );
-                    }
+                    this::displayRecords
             );
 
-        } catch (IllegalArgumentException e) {
-            showError(e.getMessage());
+        } catch (IllegalArgumentException | SecurityException error) {
+
+            showError(error.getMessage());
         }
     }
 
-    // Load all records.
-    // Staff authorization must be added before deployment.
+    // ======================================
+    // LOAD DEPARTMENT MEDICALS
+    // ======================================
 
     @FXML
     private void handleLoadAllMedicals() {
 
         runTask(
-                medicalService::getAllMedicals,
+                "Loading department medicals...",
 
-                records -> {
+                service::getDepartmentMedicals,
 
-                    medicalRecords.setAll(records);
-
-                    statusLabel.setText(
-                            "Loaded "
-                                    + records.size()
-                                    + " medical records."
-                    );
-                }
+                this::displayRecords
         );
     }
 
-    // Approve a pending medical
+    // ======================================
+    // APPROVE MEDICAL
+    // ======================================
 
     @FXML
     private void handleApproveMedical() {
-        reviewMedical(true);
+
+        review(true);
     }
 
-    // Reject a pending medical
+    // ======================================
+    // REJECT MEDICAL
+    // ======================================
 
     @FXML
     private void handleRejectMedical() {
-        reviewMedical(false);
+
+        review(false);
     }
 
-    // Common approve/reject operation
+    // ======================================
+    // COMMON REVIEW METHOD
+    // ======================================
 
-    private void reviewMedical(boolean approve) {
+    private void review(boolean approve) {
 
         try {
 
-            int medicalId = requiredId(
+            requireOfficer();
+
+            int id = requiredId(
                     medicalIdField,
                     "Medical ID"
             );
 
-            int reviewerId = requiredId(
-                    reviewerIdField,
-                    "Reviewer ID"
-            );
+            String action = approve ? "approve" : "reject";
+
+            if (!confirm(
+                    "Do you want to "
+                            + action
+                            + " medical #"
+                            + id
+                            + "?")) {
+
+                return;
+            }
 
             String note = reviewNoteArea.getText();
 
             runTask(
-                    () -> {
+                    "Reviewing medical...",
 
-                        if (approve) {
-
-                            medicalService.approveMedical(
-                                    medicalId,
-                                    reviewerId,
-                                    note
-                            );
-
-                        } else {
-
-                            medicalService.rejectMedical(
-                                    medicalId,
-                                    reviewerId,
-                                    note
-                            );
-                        }
-
-                        return medicalService.getMedicalById(
-                                medicalId
-                        );
-                    },
+                    () -> approve
+                            ? service.approveMedical(id, note)
+                            : service.rejectMedical(id, note),
 
                     reviewed -> {
 
                         updateTableRow(reviewed);
 
                         statusLabel.setText(
-                                approve
-                                        ? "Medical approved successfully."
-                                        : "Medical rejected successfully."
+                                "Medical #" + id
+                                        + (approve
+                                        ? " approved."
+                                        : " rejected.")
                         );
                     }
             );
 
-        } catch (IllegalArgumentException e) {
-            showError(e.getMessage());
+        } catch (IllegalArgumentException | SecurityException error) {
+
+            showError(error.getMessage());
         }
     }
 
-    // Delete a pending medical
+    // ======================================
+    // DELETE PENDING MEDICAL
+    // ======================================
 
     @FXML
     private void handleDeleteMedical() {
 
         try {
 
-            int medicalId = requiredId(
+            requireOfficer();
+
+            int id = requiredId(
                     medicalIdField,
                     "Medical ID"
             );
 
-            int studentId = requiredId(
-                    studentIdField,
-                    "Student ID"
-            );
+            if (!confirm(
+                    "Permanently delete PENDING medical #"
+                            + id + "?")) {
+
+                return;
+            }
 
             runTask(
+                    "Deleting medical...",
+
                     () -> {
 
-                        boolean deleted =
-                                medicalService.deletePendingMedical(
-                                        medicalId,
-                                        studentId
-                                );
+                        service.deletePendingMedical(id);
 
-                        if (!deleted) {
-                            throw new IllegalStateException(
-                                    "Medical could not be deleted."
-                            );
-                        }
-
-                        return medicalId;
+                        return id;
                     },
 
-                    deletedId -> {
+                    deleted -> {
 
-                        medicalRecords.removeIf(
-                                medical ->
-                                        medical.getMedicalId()
-                                                == deletedId
+                        records.removeIf(
+                                m -> m.getMedicalId() == deleted
                         );
+
+                        medicalTable.getSelectionModel()
+                                .clearSelection();
 
                         clearForm();
 
                         statusLabel.setText(
-                                "Medical deleted successfully."
+                                "Deleted medical #" + deleted
                         );
                     }
             );
 
-        } catch (IllegalArgumentException e) {
-            showError(e.getMessage());
+        } catch (IllegalArgumentException | SecurityException error) {
+
+            showError(error.getMessage());
         }
     }
 
-    // Browse supporting document
+    // ======================================
+    // BROWSE MEDICAL DOCUMENT
+    // ======================================
 
     @FXML
     private void handleBrowseDocument() {
 
-        FileChooser chooser = new FileChooser();
+        try {
 
-        chooser.setTitle("Select Medical Document");
+            requireOfficer();
 
-        chooser.getExtensionFilters().add(
-                new FileChooser.ExtensionFilter(
-                        "Documents",
-                        "*.pdf",
-                        "*.jpg",
-                        "*.jpeg",
-                        "*.png"
-                )
-        );
+            FileChooser chooser = new FileChooser();
 
-        File selected = chooser.showOpenDialog(
-                documentPathField.getScene().getWindow()
-        );
+            chooser.setTitle("Select Medical Document");
 
-        if (selected != null) {
-
-            documentPathField.setText(
-                    selected.getAbsolutePath()
+            chooser.getExtensionFilters().add(
+                    new FileChooser.ExtensionFilter(
+                            "PDF and image files",
+                            "*.pdf",
+                            "*.png",
+                            "*.jpg",
+                            "*.jpeg"
+                    )
             );
+
+            File selected = chooser.showOpenDialog(
+                    medicalRoot.getScene() == null
+                            ? null
+                            : medicalRoot.getScene().getWindow()
+            );
+
+            if (selected != null) {
+
+                documentPathField.setText(
+                        selected.getAbsolutePath()
+                );
+            }
+
+        } catch (SecurityException error) {
+
+            showError(error.getMessage());
         }
     }
 
-    // Clear input fields
+    // ======================================
+    // CLEAR FORM
+    // ======================================
 
     @FXML
     private void handleClear() {
 
-        medicalTable.getSelectionModel().clearSelection();
+        try {
 
-        clearForm();
+            requireOfficer();
 
-        statusLabel.setText("Form cleared.");
+            medicalTable.getSelectionModel()
+                    .clearSelection();
+
+            clearForm();
+
+            statusLabel.setText("Form cleared.");
+
+        } catch (SecurityException error) {
+
+            showError(error.getMessage());
+        }
+    }
+
+    // ======================================
+    // BACK TO TO DASHBOARD
+    // ======================================
+
+    @FXML
+    private void handleBack() {
+
+        try {
+
+            requireOfficer();
+
+            NavigationUtil.navigate(
+                    medicalRoot,
+                    "/fxml/technical_officer_dashboard.fxml",
+                    "FTMS - Technical Officer Dashboard"
+            );
+
+        } catch (IOException | RuntimeException error) {
+
+            showError(
+                    "Unable to open Technical Officer Dashboard: "
+                            + error.getMessage()
+            );
+        }
+    }
+
+    // ======================================
+    // READ FORM DATA
+    // ======================================
+
+    private Medical readMedicalForm() {
+
+        int studentId = requiredId(
+                studentIdField,
+                "Student ID"
+        );
+
+        Integer offeringId = optionalId(
+                offeringIdField,
+                "Offering ID"
+        );
+
+        LocalDate from = fromDatePicker.getValue();
+        LocalDate to = toDatePicker.getValue();
+
+        if (from == null
+                || to == null
+                || from.isAfter(to)) {
+
+            throw new IllegalArgumentException(
+                    "Select a valid From Date and To Date."
+            );
+        }
+
+        return new Medical(
+                studentId,
+                offeringId,
+                from,
+                to,
+                reasonArea.getText(),
+                documentPathField.getText()
+        );
+    }
+
+    // ======================================
+    // DISPLAY SELECTED MEDICAL
+    // ======================================
+
+    private void displayMedical(Medical medical) {
+
+        medicalIdField.setText(
+                Integer.toString(medical.getMedicalId())
+        );
+
+        studentIdField.setText(
+                Integer.toString(medical.getStudentId())
+        );
+
+        offeringIdField.setText(
+                medical.getOfferingId() == null
+                        ? ""
+                        : medical.getOfferingId().toString()
+        );
+
+        fromDatePicker.setValue(
+                medical.getFromDate()
+        );
+
+        toDatePicker.setValue(
+                medical.getToDate()
+        );
+
+        reasonArea.setText(
+                safe(medical.getReason())
+        );
+
+        documentPathField.setText(
+                safe(medical.getDocumentPath())
+        );
+
+        reviewNoteArea.setText(
+                safe(medical.getReviewNote())
+        );
+    }
+
+    // ======================================
+    // DISPLAY MEDICAL RECORDS
+    // ======================================
+
+    private void displayRecords(List<Medical> items) {
+
+        medicalTable.getSelectionModel()
+                .clearSelection();
+
+        records.setAll(items);
+
+        statusLabel.setText(
+                "Loaded " + items.size()
+                        + " department medical record(s)."
+        );
+    }
+
+    // ======================================
+    // ADD OR REPLACE TABLE ROW
+    // ======================================
+
+    private void updateTableRow(Medical medical) {
+
+        if (medical == null) {
+            return;
+        }
+
+        for (int i = 0; i < records.size(); i++) {
+
+            if (records.get(i).getMedicalId()
+                    == medical.getMedicalId()) {
+
+                records.set(i, medical);
+
+                medicalTable.getSelectionModel()
+                        .select(medical);
+
+                return;
+            }
+        }
+
+        records.add(0, medical);
+
+        medicalTable.getSelectionModel()
+                .select(medical);
+    }
+
+    // ======================================
+    // ID VALIDATION
+    // ======================================
+
+    private static int requiredId(
+            TextField field,
+            String label) {
+
+        try {
+
+            int id = Integer.parseInt(
+                    field.getText().strip()
+            );
+
+            if (id > 0) {
+                return id;
+            }
+
+        } catch (NullPointerException | NumberFormatException ignored) {
+            // Use the consistent validation message below.
+        }
+
+        throw new IllegalArgumentException(
+                "Enter a valid positive " + label + "."
+        );
+    }
+
+    private static Integer optionalId(
+            TextField field,
+            String label) {
+
+        if (field.getText() == null
+                || field.getText().isBlank()) {
+
+            return null;
+        }
+
+        return requiredId(field, label);
     }
 
     private void clearForm() {
@@ -501,213 +744,156 @@ public class MedicalController {
 
         reasonArea.clear();
         documentPathField.clear();
-
-        reviewerIdField.clear();
         reviewNoteArea.clear();
     }
 
-    // Create Medical object using form data
+    // ======================================
+    // DATABASE BACKGROUND TASK
+    // ======================================
 
-    private Medical buildMedicalFromForm() {
+    private <T> void runTask(
+            String message,
+            Callable<T> work,
+            Consumer<T> onSuccess) {
 
-        int studentId = requiredId(
-                studentIdField,
-                "Student ID"
-        );
-
-        Integer offeringId = optionalId(
-                offeringIdField,
-                "Offering ID"
-        );
-
-        return new Medical(
-                studentId,
-                offeringId,
-                fromDatePicker.getValue(),
-                toDatePicker.getValue(),
-                reasonArea.getText(),
-                documentPathField.getText()
-        );
-    }
-
-    // Display selected medical in form
-
-    private void displayMedical(Medical medical) {
-
-        medicalIdField.setText(
-                String.valueOf(medical.getMedicalId())
-        );
-
-        studentIdField.setText(
-                String.valueOf(medical.getStudentId())
-        );
-
-        offeringIdField.setText(
-                medical.getOfferingId() == null
-                        ? ""
-                        : String.valueOf(medical.getOfferingId())
-        );
-
-        fromDatePicker.setValue(
-                medical.getFromDate()
-        );
-
-        toDatePicker.setValue(
-                medical.getToDate()
-        );
-
-        reasonArea.setText(
-                safeText(medical.getReason())
-        );
-
-        documentPathField.setText(
-                safeText(medical.getDocumentPath())
-        );
-
-        reviewNoteArea.setText(
-                safeText(medical.getReviewNote())
-        );
-    }
-
-    // Add or refresh one table row
-
-    private void updateTableRow(Medical medical) {
-
-        if (medical == null) {
+        if (busy) {
             return;
         }
 
-        for (int i = 0; i < medicalRecords.size(); i++) {
-
-            if (medicalRecords.get(i).getMedicalId()
-                    == medical.getMedicalId()) {
-
-                medicalRecords.set(i, medical);
-
-                medicalTable.getSelectionModel()
-                        .select(medical);
-
-                return;
-            }
-        }
-
-        medicalRecords.add(0, medical);
-
-        medicalTable.getSelectionModel()
-                .select(medical);
-    }
-
-    // Required positive ID validation
-
-    private int requiredId(
-            TextField field,
-            String fieldName) {
-
         try {
 
-            int id = Integer.parseInt(
-                    field.getText().trim()
-            );
+            requireOfficer();
 
-            if (id <= 0) {
-                throw new NumberFormatException();
-            }
+        } catch (SecurityException error) {
 
-            return id;
-
-        } catch (NumberFormatException e) {
-
-            throw new IllegalArgumentException(
-                    "Enter a valid " + fieldName + "."
-            );
-        }
-    }
-
-    // Optional positive ID validation
-
-    private Integer optionalId(
-            TextField field,
-            String fieldName) {
-
-        if (field.getText() == null
-                || field.getText().isBlank()) {
-            return null;
+            showError(error.getMessage());
+            return;
         }
 
-        return requiredId(field, fieldName);
-    }
-
-    // Execute database work outside JavaFX UI thread
-
-    private <T> void runTask(
-            Callable<T> operation,
-            Consumer<T> onSuccess) {
+        busy = true;
 
         medicalRoot.setDisable(true);
-        statusLabel.setText("Processing...");
+
+        statusLabel.setText(message);
 
         Task<T> task = new Task<>() {
 
             @Override
             protected T call() throws Exception {
-                return operation.call();
+
+                return work.call();
             }
         };
 
         task.setOnSucceeded(event -> {
 
+            busy = false;
             medicalRoot.setDisable(false);
-            onSuccess.accept(task.getValue());
+
+            try {
+
+                requireOfficer();
+
+                onSuccess.accept(task.getValue());
+
+            } catch (SecurityException error) {
+
+                records.clear();
+                clearForm();
+
+                showError(error.getMessage());
+
+            } catch (RuntimeException error) {
+
+                showError(error.getMessage());
+            }
         });
 
         task.setOnFailed(event -> {
 
+            busy = false;
             medicalRoot.setDisable(false);
 
             Throwable error = task.getException();
 
-            String message =
+            if (error != null) {
+                error.printStackTrace();
+            }
+
+            if (error instanceof SecurityException) {
+
+                records.clear();
+                clearForm();
+            }
+
+            showError(
                     error == null
                             ? "Unknown database error."
-                            : error.getMessage();
-
-            showError(message);
+                            : error.getMessage()
+            );
         });
 
-        Thread thread = new Thread(
+        Thread worker = new Thread(
                 task,
-                "medical-database-task"
+                "ftms-officer-medicals"
         );
 
-        thread.setDaemon(true);
-        thread.start();
+        worker.setDaemon(true);
+        worker.start();
     }
 
-    // Prevent null text values
+    // ======================================
+    // CONFIRM ACTION
+    // ======================================
 
-    private String safeText(String value) {
-        return value == null ? "" : value;
+    private boolean confirm(String question) {
+
+        Alert alert = new Alert(
+                Alert.AlertType.CONFIRMATION,
+                question,
+                ButtonType.YES,
+                ButtonType.NO
+        );
+
+        alert.setTitle("Confirm Medical Action");
+        alert.setHeaderText(null);
+
+        return alert.showAndWait()
+                .filter(ButtonType.YES::equals)
+                .isPresent();
     }
 
-    // Show error message
+    // ======================================
+    // ERROR MESSAGE
+    // ======================================
 
     private void showError(String message) {
 
-        String text = message == null
-                || message.isBlank()
-                ? "An unexpected error occurred."
-                : message;
+        String text =
+                message == null || message.isBlank()
+                        ? "An unexpected error occurred."
+                        : message;
 
-        statusLabel.setText("Error: " + text);
-
-        Alert alert = new Alert(
-                Alert.AlertType.ERROR
+        statusLabel.setText(
+                "Error: " + text
         );
 
-        alert.setTitle("Medical Management Error");
-        alert.setHeaderText(null);
-        alert.setContentText(text);
+        Alert alert = new Alert(
+                Alert.AlertType.ERROR,
+                text,
+                ButtonType.OK
+        );
 
+        alert.setTitle(
+                "Technical Officer Medical Management"
+        );
+
+        alert.setHeaderText(null);
         alert.showAndWait();
+    }
+
+    private static String safe(String value) {
+
+        return value == null ? "" : value;
     }
 }
