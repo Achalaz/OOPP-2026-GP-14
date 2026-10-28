@@ -133,4 +133,16 @@ public class AdminDashboardController {
         alert.setHeaderText(null);
         alert.showAndWait();
     }
+
+
+    @FXML
+    private void handleCourseOfferings() {
+        navigate("course_offerings.fxml");
+    }
+
+    @FXML
+    private void handleEnrollments() {
+        navigate("admin_enrollments.fxml");
+    }
+
 }

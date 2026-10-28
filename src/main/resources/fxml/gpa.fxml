@@ -6,6 +6,8 @@
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.TableColumn?>
 <?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.ProgressIndicator?>
+<?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.HBox?>
@@ -38,13 +40,15 @@
                    style="-fx-text-fill: white;
                           -fx-font-size: 22px;
                           -fx-font-weight: bold;"/>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Button id="logoutButton" text="Logout" onAction="#handleLogout"/>
 
         </HBox>
     </top>
 
     <!-- MAIN CONTENT -->
     <center>
-
+        <ScrollPane fitToWidth="true" fitToHeight="true">
         <VBox spacing="18"
               style="-fx-padding: 22;">
 
@@ -87,6 +91,9 @@
                               GridPane.columnIndex="3"/>
 
                 </GridPane>
+
+                <Label fx:id="includedCreditsLabel" wrapText="true"/>
+                <Label fx:id="savedStateLabel" wrapText="true"/>
 
             </VBox>
 
@@ -203,7 +210,7 @@
                               -fx-font-weight: bold;"/>
 
                 <TableView fx:id="courseTable"
-                           VBox.vgrow="ALWAYS">
+                           VBox.vgrow="ALWAYS" minHeight="180">
 
                     <columns>
 
@@ -285,15 +292,15 @@
 
                 <Region HBox.hgrow="ALWAYS"/>
 
-                <Label fx:id="statusLabel"
-                       text="Select a student."
-                       style="-fx-text-fill: #4b5563;
-                              -fx-font-style: italic;"/>
-
+            </HBox>
+            <HBox spacing="10" alignment="CENTER_LEFT">
+                <ProgressIndicator fx:id="progressIndicator" prefWidth="20" prefHeight="20" maxWidth="20" maxHeight="20"/>
+                <Label fx:id="statusLabel" text="Select a student." wrapText="true" maxWidth="Infinity"
+                       style="-fx-text-fill: #4b5563; -fx-font-style: italic;"/>
             </HBox>
 
         </VBox>
-
+        </ScrollPane>
     </center>
 
 </BorderPane>

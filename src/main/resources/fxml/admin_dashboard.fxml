@@ -11,6 +11,8 @@
             prefHeight="750">
 
     <left>
+        <ScrollPane fitToWidth="true" fitToHeight="true" prefWidth="245"
+                    hbarPolicy="NEVER" style="-fx-background-color: #142B4E; -fx-padding: 0;">
         <VBox prefWidth="245" styleClass="sidebar">
 
             <Label text="FTMS" styleClass="brand-title"/>
@@ -34,6 +36,14 @@
                     styleClass="nav-button"
                     onAction="#handleCourses"/>
 
+            <Button text="▤  Course Offerings"
+                    maxWidth="Infinity"
+                    styleClass="nav-button"
+                    onAction="#handleCourseOfferings"/>
+
+            <Button text="Student Enrollments" maxWidth="Infinity"
+                    styleClass="nav-button" onAction="#handleEnrollments"/>
+
             <Button text="✉  Notices"
                     maxWidth="Infinity"
                     styleClass="nav-button"
@@ -56,6 +66,7 @@
                     styleClass="logout-button"
                     onAction="#handleLogout"/>
         </VBox>
+        </ScrollPane>
     </left>
 
     <center>
@@ -149,6 +160,31 @@
                                     onAction="#handleTimetables"/>
                         </VBox>
 
+                        <VBox styleClass="dashboard-card"
+                              GridPane.columnIndex="0"
+                              GridPane.rowIndex="2">
+
+                            <Label text="▤" style="-fx-font-size: 32px;"/>
+                            <Label text="Course Offerings"
+                                   styleClass="card-title"/>
+
+                            <Label text="Manage semester course offerings, groups and offering statuses."
+                                   styleClass="card-description"
+                                   wrapText="true"/>
+
+                            <Button text="Manage Course Offerings"
+                                    styleClass="card-button"
+                                    wrapText="true"
+                                    onAction="#handleCourseOfferings"/>
+                        </VBox>
+
+                        <VBox styleClass="dashboard-card" GridPane.columnIndex="1" GridPane.rowIndex="2">
+                            <Label text="Student Enrollments" styleClass="card-title"/>
+                            <Label text="Enroll students in course offerings and manage enrollment status."
+                                   styleClass="card-description" wrapText="true"/>
+                            <Button text="Manage Student Enrollments" styleClass="card-button"
+                                    wrapText="true" onAction="#handleEnrollments"/>
+                        </VBox>
                     </GridPane>
 
                 </VBox>

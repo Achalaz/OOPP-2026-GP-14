@@ -23,6 +23,9 @@ public class LecturerWorkspaceController {
     @FXML private TextArea description;
     @FXML private ComboBox<String> materialType;
     @FXML private ComboBox<CourseMaterial> materials;
+    @FXML private TableView<CourseMaterial> materialTable;
+    @FXML private Label materialDetails;
+    @FXML private Button saveMaterialButton,chooseFileButton;
     @FXML private TableView<List<String>> table;
     @FXML private HBox markEditor;
     @FXML private VBox materialEditor;
@@ -33,6 +36,7 @@ public class LecturerWorkspaceController {
     private String mode;
     private Path upload;
     private boolean busy,disposed;
+    private boolean materialSaved;
     private Task<?> task;
     public LecturerWorkspaceController() {
         this(new LecturerViewService(), new CourseMaterialService());
@@ -51,7 +55,22 @@ public class LecturerWorkspaceController {
             var m=materials.getValue();upload=null;fileLabel.setText("No replacement selected");
             materialTitle.setText(m==null?"":m.title());description.setText(m==null?"":m.description());
             materialType.setValue(m==null?"LECTURE_NOTE":m.materialType());
+            boolean readOnly=m!=null && m.uploadedBy()!=identity.userId();
+            materialTitle.setEditable(!readOnly);description.setEditable(!readOnly);
+            materialType.setDisable(readOnly);chooseFileButton.setDisable(readOnly);saveMaterialButton.setDisable(readOnly);
+            materialDetails.setText(m==null?"New material":m.availability()+" | "+
+                    (readOnly?"Only the original uploader may edit this material.":"You may edit this material."));
+            if(m!=materialTable.getSelectionModel().getSelectedItem()) materialTable.getSelectionModel().select(m);
         });
+        materialTable.getSelectionModel().selectedItemProperty().addListener((o,a,b)->{
+            if(b!=materials.getValue()) materials.setValue(b);
+        });
+        materialColumn("Title",CourseMaterial::title,180);
+        materialColumn("Type",CourseMaterial::materialType,130);
+        materialColumn("Description",CourseMaterial::description,220);
+        materialColumn("Uploader",m->m.uploaderName()==null || m.uploaderName().isBlank()?"User #"+m.uploadedBy():m.uploaderName(),140);
+        materialColumn("Uploaded",m->Objects.toString(m.uploadedAt(),"Unavailable"),160);
+        materialColumn("File status",CourseMaterial::availability,240);
         table.getSelectionModel().selectedItemProperty().addListener((o,a,b)->{
             if("marks".equals(mode) && b!=null) markValue.setText("—".equals(b.get(7))?"":b.get(7));
         });
@@ -63,13 +82,30 @@ public class LecturerWorkspaceController {
         materialEditor.setVisible("materials".equals(mode));materialEditor.setManaged(materialEditor.isVisible());
         table.setVisible(!materialEditor.isVisible());table.setManaged(table.isVisible());
         run(service::offerings,rows->{offering.setItems(FXCollections.observableArrayList(rows));
-            message.setText(rows.isEmpty()?"No assigned courses. Ask the administrator to verify lecturer course assignments.":"Choose an assigned course.");});
+            message.setText(rows.isEmpty()?"No assigned courses. Contact the administrator.":"Choose an assigned course.");});
+    }
+    private void materialColumn(String title,java.util.function.Function<CourseMaterial,String> value,int width) {
+        var column=new TableColumn<CourseMaterial,String>(title);
+        column.setCellValueFactory(c->new ReadOnlyStringWrapper(Objects.toString(value.apply(c.getValue()),"")));
+        column.setPrefWidth(width);materialTable.getColumns().add(column);
     }
     @FXML private void reload() {
         if(busy || offering.getValue()==null)return;
         table.setItems(FXCollections.observableArrayList());markValue.clear();
         int id=offering.getValue().offeringId();
-        if("materials".equals(mode)) run(()->materialService.list(id),rows->{materials.setItems(FXCollections.observableArrayList(rows));newMaterial();message.setText(rows.size()+" materials. Select one to view/edit or upload a new file.");});
+        if("materials".equals(mode)) {
+            materials.setItems(FXCollections.observableArrayList());materialTable.setItems(FXCollections.observableArrayList());newMaterial();
+            run(()->materialService.list(id),rows->{
+                var filtered=new FilteredList<>(FXCollections.observableArrayList(rows));
+                filtered.predicateProperty().bind(javafx.beans.binding.Bindings.createObjectBinding(()->m->
+                    (m.title()+" "+m.materialType()+" "+Objects.toString(m.description(),"")+" "+Objects.toString(m.uploaderName(),""))
+                        .toLowerCase(Locale.ROOT).contains(search.getText().toLowerCase(Locale.ROOT)),search.textProperty()));
+                materials.setItems(filtered);materialTable.setItems(filtered);newMaterial();
+                message.setText((materialSaved?"Material saved successfully. ":"")+
+                    (rows.isEmpty()?"No materials for this offering. Choose New Material to upload.":rows.size()+" materials. Select one to view or download."));
+                materialSaved=false;
+            });
+        }
         else run(()->service.load(mode,id),data->{
             table.getColumns().clear();
             for(int i=0;i<data.columns().size();i++) {
@@ -100,9 +136,13 @@ public class LecturerWorkspaceController {
     @FXML private void newMaterial() {
         materials.getSelectionModel().clearSelection();materialTitle.clear();description.clear();
         materialType.setValue("LECTURE_NOTE");upload=null;fileLabel.setText("No file selected");
+        materialTable.getSelectionModel().clearSelection();
+        materialTitle.setEditable(true);description.setEditable(true);materialType.setDisable(false);
+        chooseFileButton.setDisable(false);saveMaterialButton.setDisable(false);materialDetails.setText("New material");
     }
     @FXML private void chooseFile() {
         var chooser=new FileChooser();chooser.setTitle("Upload course material (maximum 20 MiB)");
+        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Course materials", "*.pdf","*.txt","*.png","*.jpg","*.jpeg","*.docx","*.pptx","*.xlsx","*.zip"));
         var file=chooser.showOpenDialog(workspaceRoot.getScene().getWindow());
         if(file!=null){upload=file.toPath();fileLabel.setText(file.getName());}
     }
@@ -110,7 +150,9 @@ public class LecturerWorkspaceController {
         if(offering.getValue()==null){message.setText("Choose an assigned course.");return;}
         int offeringId=offering.getValue().offeringId();var current=materials.getValue();int id=current==null?0:current.materialId();
         String title=materialTitle.getText(),text=description.getText(),type=materialType.getValue();Path source=upload;
-        run(()->{materialService.save(offeringId,id,title,text,type,source);return true;},ok->reload());
+        run(()->{materialService.save(offeringId,id,title,text,type,source);return true;},ok->{
+            materialSaved=true;search.clear();reload();
+        });
     }
     @FXML private void download() {
         var current=materials.getValue();if(current==null){message.setText("Select a material.");return;}
@@ -129,23 +171,33 @@ public class LecturerWorkspaceController {
         if(logout) {
             SessionManager.logout();
             table.setItems(FXCollections.observableArrayList());
-            materials.getItems().clear();
+            materials.setItems(FXCollections.observableArrayList());
+            materialTable.setItems(FXCollections.observableArrayList());
             materialTitle.clear();description.clear();markValue.clear();
         }
         try{NavigationUtil.navigate(workspaceRoot,logout?"/fxml/login.fxml":NavigationUtil.dashboardResource(),logout?"FTMS - Login":"FTMS - Lecturer Dashboard");}
         catch(Exception e){message.setText("Unable to open screen. Please retry.");}
     }
     private <T> void run(Callable<T> work,Consumer<T> success) {
-        if(busy)return;SessionManager.requireSession(identity);setBusy(true);message.setText("Loading…");
-        Task<T> next=new Task<>(){@Override protected T call() throws Exception{return work.call();}};task=next;
-        next.setOnSucceeded(e->{if(disposed || !SessionManager.isCurrentSession(identity))return;setBusy(false);success.accept(next.getValue());});
-        next.setOnFailed(e->{if(disposed || !SessionManager.isCurrentSession(identity))return;setBusy(false);
+        if(busy)return;if(!checkSession())return;setBusy(true);message.setText("Loading…");
+        Task<T> next=new Task<>(){@Override protected T call() throws Exception{SessionManager.requireSession(identity);return work.call();}};task=next;
+        next.setOnSucceeded(e->{if(disposed || !checkSession())return;setBusy(false);success.accept(next.getValue());});
+        next.setOnFailed(e->{if(disposed || !checkSession())return;setBusy(false);
             var error=next.getException();message.setText(error instanceof SecurityException
                     || error instanceof IllegalArgumentException
                     || error instanceof lk.ac.ruhuna.ftms.exception.InvalidMarkException
                     || error instanceof java.io.IOException ? error.getMessage()
-                    :"Unable to complete request. Check database access, schema and lecturer assignments, then retry.");});
+                    :"Unable to complete request. Check database access, schema and lecturer assignments, then retry.");
+            if(materialSaved) {message.setText("Material was saved, but refreshing the list failed. Refresh to reload; do not upload again.");materialSaved=false;}
+        });
         var thread=new Thread(next,"lecturer-workspace");thread.setDaemon(true);thread.start();
+    }
+    private boolean checkSession() {
+        if(SessionManager.isCurrentSession(identity))return true;
+        setBusy(false);materialEditor.setDisable(true);offering.setDisable(true);refresh.setDisable(true);
+        materials.setItems(FXCollections.observableArrayList());materialTable.setItems(FXCollections.observableArrayList());
+        materialTitle.clear();description.clear();upload=null;
+        message.setText("Your session has ended. Please log out and sign in again.");return false;
     }
     private void setBusy(boolean value){busy=value;offering.setDisable(value);refresh.setDisable(value);markEditor.setDisable(value);materialEditor.setDisable(value);}
 }

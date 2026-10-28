@@ -93,9 +93,9 @@ public class MarkDAO {
         }
     }
 
-    // ---------------------------------------------------------
+
     // SAVE OR UPDATE MARK
-    // ---------------------------------------------------------
+    // -------------------------------------------------------
     public void saveOrUpdate(Mark mark) throws SQLException {
         saveLecturerMark(mark, lk.ac.ruhuna.ftms.util.SessionManager.requireSession());
     }

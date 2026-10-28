@@ -8,23 +8,23 @@
             fx:id="studentTimetableRoot"
             fx:controller="lk.ac.ruhuna.ftms.controller.StudentTimetableController"
             prefWidth="1110.0" prefHeight="740.0"
-            minWidth="720.0" minHeight="500.0"
+            minWidth="0.0" minHeight="0.0"
             style="-fx-background-color: #F3F6FB;">
 
     <top>
         <VBox spacing="0">
             <HBox alignment="CENTER_LEFT" spacing="18"
                   style="-fx-background-color: #102C4C; -fx-padding: 20 26;">
-                <VBox spacing="6">
+                <VBox spacing="6" minWidth="0" HBox.hgrow="ALWAYS">
                     <Label text="FTMS  /  STUDENT PORTAL"
                            style="-fx-text-fill: #B6CCE5; -fx-font-weight: bold; -fx-font-size: 12;"/>
-                    <Label text="My Weekly Timetable"
+                    <Label text="My Weekly Timetable" wrapText="true"
                            style="-fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 24;"/>
                     <Label fx:id="studentNameLabel" text="My Timetable"
                            style="-fx-text-fill: #DEEAF8; -fx-font-size: 13;"/>
                 </VBox>
                 <Region HBox.hgrow="ALWAYS"/>
-                <Button fx:id="backButton" text="Back to Dashboard"
+                <Button fx:id="backButton" text="Back to Dashboard" minWidth="-Infinity"
                         onAction="#handleBack"
                         style="-fx-background-color: #325778; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 11 15; -fx-background-radius: 7;"/>
             </HBox>
@@ -32,6 +32,8 @@
     </top>
 
     <center>
+        <ScrollPane fitToWidth="true" fitToHeight="true" hbarPolicy="AS_NEEDED" vbarPolicy="AS_NEEDED">
+        <content>
         <VBox spacing="16" style="-fx-padding: 24;">
             <VBox spacing="11"
                   style="-fx-background-color: white; -fx-background-radius: 11; -fx-padding: 18; -fx-border-color: #E0E7F0; -fx-border-radius: 11;">
@@ -58,7 +60,7 @@
                   style="-fx-background-color: white; -fx-background-radius: 11; -fx-padding: 18; -fx-border-color: #E0E7F0; -fx-border-radius: 11;">
                 <Label text="Timetable Entries"
                        style="-fx-text-fill: #102C4C; -fx-font-size: 18; -fx-font-weight: bold;"/>
-                <TableView fx:id="timetableTable" VBox.vgrow="ALWAYS"
+                <TableView fx:id="timetableTable" minWidth="0" VBox.vgrow="ALWAYS"
                            prefHeight="400" minHeight="240">
                     <columns>
                         <TableColumn fx:id="dayColumn" text="Day" prefWidth="110"/>
@@ -73,6 +75,8 @@
                 </TableView>
             </VBox>
         </VBox>
+        </content>
+        </ScrollPane>
     </center>
 
     <bottom>

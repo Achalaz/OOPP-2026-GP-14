@@ -5,7 +5,6 @@ import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
@@ -20,6 +19,7 @@ import lk.ac.ruhuna.ftms.model.AttendanceOffering;
 import lk.ac.ruhuna.ftms.model.User;
 import lk.ac.ruhuna.ftms.service.TimetableService;
 import lk.ac.ruhuna.ftms.util.NavigationUtil;
+import lk.ac.ruhuna.ftms.util.TimetableTaskRunner;
 import lk.ac.ruhuna.ftms.util.SessionManager;
 import lk.ac.ruhuna.ftms.util.SessionManager.SessionIdentity;
 
@@ -70,6 +70,7 @@ public class TimetableController {
 
     private SessionIdentity loginIdentity;
     private TimetableService timetableService;
+    private TimetableTaskRunner tasks;
 
     private boolean updatingFilter;
 
@@ -89,6 +90,7 @@ public class TimetableController {
         User officer = requireTechnicalOfficer();
 
         timetableService = new TimetableService();
+        tasks = new TimetableTaskRunner(timetableRoot, busy, statusLabel, loginIdentity, this::clearData);
 
         officerNameLabel.setText(
                 "Department Timetable - " + officer.getFullName()
@@ -171,7 +173,6 @@ public class TimetableController {
 
         refreshButton.disableProperty().bind(busy);
         allCoursesButton.disableProperty().bind(busy);
-        backButton.disableProperty().bind(busy);
 
         offeringComboBox.disableProperty().bind(busy);
         timetableTable.disableProperty().bind(busy);
@@ -207,6 +208,7 @@ public class TimetableController {
     // Load authorized courses and all timetable entries
 
     private void loadInitialData() {
+        AttendanceOffering previousFilter = offeringComboBox.getValue();
 
         runTask(
                 "Loading department timetable...",
@@ -226,25 +228,25 @@ public class TimetableController {
                                 result.offerings()
                         );
 
-                        offeringComboBox.getSelectionModel()
-                                .clearSelection();
+                        offeringComboBox.setValue(previousFilter == null ? null :
+                                result.offerings().stream().filter(o -> o.offeringId() == previousFilter.offeringId())
+                                        .findFirst().orElse(null));
 
                     } finally {
 
                         updatingFilter = false;
                     }
 
-                    entries.setAll(result.timetable());
+                    AttendanceOffering filter = offeringComboBox.getValue();
+                    entries.setAll(result.timetable().stream().filter(row -> filter == null
+                            || row.offeringId() == filter.offeringId()).toList());
 
                     updateSummary(
-                            result.timetable(),
-                            null
+                            List.copyOf(entries),
+                            filter
                     );
 
-                    statusLabel.setText(
-                            result.timetable().size()
-                                    + " timetable entries loaded."
-                    );
+                    showLoadedMessage(entries.size(), filter);
                 }
         );
     }
@@ -253,10 +255,7 @@ public class TimetableController {
 
     @FXML
     private void handleRefresh() {
-
-        loadTimetable(
-                offeringComboBox.getValue()
-        );
+        loadInitialData();
     }
 
     // Display all department courses
@@ -310,15 +309,32 @@ public class TimetableController {
                             offering
                     );
 
-                    statusLabel.setText(
-                            result.size()
-                                    + " timetable entries loaded."
-                    );
+                    showLoadedMessage(result.size(), offering);
                 }
         );
     }
 
     // Update summary
+
+    private void showLoadedMessage(int count, AttendanceOffering offering) {
+        String scope = offering == null ? "your department"
+                : offering.courseCode() + " (offering #" + offering.offeringId() + ")";
+        String message;
+        if (offeringComboBox.getItems().isEmpty()) {
+            message = "No course offerings are available in your assigned department. Contact an administrator, then click Refresh.";
+        } else if (count == 0) {
+            message = "No timetable entries are available for " + scope + ". "
+                    + (offering == null ? "Contact an administrator about the schedule, then click Refresh."
+                    : "Choose All Courses to check the rest of your department's timetable.");
+        } else {
+            message = "Showing " + count + (count == 1 ? " timetable entry" : " timetable entries") + " for " + scope + ".";
+        }
+        Label placeholder = new Label(message);
+        placeholder.setWrapText(true);
+        placeholder.setMaxWidth(420);
+        timetableTable.setPlaceholder(placeholder);
+        statusLabel.setText(message);
+    }
 
     private void updateSummary(
             List<TimetableEntry> result,
@@ -368,104 +384,17 @@ public class TimetableController {
 
     // Run database work without freezing JavaFX UI
 
-    private <T> void runTask(
-            String message,
-            Callable<T> work,
-            Consumer<T> onSuccess) {
-
-        if (busy.get()) {
-            return;
-        }
-
-        try {
-
+    private <T> void runTask(String message, Callable<T> work, Consumer<T> onSuccess) {
+        tasks.run(message, () -> {
             requireTechnicalOfficer();
-
-        } catch (SecurityException error) {
-
+            return work.call();
+        }, result -> {
+            requireTechnicalOfficer();
+            onSuccess.accept(result);
+        }, error -> {
             clearData();
-
-            showError(
-                    "Your session has ended. Please sign in again.",
-                    error
-            );
-
-            return;
-        }
-
-        busy.set(true);
-        statusLabel.setText(message);
-
-        Task<T> task = new Task<>() {
-
-            @Override
-            protected T call() throws Exception {
-                return work.call();
-            }
-        };
-
-        task.setOnSucceeded(event -> {
-
-            try {
-
-                requireTechnicalOfficer();
-
-                onSuccess.accept(task.getValue());
-
-            } catch (SecurityException error) {
-
-                clearData();
-
-                showError(
-                        "Your session has ended. Please sign in again.",
-                        error
-                );
-
-            } catch (RuntimeException error) {
-
-                showError(
-                        "Unable to display timetable data.",
-                        error
-                );
-
-            } finally {
-
-                busy.set(false);
-            }
+            showError("Unable to load timetable.", error);
         });
-
-        task.setOnFailed(event -> {
-
-            busy.set(false);
-
-            Throwable error = task.getException();
-
-            if (error instanceof SecurityException) {
-
-                clearData();
-
-                showError(
-                        "Timetable access was denied.",
-                        error
-                );
-
-            } else {
-
-                showError(
-                        "Unable to load timetable. "
-                                + "Check the database connection.",
-                        error
-                );
-            }
-        });
-
-        Thread worker = new Thread(
-                task,
-                "ftms-timetable-loader"
-        );
-
-        worker.setDaemon(true);
-        worker.start();
     }
 
     // Clear timetable data after session failure
@@ -488,6 +417,7 @@ public class TimetableController {
         summaryLabel.setText(
                 "Timetable unavailable."
         );
+        timetableTable.setPlaceholder(new Label("Timetable is unavailable. See the message below for the next step."));
     }
 
     // Formatting helpers
@@ -548,7 +478,8 @@ public class TimetableController {
             String message,
             Throwable error) {
 
-        statusLabel.setText(message);
+        message = TimetableTaskRunner.errorMessage(message, error);
+        statusLabel.setText(TimetableTaskRunner.statusMessage(message));
 
         if (error != null) {
             error.printStackTrace();

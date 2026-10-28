@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.layout.StackPane?>
+<StackPane xmlns:fx="http://javafx.com/fxml" fx:controller="lk.ac.ruhuna.ftms.controller.CourseMaterialsController">
+    <fx:include fx:id="workspace" source="lecturer_workspace.fxml"/>
+</StackPane>
