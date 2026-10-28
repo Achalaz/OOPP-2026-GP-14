@@ -1,50 +1,55 @@
-
 package lk.ac.ruhuna.ftms.util;
 
 import javafx.fxml.FXMLLoader;
+import javafx.geometry.Rectangle2D;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
-import javafx.stage.Stage;
 import javafx.stage.Screen;
-import javafx.geometry.Rectangle2D;
+import javafx.stage.Stage;
 
 import lk.ac.ruhuna.ftms.controller.CourseController;
-import lk.ac.ruhuna.ftms.controller.CourseOfferingController;
 import lk.ac.ruhuna.ftms.dao.CourseDAO;
-import lk.ac.ruhuna.ftms.dao.CourseOfferingDAO;
-import lk.ac.ruhuna.ftms.dao.LecturerCourseAssignmentDAO;
 import lk.ac.ruhuna.ftms.service.CourseService;
-import lk.ac.ruhuna.ftms.service.CourseOfferingService;
-import lk.ac.ruhuna.ftms.service.LecturerAssignmentService;
 
 import java.io.IOException;
 import java.net.URL;
 import java.util.Set;
+import java.util.function.Consumer;
 
+/**
+ * Centralized navigation for FTMS.
+ *
+ * Preserves existing role restrictions
+ * and responsive window behavior.
+ */
 public final class NavigationUtil {
 
     private NavigationUtil() {
     }
 
-    // =====================================
-    // NOTICES ACCESS CONTROL
-    // =====================================
+    // ==========================================
+    // NOTICE ACCESS CONTROL
+    // ==========================================
 
-    private static void requireNoticeAccess(String resource) {
+    private static void requireNoticeAccess(
+            String resource) {
 
         var user = SessionManager.getCurrentUser();
 
+        // Only Admin can manage notices
         if ("/fxml/notices.fxml".equals(resource)
                 && (user == null
                 || !user.isActive()
                 || !"ADMIN".equals(user.getRole()))) {
 
             throw new SecurityException(
-                    "Active administrator access is required to manage notices."
+                    "Active administrator access is required "
+                            + "to manage notices."
             );
         }
 
+        // Active FTMS users can view notices
         if ("/fxml/view_notices.fxml".equals(resource)
                 && (user == null
                 || !user.isActive()
@@ -57,21 +62,25 @@ public final class NavigationUtil {
         ).contains(user.getRole()))) {
 
             throw new SecurityException(
-                    "Please sign in with an active FTMS account to view notices."
+                    "Please sign in with an active FTMS "
+                            + "account to view notices."
             );
         }
     }
 
-    // =====================================
-    // DASHBOARD RESOURCE
-    // =====================================
+    // ==========================================
+    // ROLE-BASED DASHBOARD ROUTING
+    // ==========================================
 
     public static String dashboardResource() {
 
         var user = SessionManager.getCurrentUser();
 
         if (user == null || !user.isActive()) {
-            throw new SecurityException("Please sign in.");
+
+            throw new SecurityException(
+                    "Please sign in."
+            );
         }
 
         return switch (user.getRole()) {
@@ -93,9 +102,9 @@ public final class NavigationUtil {
         };
     }
 
-    // =====================================
-    // BASIC NAVIGATION
-    // =====================================
+    // ==========================================
+    // NORMAL NAVIGATION
+    // ==========================================
 
     public static void navigate(
             Node source,
@@ -106,43 +115,50 @@ public final class NavigationUtil {
                 source,
                 resource,
                 title,
-                controller -> {}
+                controller -> {
+                }
         );
     }
 
-    // =====================================
-    // SECURE NAVIGATION
-    // =====================================
+    // ==========================================
+    // NAVIGATION WITH CONTROLLER CONFIGURATION
+    // ==========================================
 
-    /**
-     * Configures screen context without a
-     * second Stage or a separate navigation path.
-     */
     public static void navigate(
             Node source,
             String resource,
             String title,
-            java.util.function.Consumer<Object> configure
+            Consumer<Object> configure
     ) throws IOException {
 
+        // Resolve generic dashboard
         if ("/fxml/dashboard.fxml".equals(resource)) {
+
             resource = dashboardResource();
         }
 
+        // Verify notice permissions
         requireNoticeAccess(resource);
 
-        // Admin Course Management
+        var user = SessionManager.getCurrentUser();
+
+        // ======================================
+        // ADMIN COURSE MANAGEMENT
+        // ======================================
+
         if ("/fxml/courses.fxml".equals(resource)
                 && !CourseService.isCurrentUserAdmin()) {
 
             throw new SecurityException(
-                    "Active administrator access is required to manage courses."
+                    "Active administrator access is required "
+                            + "to manage courses."
             );
         }
 
-        var user = SessionManager.getCurrentUser();
+        // ======================================
+        // STUDENT RESULTS REDIRECT
+        // ======================================
 
-        // Student results redirect
         if ("/fxml/results.fxml".equals(resource)
                 && user != null
                 && "STUDENT".equals(user.getRole())) {
@@ -150,7 +166,10 @@ public final class NavigationUtil {
             resource = "/fxml/student_results.fxml";
         }
 
-        // Lecturer academic screens
+        // ======================================
+        // LECTURER ACADEMIC SCREENS
+        // ======================================
+
         Set<String> lecturerAcademicViews = Set.of(
                 "/fxml/assessments.fxml",
                 "/fxml/results.fxml",
@@ -164,7 +183,8 @@ public final class NavigationUtil {
                 || !"LECTURER".equals(user.getRole()))) {
 
             throw new SecurityException(
-                    "An active assigned lecturer is required for academic management."
+                    "An active assigned lecturer is required "
+                            + "for academic management."
             );
         }
 
@@ -181,11 +201,15 @@ public final class NavigationUtil {
         ).contains(user.getRole()))) {
 
             throw new SecurityException(
-                    "An active lecturer or student account is required for this academic view."
+                    "An active lecturer or student account "
+                            + "is required for this academic view."
             );
         }
 
-        // Required roles
+        // ======================================
+        // ADMIN / LECTURER ROLE ROUTES
+        // ======================================
+
         String requiredRole = switch (resource) {
 
             case "/fxml/admin_enrollments.fxml",
@@ -210,18 +234,21 @@ public final class NavigationUtil {
             );
         }
 
-        // =====================================
-        // TIMETABLE ACCESS
-        // =====================================
+        // ======================================
+        // TIMETABLE ROLE AUTHORIZATION
+        // ======================================
 
         String timetableRole = switch (resource) {
 
+            // Admin can manage timetables
             case "/fxml/admin_timetable.fxml" ->
                     "ADMIN";
 
+            // TO can view department timetable
             case "/fxml/timetable.fxml" ->
                     "TECHNICAL_OFFICER";
 
+            // Student can view own timetable
             case "/fxml/student_timetable.fxml" ->
                     "STUDENT";
 
@@ -239,15 +266,14 @@ public final class NavigationUtil {
             );
         }
 
-        // =====================================
-        // ATTENDANCE MANAGEMENT ACCESS
-        // =====================================
+        // ======================================
+        // TECHNICAL OFFICER ATTENDANCE
+        // ======================================
 
         if ("/fxml/attendance.fxml".equals(resource)
                 && (user == null
                 || !user.isActive()
-                || !"TECHNICAL_OFFICER".equals(
-                user.getRole()))) {
+                || !"TECHNICAL_OFFICER".equals(user.getRole()))) {
 
             throw new SecurityException(
                     "Active Technical Officer access is required "
@@ -255,15 +281,14 @@ public final class NavigationUtil {
             );
         }
 
-        // =====================================
-        // STEP 20: MEDICAL MANAGEMENT ACCESS
-        // =====================================
+        // ======================================
+        // TECHNICAL OFFICER MEDICAL MANAGEMENT
+        // ======================================
 
         if ("/fxml/medical.fxml".equals(resource)
                 && (user == null
                 || !user.isActive()
-                || !"TECHNICAL_OFFICER".equals(
-                user.getRole()))) {
+                || !"TECHNICAL_OFFICER".equals(user.getRole()))) {
 
             throw new SecurityException(
                     "Active Technical Officer access is required "
@@ -271,20 +296,27 @@ public final class NavigationUtil {
             );
         }
 
-        // =====================================
+        // ======================================
         // STUDENT-ONLY SCREENS
-        // =====================================
+        // ======================================
 
         Set<String> studentViews = Set.of(
                 "/fxml/student_dashboard.fxml",
                 "/fxml/student_attendance.fxml",
                 "/fxml/student_eligibility.fxml",
+
+                // Student Medical - View Only
                 "/fxml/student_medical.fxml",
+
                 "/fxml/student_courses.fxml",
                 "/fxml/student_materials.fxml",
                 "/fxml/student_results.fxml",
                 "/fxml/student_timetable.fxml"
         );
+
+        // ======================================
+        // STUDENT ACCESS AUTHORIZATION
+        // ======================================
 
         if (studentViews.contains(resource)
                 && (user == null
@@ -296,7 +328,10 @@ public final class NavigationUtil {
             );
         }
 
-        // Student workspace protection
+        // ======================================
+        // STUDENT WORKSPACE RESTRICTIONS
+        // ======================================
+
         if (user != null
                 && "STUDENT".equals(user.getRole())
                 && (!user.isActive()
@@ -310,17 +345,19 @@ public final class NavigationUtil {
         ).contains(resource)))) {
 
             throw new SecurityException(
-                    "Use your student workspace to access your own records."
+                    "Use your student workspace "
+                            + "to access your own records."
             );
         }
 
-        // =====================================
-        // LECTURER ACCESS
-        // =====================================
+        // ======================================
+        // LECTURER WORKSPACE RESTRICTIONS
+        // ======================================
 
         if (user != null
                 && "LECTURER".equals(user.getRole())
-                && !Set.of(
+                && (!user.isActive()
+                || !Set.of(
                 "/fxml/lecturer_dashboard.fxml",
                 "/fxml/lecturer_workspace.fxml",
                 "/fxml/course_materials.fxml",
@@ -333,16 +370,47 @@ public final class NavigationUtil {
                 "/fxml/profile.fxml",
                 "/fxml/view_notices.fxml",
                 "/fxml/login.fxml"
-        ).contains(resource)) {
+        ).contains(resource))) {
 
             throw new SecurityException(
-                    "Use the lecturer workspace for authorized course records."
+                    "Use the lecturer workspace "
+                            + "for authorized course records."
             );
         }
 
-        // =====================================
-        // LOAD FXML SCREEN
-        // =====================================
+        // ======================================
+        // TECHNICAL OFFICER WORKSPACE
+        // ======================================
+
+        if (user != null
+                && "TECHNICAL_OFFICER".equals(user.getRole())
+                && (!user.isActive()
+                || !Set.of(
+                "/fxml/technical_officer_dashboard.fxml",
+
+                // Attendance Management
+                "/fxml/attendance.fxml",
+
+                // Medical Management
+                "/fxml/medical.fxml",
+
+                // Department Timetable
+                "/fxml/timetable.fxml",
+
+                "/fxml/profile.fxml",
+                "/fxml/view_notices.fxml",
+                "/fxml/login.fxml"
+        ).contains(resource))) {
+
+            throw new SecurityException(
+                    "Use the Technical Officer workspace "
+                            + "for authorized department features."
+            );
+        }
+
+        // ======================================
+        // LOAD FXML RESOURCE
+        // ======================================
 
         URL location =
                 NavigationUtil.class.getResource(resource);
@@ -358,9 +426,16 @@ public final class NavigationUtil {
 
         Parent root = loader.load();
 
+        // ======================================
+        // OPTIONAL CONTROLLER CONFIGURATION
+        // ======================================
+
         configure.accept(loader.getController());
 
-        // Preserve CourseService dependency injection
+        // ======================================
+        // COURSE SERVICE INJECTION
+        // ======================================
+
         if ("/fxml/courses.fxml".equals(resource)) {
 
             CourseController controller =
@@ -374,34 +449,35 @@ public final class NavigationUtil {
             );
         }
 
-        Scene scene = source.getScene();
-
-        // =====================================
+        // ======================================
         // PRESERVE WINDOW SIZE
-        // =====================================
+        // ======================================
+
+        Scene scene = source.getScene();
 
         boolean preserveWindowSize =
 
+                // Timetables
                 timetableRole != null
 
+                        // Lecturer screens
                         || lecturerAcademicViews.contains(resource)
-
                         || Set.of(
                         "/fxml/gpa.fxml",
                         "/fxml/reports.fxml",
                         "/fxml/lecturer_dashboard.fxml"
                 ).contains(resource)
 
+                        // Student screens (including Medical)
                         || studentViews.contains(resource)
 
+                        // Admin screens
                         || "/fxml/admin_dashboard.fxml".equals(resource)
-
                         || "/fxml/admin_enrollments.fxml".equals(resource)
-
                         || "/fxml/courses.fxml".equals(resource)
-
                         || "/fxml/course_offerings.fxml".equals(resource)
 
+                        // Existing timetable roots
                         || Set.of(
                         "adminTimetableRoot",
                         "timetableRoot",
@@ -412,104 +488,105 @@ public final class NavigationUtil {
                         )
                 )
 
+                        // Course roots
                         || "courseOfferingsRoot".equals(
                         scene.getRoot().getId()
                 )
-
                         || "coursesRoot".equals(
                         scene.getRoot().getId()
                 )
 
+                        // Technical Officer screens
                         || "/fxml/technical_officer_dashboard.fxml".equals(resource)
-
                         || "/fxml/attendance.fxml".equals(resource)
-
-                        // Step 20 - Medical window size
                         || "/fxml/medical.fxml".equals(resource)
 
+                        // Login and Notices
                         || "/fxml/login.fxml".equals(resource)
-
                         || "/fxml/notices.fxml".equals(resource)
-
                         || "/fxml/view_notices.fxml".equals(resource)
 
+                        // Notices roots
                         || "noticesRoot".equals(
                         scene.getRoot().getId()
                 )
-
                         || "viewNoticesRoot".equals(
                         scene.getRoot().getId()
                 )
 
+                        // Student roots
                         || "studentRoot".equals(
                         scene.getRoot().getId()
                 )
-
                         || "studentEligibilityRoot".equals(
                         scene.getRoot().getId()
                 )
-
                         || "studentAttendanceRoot".equals(
                         scene.getRoot().getId()
                 )
+                        || "studentMedicalRoot".equals(
+                        scene.getRoot().getId()
+                )
 
+                        // Technical Officer roots
                         || "technicalOfficerRoot".equals(
                         scene.getRoot().getId()
                 )
-
                         || "attendanceRoot".equals(
                         scene.getRoot().getId()
                 )
-
                         || "medicalRoot".equals(
                         scene.getRoot().getId()
                 );
 
-        scene.setRoot(root);
+        // ======================================
+        // DISPLAY NEW SCREEN
+        // ======================================
 
-        // =====================================
-        // SET STAGE TITLE AND SIZE
-        // =====================================
+        scene.setRoot(root);
 
         if (scene.getWindow() instanceof Stage stage) {
 
             stage.setTitle(title);
 
             if (!preserveWindowSize) {
+
                 stage.sizeToScene();
             }
 
             if (timetableRole != null) {
+
                 fitTimetableWindow(stage);
             }
         }
     }
 
-    // =====================================
-    // FIT TIMETABLE TO SCREEN
-    // =====================================
+    // ==========================================
+    // FIT TIMETABLE WINDOW TO SCREEN
+    // ==========================================
 
-    /**
-     * Clamp window dimensions to current display.
-     */
-    private static void fitTimetableWindow(Stage stage) {
+    private static void fitTimetableWindow(
+            Stage stage) {
 
-        if (stage.isMaximized() || stage.isFullScreen()) {
+        if (stage.isMaximized()
+                || stage.isFullScreen()) {
+
             return;
         }
 
-        var screens = Screen.getScreensForRectangle(
-                stage.getX(),
-                stage.getY(),
-                stage.getWidth(),
-                stage.getHeight()
-        );
+        var screens =
+                Screen.getScreensForRectangle(
+                        stage.getX(),
+                        stage.getY(),
+                        stage.getWidth(),
+                        stage.getHeight()
+                );
 
-        Rectangle2D bounds = (
-                screens.isEmpty()
+        Rectangle2D bounds =
+                (screens.isEmpty()
                         ? Screen.getPrimary()
-                        : screens.getFirst()
-        ).getVisualBounds();
+                        : screens.getFirst())
+                        .getVisualBounds();
 
         stage.setWidth(
                 Math.min(
@@ -530,7 +607,8 @@ public final class NavigationUtil {
                         bounds.getMinX(),
                         Math.min(
                                 stage.getX(),
-                                bounds.getMaxX() - stage.getWidth()
+                                bounds.getMaxX()
+                                        - stage.getWidth()
                         )
                 )
         );
@@ -540,7 +618,8 @@ public final class NavigationUtil {
                         bounds.getMinY(),
                         Math.min(
                                 stage.getY(),
-                                bounds.getMaxY() - stage.getHeight()
+                                bounds.getMaxY()
+                                        - stage.getHeight()
                         )
                 )
         );
