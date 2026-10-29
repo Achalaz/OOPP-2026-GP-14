@@ -71,3 +71,4 @@ public class AssessmentService {
             throw new IllegalArgumentException(label+" must be between "+min+" and "+max+" with at most two decimal places.");
     }
 }
+
