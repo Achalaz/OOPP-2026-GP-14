@@ -127,6 +127,15 @@ public class EnrollmentDAO {
 
     /** Locks permission rows for the full material read/export transaction. Completed courses remain readable. */
     public void requireMaterialAccess(Connection connection, int student, int offering) throws SQLException {
+        requireLearningResourceAccess(connection, student, offering);
+    }
+
+    /** Released assessment details follow the same enrollment policy as course materials. */
+    public void requireAssessmentAccess(Connection connection, int student, int offering) throws SQLException {
+        requireLearningResourceAccess(connection, student, offering);
+    }
+
+    private void requireLearningResourceAccess(Connection connection, int student, int offering) throws SQLException {
         try (var statement = connection.prepareStatement("""
                 SELECT e.enrollment_id FROM enrollments e
                 JOIN course_offerings o ON o.offering_id=e.offering_id

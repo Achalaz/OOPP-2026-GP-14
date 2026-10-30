@@ -129,6 +129,9 @@
                             </graphic>
                         </Button>
 
+                        <Button text="My Assessments" onAction="#handleAssessments"
+                                maxWidth="Infinity" styleClass="nav-button"/>
+
                         <!-- Grades and GPA -->
                         <Button text="My Grades and GPA"
                                 onAction="#handleGrades"
@@ -640,6 +643,13 @@
                                     styleClass="card-button"/>
                         </VBox>
 
+                        <VBox spacing="16" styleClass="feature-card" GridPane.columnIndex="2" GridPane.rowIndex="2">
+                            <Label text="My Assessments" wrapText="true" styleClass="card-title"/>
+                            <Label text="View released assessment details for your enrolled courses"
+                                   wrapText="true" styleClass="card-description" VBox.vgrow="ALWAYS" maxHeight="Infinity"/>
+                            <Button text="View Released Assessments" onAction="#handleAssessments"
+                                    maxWidth="Infinity" styleClass="card-button"/>
+                        </VBox>
                     </GridPane>
 
                     <!-- Footer -->
