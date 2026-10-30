@@ -5,7 +5,7 @@ import lk.ac.ruhuna.ftms.model.User;
 import lk.ac.ruhuna.ftms.util.SessionManager;
 
 /** Shared transaction guards for academic services. No caller-supplied actor is trusted. */
-public class gAcademicAccessDAO {
+public class AcademicAccessDAO {
     public java.util.List<Integer> offeringEnrollments(Connection c,int offering)throws SQLException {
         var ids=new java.util.ArrayList<Integer>();
         try(var p=c.prepareStatement("SELECT enrollment_id FROM enrollments WHERE offering_id=? FOR UPDATE")) {
