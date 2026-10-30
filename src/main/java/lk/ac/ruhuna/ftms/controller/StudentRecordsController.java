@@ -59,6 +59,11 @@ public class StudentRecordsController {
     @FXML public void initialize() {
         access.requireSession();
         feature = Objects.toString(studentRecordsRoot.getUserData());
+        if ("assessments".equals(feature)) {
+            var description = (TextArea) studentRecordsRoot.lookup("#assessmentDescription");
+            recordsTable.getSelectionModel().selectedItemProperty().addListener((value, old, selected) ->
+                    description.setText(selected == null ? "" : selected.get(8)));
+        }
         if ("courses".equals(feature)) {
             viewMaterialsButton = (Button) studentRecordsRoot.lookup("#viewMaterialsButton");
             viewMaterialsButton.setDisable(true);
@@ -69,6 +74,7 @@ public class StudentRecordsController {
             case "attendance" -> "My Attendance";
             case "medical" -> "My Medical";
             case "courses" -> "My Courses";
+            case "assessments" -> "My Assessments";
             case "results" -> "My Grades and GPA";
             default -> throw new IllegalArgumentException("Unknown student view.");
         });
@@ -76,6 +82,7 @@ public class StudentRecordsController {
             case "attendance" -> "Your recorded sessions and attendance percentages. Unmarked sessions remain unmarked.";
             case "medical" -> "Your medical records and their current stored review statuses.";
             case "courses" -> "Your enrolled courses, semesters, credits and enrollment status.";
+            case "assessments" -> "Released assessment details for your enrolled courses. View published marks separately in My Grades and GPA.";
             default -> "Your published grades and GPA. GPA follows the existing academic rules; unresolved values remain Pending.";
         });
         summaryLabel.setText("attendance".equals(feature) ? "Attendance by course" : "Semester GPA");
@@ -174,6 +181,7 @@ public class StudentRecordsController {
             case "attendance" -> attendance();
             case "medical" -> medical();
             case "courses" -> courses();
+            case "assessments" -> assessments();
             case "results" -> results();
             default -> throw new IllegalStateException("Unknown student view.");
         };
@@ -189,6 +197,19 @@ public class StudentRecordsController {
         }
         return new View(new Table(List.of("Course code","Course name","Semester","Credits","Attempt","Status"),rows),
                 null,"No enrolled courses available.", mapping);
+    }
+
+    private View assessments() throws Exception {
+        var rows = new ArrayList<List<String>>();
+        for (var released : new StudentAssessmentService(identity).getMyAssessments()) {
+            var c = released.course(); var a = released.assessment();
+            rows.add(row(c.courseCode()+" - "+c.courseName(),c.semester(),c.offeringId(),
+                    a.getAssessmentName(),a.getAssessmentType(),a.getMaxMark(),a.getWeightPercentage(),
+                    a.getAssessmentDate(),a.getDescription(),a.getPublicationStatus(),a.getPublishedAt()));
+        }
+        return new View(new Table(List.of("Enrolled Course","Semester","Offering","Assessment Name","Assessment Type",
+                "Maximum Marks","Weight Percentage","Assessment Date","Description","Released Status","Released At"),rows),
+                null,"No released assessments are available for your enrolled courses.");
     }
 
     private View medical() throws Exception {

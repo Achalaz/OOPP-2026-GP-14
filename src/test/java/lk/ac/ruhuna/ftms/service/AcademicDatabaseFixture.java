@@ -29,6 +29,16 @@ public final class AcademicDatabaseFixture implements AutoCloseable {
             }
             try(var s=connection.createStatement()){s.execute(ddl);}
         }
+        // Exercise the feature before deployment without altering the live assessments table.
+        // Every table above is connection-local; this migration targets only its temporary copy.
+        boolean publicationColumns;
+        try(var s=connection.createStatement();var r=s.executeQuery("SHOW COLUMNS FROM assessments LIKE 'is_published'")) {
+            publicationColumns=r.next();
+        }
+        if(!publicationColumns) {
+            String migration=java.nio.file.Files.readString(java.nio.file.Path.of("docs/database/add_assessment_publication.sql"));
+            try(var s=connection.createStatement()){s.execute(migration);}
+        }
         seed();
         Connection borrowed=(Connection)Proxy.newProxyInstance(Connection.class.getClassLoader(),new Class<?>[]{Connection.class},(proxy,method,args)->{
             if(method.getName().equals("close")){

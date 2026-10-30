@@ -281,6 +281,7 @@ public final class NavigationUtil {
                 "/fxml/student_eligibility.fxml",
                 "/fxml/student_medical.fxml",
                 "/fxml/student_courses.fxml",
+                "/fxml/student_assessments.fxml",
                 "/fxml/student_materials.fxml",
                 "/fxml/student_results.fxml",
                 "/fxml/student_timetable.fxml"
