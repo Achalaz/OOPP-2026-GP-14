@@ -103,7 +103,7 @@ public final class AcademicAcceptanceSmokeTest {
                 fx(() -> { check(label("sgpaLabel").getText().equals("4.00") && label("cgpaLabel").getText().equals("4.00"), "published result flows into GPA UI"); return null; });
                 click("saveButton"); ready();
                 check(new SemesterResultDAO().getByStudentAndSemester(3,9).getSgpa() == 4.0, "GPA save persisted recomputed value");
-                textClick("Reports"); ready();
+                click("reportsButton"); ready();
                 select("studentCombo", o -> o.toString().contains("TEST/3")); click("studentReportButton"); ready();
                 fx(() -> { check(table("reportTable").getItems().size() == 2, "individual report includes published and pending enrollment"); check(label("passLabel").getText().equals("1"), "individual pass count"); return null; });
                 select("batchCombo", o -> o.equals(2024)); click("batchReportButton"); ready();

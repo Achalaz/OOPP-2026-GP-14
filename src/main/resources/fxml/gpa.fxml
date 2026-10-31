@@ -6,6 +6,7 @@
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.TableColumn?>
 <?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.TextArea?>
 <?import javafx.scene.control.ProgressIndicator?>
 <?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.layout.BorderPane?>
@@ -92,6 +93,9 @@
 
                 </GridPane>
 
+                <Label fx:id="accessLabel" wrapText="true" maxWidth="Infinity" minHeight="-Infinity"/>
+                <TextArea fx:id="assignmentDetails" editable="false" wrapText="true" prefRowCount="4"
+                          minHeight="-Infinity" visible="false" managed="false" accessibleText="Missing course assignments for Admin review"/>
                 <Label fx:id="includedCreditsLabel" wrapText="true"/>
                 <Label fx:id="savedStateLabel" wrapText="true"/>
 
@@ -271,7 +275,7 @@
                                -fx-font-weight: bold;
                                -fx-background-radius: 6;"/>
 
-                <Button text="Reports" onAction="#handleReports"/>
+                <Button fx:id="reportsButton" text="Reports" onAction="#handleReports"/>
                 <Button fx:id="refreshButton"
                         text="Refresh"
                         onAction="#handleRefresh"
@@ -295,7 +299,7 @@
             </HBox>
             <HBox spacing="10" alignment="CENTER_LEFT">
                 <ProgressIndicator fx:id="progressIndicator" prefWidth="20" prefHeight="20" maxWidth="20" maxHeight="20"/>
-                <Label fx:id="statusLabel" text="Select a student." wrapText="true" maxWidth="Infinity"
+                <Label fx:id="statusLabel" text="Select a student." wrapText="true" maxWidth="Infinity" minHeight="-Infinity"
                        style="-fx-text-fill: #4b5563; -fx-font-style: italic;"/>
             </HBox>
 

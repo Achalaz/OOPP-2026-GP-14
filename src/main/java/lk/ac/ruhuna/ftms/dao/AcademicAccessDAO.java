@@ -6,6 +6,62 @@ import lk.ac.ruhuna.ftms.util.SessionManager;
 
 /** Shared transaction guards for academic services. No caller-supplied actor is trusted. */
 public class AcademicAccessDAO {
+    public record OfferingGap(int offeringId, String courseCode, String semester, String group) {
+        @Override public String toString() {
+            return "Offering " + offeringId + " | " + courseCode + " | " + semester + " | Group " + group;
+        }
+    }
+    public record TranscriptCoverage(int includedOfferings, int assignedOfferings,
+                                     java.util.List<OfferingGap> missingAssignments) {
+        public TranscriptCoverage { missingAssignments = java.util.List.copyOf(missingAssignments); }
+        public boolean complete() { return includedOfferings > 0 && missingAssignments.isEmpty(); }
+    }
+
+    /** Metadata only. The service limits diagnostic candidates to the lecturer's existing roster. */
+    public TranscriptCoverage transcriptCoverage(Connection c, int lecturer, int student) throws SQLException {
+        var missing = new java.util.ArrayList<OfferingGap>();
+        int included = 0, assigned = 0;
+        try (var p = c.prepareStatement("""
+                SELECT DISTINCT o.offering_id,cr.course_code,
+                       CONCAT(ay.academic_year_name,' - ',COALESCE(s.semester_name,CONCAT('Semester ',s.semester_no))),
+                       o.offering_group
+                FROM enrollments e JOIN course_offerings o ON o.offering_id=e.offering_id
+                LEFT JOIN courses cr ON cr.course_id=o.course_id
+                LEFT JOIN semesters s ON s.semester_id=o.semester_id
+                LEFT JOIN academic_years ay ON ay.academic_year_id=s.academic_year_id
+                WHERE e.student_id=? AND e.status<>'WITHDRAWN' AND o.status<>'CANCELLED'
+                ORDER BY o.offering_id
+                """)) {
+            p.setInt(1,student); p.setQueryTimeout(15);
+            try (var rows = p.executeQuery()) {
+                while (rows.next()) {
+                    included++;
+                    if (new CourseResultDAO().lockLecturerAssignment(c,lecturer,rows.getInt(1))) assigned++;
+                    else missing.add(new OfferingGap(rows.getInt(1),rows.getString(2),rows.getString(3),rows.getString(4)));
+                }
+            }
+        }
+        return new TranscriptCoverage(included,assigned,missing);
+    }
+
+    public int lecturerAssignmentCount(Connection c, SessionManager.SessionIdentity identity) throws SQLException {
+        if (!"LECTURER".equals(actor(c,identity).getRole())) throw new SecurityException("Lecturer access required.");
+        try (var p = c.prepareStatement("SELECT lecturer_id FROM lecturers WHERE lecturer_id=? FOR SHARE")) {
+            p.setInt(1,identity.userId()); p.setQueryTimeout(15);
+            try (var rows = p.executeQuery()) {
+                if (!rows.next()) throw new SecurityException("Your lecturer profile is missing. Please contact Admin.");
+            }
+        }
+        try (var p = c.prepareStatement("""
+                SELECT COUNT(DISTINCT a.offering_id) FROM lecturer_course_assignments a
+                JOIN course_offerings o ON o.offering_id=a.offering_id
+                WHERE a.lecturer_id=? AND o.status<>'CANCELLED'
+                AND a.assignment_type IN ('PRIMARY','ASSISTANT','PRACTICAL')
+                """)) {
+            p.setInt(1,identity.userId()); p.setQueryTimeout(15);
+            try (var rows = p.executeQuery()) { rows.next(); return rows.getInt(1); }
+        }
+    }
     public java.util.List<Integer> offeringEnrollments(Connection c,int offering)throws SQLException {
         var ids=new java.util.ArrayList<Integer>();
         try(var p=c.prepareStatement("SELECT enrollment_id FROM enrollments WHERE offering_id=? FOR UPDATE")) {
@@ -88,20 +144,9 @@ public class AcademicAccessDAO {
             return;
         }
         if (!"LECTURER".equals(actor.getRole())) throw new SecurityException("This academic record is not accessible.");
-        int count = 0;
-        try (var p = c.prepareStatement("""
-                SELECT DISTINCT e.offering_id FROM enrollments e JOIN course_offerings o ON o.offering_id=e.offering_id
-                WHERE e.student_id=? AND e.status<>'WITHDRAWN' AND o.status<>'CANCELLED'
-                """)) {
-            p.setInt(1, student);
-            try (var r = p.executeQuery()) {
-                while (r.next()) {
-                    count++;
-                    if (!new CourseResultDAO().lockLecturerAssignment(c, identity.userId(), r.getInt(1)))
-                        throw new SecurityException("Full GPA includes offerings outside your assignment. Use offering reports.");
-                }
-            }
-        }
-        if (count == 0) throw new IllegalArgumentException("No active enrollments found.");
+        var coverage = transcriptCoverage(c,identity.userId(),student);
+        if (coverage.includedOfferings() == 0) throw new IllegalArgumentException("No active enrollments found.");
+        if (!coverage.complete())
+            throw new SecurityException("Full GPA includes offerings outside your assignment. Use assigned course reports; ask Admin to review your GPA access.");
     }
 }

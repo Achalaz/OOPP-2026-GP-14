@@ -9,6 +9,13 @@ import java.util.*;
 
 /** Published grade snapshots are authoritative; later grade-rule edits never rewrite historical GPA. */
 public class GPAService {
+    /** Blocked students' identities, grades and GPA are never returned in selection diagnostics. */
+    public record StudentSelection(List<StudentOption> students, int assignedOfferings, int blockedStudents,
+                                   List<AcademicAccessDAO.OfferingGap> missingAssignments, String message) {
+        public StudentSelection {
+            students=List.copyOf(students);missingAssignments=List.copyOf(missingAssignments);
+        }
+    }
     public record PublishedSemester(SemesterOption semester, SemesterResult result, String status) {
         public PublishedSemester(SemesterOption semester, SemesterResult result) { this(semester,result,""); }
     }
@@ -155,13 +162,38 @@ public class GPAService {
         });
     }
     public List<StudentOption> getStudents()throws SQLException {
+        return getStudentSelection().students();
+    }
+    public StudentSelection getStudentSelection()throws SQLException {
         return AcademicTransaction.run((c,id)->{
             var actor=access.actor(c,id);var rows=new ArrayList<StudentOption>();
             if(!List.of("LECTURER","STUDENT").contains(actor.getRole()))throw new SecurityException("Academic access denied.");
-            for(var student:dao.getStudents(c)) {
-                try {access.transcript(c,id,student.studentId(),false);rows.add(student);}
-                catch(SecurityException|IllegalArgumentException denied){/* Exclude inaccessible transcripts. */}
-            }return rows;
+            if("STUDENT".equals(actor.getRole())) {
+                access.transcript(c,id,id.userId(),false);
+                return new StudentSelection(dao.getGpaCandidates(c,id.userId(),true),0,0,List.of(),
+                        "Your own published academic records. GPA uses published grades only.");
+            }
+            int assignments=access.lecturerAssignmentCount(c,id);
+            if(assignments==0) return new StudentSelection(List.of(),0,0,List.of(),
+                    "No lecturer course assignments. Ask Admin to review your teaching assignments, then Refresh.");
+            var missing=new TreeMap<Integer,AcademicAccessDAO.OfferingGap>();
+            int blocked=0;
+            for(var student:dao.getGpaCandidates(c,id.userId(),false)) {
+                var coverage=access.transcriptCoverage(c,id.userId(),student.studentId());
+                if(coverage.complete()) rows.add(student);
+                else {
+                    blocked++;
+                    for(var offering:coverage.missingAssignments())missing.put(offering.offeringId(),offering);
+                }
+            }
+            String message=rows.isEmpty() && blocked==0
+                    ? "Your assigned offerings have no available student enrollments. Ask Admin to review enrollments."
+                    : rows.size()+" accessible full transcript(s). Select a student and semester.";
+            if(blocked>0) message=(rows.isEmpty()?"No accessible full transcripts.":rows.size()+" accessible full transcript(s).")
+                    +" "+blocked+" student(s) in your assigned courses also have unassigned offerings. "
+                    +"Full GPA requires every included offering, including historical courses. "
+                    +"Ask Admin to review the missing assignments below. Use Assigned Course Reports for your current access.";
+            return new StudentSelection(rows,assignments,blocked,new ArrayList<>(missing.values()),message);
         });
     }
     public List<SemesterOption> getSemestersForStudent(int student)throws SQLException {
