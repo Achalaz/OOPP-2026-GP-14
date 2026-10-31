@@ -168,11 +168,14 @@ public final class NavigationUtil {
             );
         }
 
-        // GPA and Reports
-        if (Set.of(
-                "/fxml/gpa.fxml",
-                "/fxml/reports.fxml"
-        ).contains(resource)
+        // Admin full-transcript access applies to GPA only; reports keep their existing scope.
+        if ("/fxml/gpa.fxml".equals(resource)
+                && (user == null || !user.isActive()
+                || !Set.of("ADMIN", "LECTURER", "STUDENT").contains(user.getRole()))) {
+            throw new SecurityException("An active Admin, lecturer or student account is required for GPA.");
+        }
+
+        if ("/fxml/reports.fxml".equals(resource)
                 && (user == null
                 || !user.isActive()
                 || !Set.of(

@@ -167,7 +167,14 @@ public class GPAService {
     public StudentSelection getStudentSelection()throws SQLException {
         return AcademicTransaction.run((c,id)->{
             var actor=access.actor(c,id);var rows=new ArrayList<StudentOption>();
-            if(!List.of("LECTURER","STUDENT").contains(actor.getRole()))throw new SecurityException("Academic access denied.");
+            if(!List.of("ADMIN","LECTURER","STUDENT").contains(actor.getRole()))throw new SecurityException("Academic access denied.");
+            if("ADMIN".equals(actor.getRole())) {
+                var students=dao.getStudents(c);
+                return new StudentSelection(students,0,0,List.of(),students.isEmpty()
+                        ? "No student profiles are available."
+                        : "Admin GPA management: select a student and semester, then Calculate GPA and Save / Update. "
+                            + "Only published, complete results contribute to GPA; saving recalculates all semester summaries.");
+            }
             if("STUDENT".equals(actor.getRole())) {
                 access.transcript(c,id,id.userId(),false);
                 return new StudentSelection(dao.getGpaCandidates(c,id.userId(),true),0,0,List.of(),
@@ -192,7 +199,9 @@ public class GPAService {
             if(blocked>0) message=(rows.isEmpty()?"No accessible full transcripts.":rows.size()+" accessible full transcript(s).")
                     +" "+blocked+" student(s) in your assigned courses also have unassigned offerings. "
                     +"Full GPA requires every included offering, including historical courses. "
-                    +"Ask Admin to review the missing assignments below. Use Assigned Course Reports for your current access.";
+                    +"Complete transcript access is unavailable for those students. "
+                    +"An Admin can calculate and save their full GPA from the Admin dashboard. "
+                    +"Use Assigned Course Reports for your assigned offerings.";
             return new StudentSelection(rows,assignments,blocked,new ArrayList<>(missing.values()),message);
         });
     }

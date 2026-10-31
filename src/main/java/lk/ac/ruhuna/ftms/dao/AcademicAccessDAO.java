@@ -132,14 +132,15 @@ public class AcademicAccessDAO {
         }
     }
 
-    /** Full GPA is visible only to the student or a lecturer assigned to every included offering. */
+    /** Admin manages full GPA; students read only self; lecturers need every included offering. */
     public void transcript(Connection c, SessionManager.SessionIdentity identity, int student, boolean write) throws SQLException {
         User actor = actor(c, identity);
-        if (!write && "STUDENT".equals(actor.getRole()) && student == identity.userId()) {
+        if ("ADMIN".equals(actor.getRole())
+                || (!write && "STUDENT".equals(actor.getRole()) && student == identity.userId())) {
             try(var p=c.prepareStatement("SELECT student_id FROM students WHERE student_id=? FOR SHARE")) {
                 p.setInt(1,student);
                 try(var rows=p.executeQuery()) {
-                    if(!rows.next()) throw new SecurityException("Your student profile is unavailable. Contact the administrator.");
+                    if(!rows.next()) throw new SecurityException("The student profile is unavailable. Contact the administrator.");
                 }
             }
             return;
@@ -148,6 +149,6 @@ public class AcademicAccessDAO {
         var coverage = transcriptCoverage(c,identity.userId(),student);
         if (coverage.includedOfferings() == 0) throw new IllegalArgumentException("No active enrollments found.");
         if (!coverage.complete())
-            throw new SecurityException("Full GPA includes offerings outside your assignment. Use assigned course reports; ask Admin to review your GPA access.");
+            throw new SecurityException("Complete transcript access is unavailable because full GPA includes offerings outside your assignment. Use Assigned Course Reports. An Admin can calculate and save full student GPA from the Admin dashboard.");
     }
 }
