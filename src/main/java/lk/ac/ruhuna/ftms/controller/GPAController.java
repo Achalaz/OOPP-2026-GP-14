@@ -17,7 +17,7 @@ import java.util.concurrent.Callable;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-/** Existing GPA screen: authorized snapshots, lecturer persistence and student saved/current display. */
+/** Existing GPA screen: authorized published snapshots and lecturer persistence. */
 public class GPAController {
     @FXML private ComboBox<StudentOption> studentCombo;
     @FXML private ComboBox<SemesterOption> semesterCombo;
@@ -134,7 +134,7 @@ public class GPAController {
         includedCreditsLabel.setText("Included semester credits: "+number(view.includedCredits())
                 +" | Excluded enrollment results: "+view.excludedCourses());
         savedStateLabel.setText(view.savedCurrent()?"Saved and current | Calculated "+result.getCalculatedAt()
-                : studentView?"Saved GPA is unavailable or stale.":"Current calculation - not saved or saved values are stale.");
+                : "Current published-results calculation - saved summary is unavailable or stale.");
         statusLabel.setText(view.message());
         courseTable.setPlaceholder(new Label("No course enrollments available for this semester."));
     }

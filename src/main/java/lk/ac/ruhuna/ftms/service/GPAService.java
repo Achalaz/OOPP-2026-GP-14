@@ -105,12 +105,15 @@ public class GPAService {
         boolean savedCurrent=sameSummary(stored,current);
         String state=stored==null ? "Not saved." : savedCurrent ? "Saved and current." : "Saved GPA is stale; recalculate and save.";
         String detail=cumulativeTotals.repeatPending() ? "Repeat replacement policy is unconfirmed. Affected GPA is Pending; repeated courses are not counted twice."
+                : totals.includedCredits()==0 ? "SGPA Pending: no included published credits in this semester. "
+                    + (cumulativeTotals.includedCredits()==0 ? "CGPA Pending: no included published credits to date."
+                        : "CGPA uses earlier published credits only.")
                 : cumulativeTotals.excludedCourses()>0 ? "Provisional: unpublished/incomplete courses are excluded from the published-results calculation."
-                : totals.includedCredits()==0 ? "Pending: no included published credits." : "Credit-weighted published results.";
+                : "Credit-weighted published results.";
         if(studentView && !savedCurrent) {
-            current.setSgpa(null);current.setCgpa(null);
-            state="Pending: " + (stored==null ? "GPA has not been saved." : "saved GPA no longer matches current published results.")
-                    + " Ask an authorized lecturer to calculate and save it.";
+            // semester_results is a cache, not a second publication gate. Never write during a student read.
+            state="Calculated from current published results. "
+                    + (stored==null ? "No saved GPA summary." : "Saved GPA differs from current published results.");
         } else if(savedCurrent) current=stored;
         return new SemesterView(rows,current,savedCurrent,totals.includedCredits(),totals.excludedCourses(),repeated,state+" "+detail);
     }

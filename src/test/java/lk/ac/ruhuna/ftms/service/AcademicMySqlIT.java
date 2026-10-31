@@ -205,8 +205,9 @@ public class AcademicMySqlIT extends TestCase {
         results.publishResult(10,results.calculateAndSaveResult(100).publicationSnapshot());
         var gpa=new GPAService();
         db.login(3,"STUDENT");
-        assertNull(gpa.getSemesterView(3,9).result().getSgpa());
+        assertEquals(4.0,gpa.getSemesterView(3,9).result().getSgpa(),0.00001);
         assertFalse(gpa.getSemesterView(3,9).savedCurrent());
+        assertEquals(0L,((Number)db.scalar("SELECT COUNT(*) FROM semester_results")).longValue());
         db.login(1,"LECTURER");
         gpa.saveSemesterResult(gpa.calculateSemesterGPA(3,9));
         SessionManager.logout();db.login(3,"STUDENT");
@@ -215,8 +216,9 @@ public class AcademicMySqlIT extends TestCase {
         assertEquals(1,new ResultService().getMyPublishedResults(SessionManager.requireSession()).size());
         // Published grade snapshots are retained; an external course-credit change invalidates the summary.
         db.execute("UPDATE courses SET credits=4 WHERE course_id=1");
-        assertNull(gpa.getSemesterView(3,9).result().getSgpa());
-        assertTrue(gpa.getSemesterView(3,9).message().contains("no longer matches"));
+        assertEquals(4.0,gpa.getSemesterView(3,9).result().getSgpa(),0.00001);
+        assertTrue(gpa.getSemesterView(3,9).message().contains("differs from current published results"));
+        assertEquals(3.0,new SemesterResultDAO().getByStudentAndSemester(3,9).getTotalRegisteredCredits(),0.00001);
         db.login(1,"LECTURER");gpa.saveSemesterResult(gpa.calculateSemesterGPA(3,9));
         db.login(3,"STUDENT");assertTrue(gpa.getSemesterView(3,9).savedCurrent());
         db.execute("DELETE FROM students WHERE student_id=3");

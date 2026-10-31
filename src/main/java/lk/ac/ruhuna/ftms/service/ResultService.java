@@ -28,8 +28,17 @@ import java.util.List;
 import java.util.Objects;
 
 public class ResultService {
+    public static final String NO_PUBLISHED_RESULTS =
+            "No published results yet. Please contact your lecturer if your results were expected.";
+    public static final String NO_VALID_ENROLLMENT =
+            "No valid course enrollments are available. Please contact the faculty office to check your enrollment.";
+
     public record StudentPublishedRecords(List<CourseResultDAO.PublishedStudentResult> grades,
-                                          List<GPAService.PublishedSemester> semesters) {
+                                          List<GPAService.PublishedSemester> semesters, String emptyMessage) {
+        public StudentPublishedRecords(List<CourseResultDAO.PublishedStudentResult> grades,
+                                       List<GPAService.PublishedSemester> semesters) {
+            this(grades, semesters, NO_PUBLISHED_RESULTS);
+        }
         public StudentPublishedRecords {
             grades = List.copyOf(grades);
             semesters = List.copyOf(semesters);
@@ -42,7 +51,9 @@ public class ResultService {
             var grades = resultDAO.findPublishedForStudent(connection, student);
             var semesters = grades.isEmpty() ? List.<GPAService.PublishedSemester>of()
                     : new GPAService().getPublishedGpa(connection, student);
-            return new StudentPublishedRecords(grades, semesters);
+            String emptyMessage = grades.isEmpty() && !resultDAO.hasAccessibleEnrollment(connection, student)
+                    ? NO_VALID_ENROLLMENT : NO_PUBLISHED_RESULTS;
+            return new StudentPublishedRecords(grades, semesters, emptyMessage);
         });
     }
 

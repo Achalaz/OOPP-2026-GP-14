@@ -43,13 +43,15 @@ public final class StudentAccessService {
             try {
                 // Recheck the database account and subtype; keep authorization valid until commit.
                 try (var statement = connection.prepareStatement("""
-                        SELECT u.user_id FROM users u JOIN students s ON s.student_id=u.user_id
+                        SELECT u.user_id,s.student_id FROM users u LEFT JOIN students s ON s.student_id=u.user_id
                         WHERE u.user_id=? AND u.role='STUDENT' AND u.is_active=TRUE FOR SHARE
                         """)) {
                     statement.setInt(1, identity.userId());
                     statement.setQueryTimeout(15);
                     try (var rows = statement.executeQuery()) {
                         if (!rows.next()) throw new SecurityException("Your student account is no longer available.");
+                        if (rows.getObject("student_id") == null)
+                            throw new SecurityException("Your student profile is missing. Please contact the faculty office.");
                     }
                 }
                 T result = operation.run(connection, identity.userId());
