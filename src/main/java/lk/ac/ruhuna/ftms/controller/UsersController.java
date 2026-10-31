@@ -217,42 +217,34 @@ public class UsersController {
 
     @FXML
     private void handleUpdate() {
-
-        if (selectedUser == null) {
-            showError("Please select a user first.");
-            return;
-        }
-
         try {
-
-            userService.validateUser(
-                    usernameField.getText(),
-                    nameField.getText(),
-                    emailField.getText(),
-                    roleComboBox.getValue()
-            );
-
-            selectedUser.setUsername(
-                    usernameField.getText().trim());
-
-            selectedUser.setFullName(
-                    nameField.getText().trim());
-
-            selectedUser.setEmail(
-                    emailField.getText().trim());
-
-            selectedUser.setRole(
-                    roleComboBox.getValue());
-
-            userDAO.updateUser(selectedUser);
+            if (selectedUser == null) {
+                throw new IllegalArgumentException("Please select a user first.");
+            }
+            // Keep the displayed row unchanged until the whole update has committed.
+            User updated = new User(selectedUser.getUserId(), usernameField.getText(),
+                    nameField.getText(), emailField.getText(), roleComboBox.getValue(), selectedUser.isActive());
+            boolean passwordChanged = userService.updateUser(updated, passwordField.getText());
 
             handleClear();
             loadUsers();
 
-            showInfo("User updated successfully.");
+            showInfo(passwordChanged
+                    ? "User details and password updated successfully. Account activation is unchanged."
+                    : "User details updated successfully. Password and account activation are unchanged.");
 
-        } catch (SQLException | IllegalArgumentException e) {
+        } catch (IllegalArgumentException | SecurityException e) {
+            passwordField.clear();
             showError(e.getMessage());
+        } catch (SQLException e) {
+            passwordField.clear();
+            // Database errors can contain bound values; never display or log credential details.
+            showError("Unable to save the user update. Refresh and try again.");
+        } catch (IllegalStateException e) {
+            passwordField.clear();
+            showError("Unable to secure the new password. No changes were saved.");
+        } finally {
+            passwordField.clear();
         }
     }
 
@@ -307,7 +299,7 @@ public class UsersController {
         roleComboBox.setValue(null);
     }
 
-    private void showError(String message) {
+    void showError(String message) {
 
         new Alert(
                 Alert.AlertType.ERROR,
@@ -315,7 +307,7 @@ public class UsersController {
         ).showAndWait();
     }
 
-    private void showInfo(String message) {
+    void showInfo(String message) {
 
         new Alert(
                 Alert.AlertType.INFORMATION,

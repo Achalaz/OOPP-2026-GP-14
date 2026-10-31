@@ -54,8 +54,12 @@
                 <Label text="Password" GridPane.rowIndex="3"
                        GridPane.columnIndex="0"/>
                 <PasswordField fx:id="passwordField"
+                               promptText="Leave blank to keep password on update"
                                GridPane.rowIndex="3"
                                GridPane.columnIndex="1"/>
+                <Label text="Required when adding a user; optional when updating (at least 8 characters)."
+                       wrapText="true" maxWidth="360"
+                       GridPane.rowIndex="3" GridPane.columnIndex="2"/>
 
                 <Label text="Role" GridPane.rowIndex="4"
                        GridPane.columnIndex="0"/>
