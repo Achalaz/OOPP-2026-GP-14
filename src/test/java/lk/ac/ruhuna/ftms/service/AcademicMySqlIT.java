@@ -64,12 +64,41 @@ public class AcademicMySqlIT extends TestCase {
         assertEquals(draft.getCalculatedAt(),published.getCalculatedAt());
         reject(()->service.publishResult(10,draft.publicationSnapshot()));
         reject(()->service.calculateAndSaveResult(100));
-        reject(()->new MarkService().saveMark(new Mark(100,10,30.0,1)));
+        try {
+            new MarkService().saveMark(new Mark(100,10,30.0,1));
+            fail("Published marks must remain protected.");
+        } catch (lk.ac.ruhuna.ftms.exception.PublishedResultProtectedException expected) {
+            assertTrue(expected.getMessage().contains("formal correction policy"));
+        }
+        assertEquals(40.0, ((Number) db.scalar("SELECT marks_obtained FROM marks WHERE enrollment_id=100 AND assessment_id=10")).doubleValue(), 0.00001);
+        assertEquals(published.publicationSnapshot(),new CourseResultDAO().getByEnrollmentId(100).publicationSnapshot());
         reject(()->new AssessmentService().save(new Assessment(10,"Extra","QUIZ",10,0,null,null)));
         assertTrue(new CourseResultDAO().getByEnrollmentId(100).isPublished());
         assertEquals(80.0,new ReportService().getStudentReport(3).getFirst().getOverallMark(),0.00001);
         assertEquals(2,new ReportService().getMarkDetails(100).size());
         assertEquals(1,new ReportService().countPassed(new ReportService().getOfferingReport(10)));
+    }
+    public void testUnauditedSavedDraftLoadsButRequiresExplicitResave() throws Exception {
+        completeMarks();db.confirmedFixtureEligibility(100);
+        var service = new ResultService();
+        service.calculateAndSaveResult(100);
+        // AcademicDatabaseFixture shadows course_results with a connection-local temporary table.
+        db.execute("UPDATE course_results SET calculated_by=NULL WHERE enrollment_id=100");
+        var row = service.getBatchResults(10).stream().filter(r -> r.enrollmentId()==100).findFirst().orElseThrow();
+        assertEquals(CourseResult.ResultStatus.PASS, row.result().getResultStatus());
+        assertEquals(Boolean.TRUE, row.overallEligible());
+        assertNull(row.result().getCalculatedBy());
+        assertTrue(ResultService.draftPublicationBlockReason(row.result()).contains("calculating lecturer"));
+        var before = row.result().publicationSnapshot();
+        reject(() -> service.publishResult(10, before));
+        assertEquals(before, new CourseResultDAO().getByEnrollmentId(100).publicationSnapshot());
+
+        var saved = service.calculateAndSaveResult(100);
+        assertEquals(before.resultId(), saved.getResultId());
+        assertEquals(Integer.valueOf(1), saved.getCalculatedBy());
+        assertFalse(saved.isPublished());
+        assertNull(saved.getPublishedAt());
+        assertNull(ResultService.draftPublicationBlockReason(saved));
     }
     public void testRollbackRestoresMarkAndEligibility()throws Exception{
         completeMarks();db.confirmedFixtureEligibility(100);

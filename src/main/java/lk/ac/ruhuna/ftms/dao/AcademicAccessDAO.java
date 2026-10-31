@@ -1,6 +1,7 @@
 package lk.ac.ruhuna.ftms.dao;
 
 import java.sql.*;
+import lk.ac.ruhuna.ftms.exception.PublishedResultProtectedException;
 import lk.ac.ruhuna.ftms.model.User;
 import lk.ac.ruhuna.ftms.util.SessionManager;
 
@@ -106,7 +107,7 @@ public class AcademicAccessDAO {
     public void unpublished(Connection c, int enrollment) throws SQLException {
         var result = new CourseResultDAO().getByEnrollmentId(c, enrollment, true);
         if (result != null && result.isPublished())
-            throw new IllegalStateException("Published academic results are protected. A formal correction policy is required.");
+            throw new PublishedResultProtectedException();
     }
 
     /** Source edits invalidate eligibility and drafts, while published rows must be rejected first. */

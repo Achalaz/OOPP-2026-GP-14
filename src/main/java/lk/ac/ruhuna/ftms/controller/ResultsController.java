@@ -315,15 +315,12 @@ public class ResultsController {
     private void display(ResultRow row) {
         CourseResult result = row == null ? null : row.result();
         publishedSelection.set(result!=null && result.isPublished());
-        publicationPolicyLabel.setText(publicationAuthorized.get() ? "Review a saved draft before publishing."
-                : ResultService.PUBLICATION_POLICY_PENDING);
-        publishableSelection.set(result != null && result.getResultId() > 0 && !result.isPublished()
-                && result.getPublishedAt() == null && result.getCalculatedAt() != null
-                && result.getCalculatedBy() != null
-                && (result.getResultStatus() == CourseResult.ResultStatus.PASS
-                    || result.getResultStatus() == CourseResult.ResultStatus.FAIL)
-                && result.getOverallMark() != null && result.getGradeRuleId() != null
-                && result.getGradeLetter() != null && !result.getGradeLetter().isBlank() && result.getGradePoint() != null);
+        String publicationBlock = ResultService.draftPublicationBlockReason(result);
+        publishableSelection.set(publicationBlock == null);
+        publicationPolicyLabel.setText(!publicationAuthorized.get() ? ResultService.PUBLICATION_POLICY_PENDING
+                : row == null ? "Select an enrollment to review its saved result."
+                : publicationBlock != null ? publicationBlock
+                : "Review this saved draft before publishing. Current marks and eligibility will be checked again.");
         caMarkLabel.setText(number(result, CourseResult::getCaMark));
         finalExamMarkLabel.setText(number(result, CourseResult::getFinalExamMark));
         overallMarkLabel.setText(number(result, CourseResult::getOverallMark));

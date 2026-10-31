@@ -31,6 +31,7 @@ public final class ResultPublicationTest {
             productionAuthorization();
             assignedAccess();
             draftAndAudit();
+            draftPublicationReasons();
             publication();
             rejectedDrafts();
             staleInputs();
@@ -132,9 +133,12 @@ public final class ResultPublicationTest {
         rejectsDraft(r -> r.setGradePoint(null), "missing point");
         rejectsDraft(r -> r.setGradePoint(n("-1")), "negative point");
         rejectsDraft(r -> r.setGradeRuleId(null), "missing rule");
+        rejectsDraft(r -> r.setGradeRuleId(0), "invalid rule ID");
         rejectsDraft(r -> r.setOverallMark(null), "missing overall");
         rejectsDraft(r -> r.setOverallMark(n("101")), "invalid overall");
+        rejectsDraft(r -> r.setOverallMark(n("-1")), "negative overall");
         rejectsDraft(r -> r.setCalculatedBy(null), "legacy unaudited draft requires resave");
+        rejectsDraft(r -> r.setCalculatedBy(0), "invalid calculator ID");
         rejectsDraft(r -> r.setCalculatedAt(null), "missing audit timestamp");
         rejectsDraft(r -> r.setPublishedAt(TIME), "inconsistent publication fields");
         rejectsDraft(r -> r.setResultId(0), "unsaved preview");
@@ -154,6 +158,34 @@ public final class ResultPublicationTest {
         var oldGrade = changedGrade.dao.saved.publicationSnapshot();
         changedGrade.dao.saved.setOverallMark(n("70"));
         rejectPublication(changedGrade, () -> changedGrade.service.publishResult(7, oldGrade), "same-second result edit");
+    }
+
+    private static void draftPublicationReasons() throws Exception {
+        Fixture f = new Fixture();
+        equal(null, ResultService.draftPublicationBlockReason(f.dao.saved), "complete PASS has no draft block");
+        f.dao.saved.setResultStatus(ResultStatus.FAIL);
+        equal(null, ResultService.draftPublicationBlockReason(f.dao.saved), "complete FAIL has no draft block");
+        f.dao.saved.setResultStatus(ResultStatus.PASS);
+        f.dao.saved.setCalculatedBy(null);
+        var before = f.dao.saved.publicationSnapshot();
+        String reason = ResultService.draftPublicationBlockReason(f.dao.saved);
+        check(reason.contains("calculating lecturer") && reason.contains("Save / Update Result"),
+                "legacy PASS draft gives an actionable audit explanation");
+        equal(before, f.dao.saved.publicationSnapshot(), "draft hint never fills in missing audit metadata");
+        equal(0, f.opens, "draft hint does not open a database connection");
+        try {
+            f.service.publishResult(7, before);
+            throw new AssertionError("Unaudited draft published");
+        } catch (ResultCalculationException expected) {
+            equal(reason, expected.getMessage(), "UI hint and publication enforce the same audit rule");
+        }
+        equal(0, f.dao.publishes, "unaudited draft never reaches publication");
+        equal(0, f.dao.saves, "publication never silently repairs an unaudited draft");
+        equal(0, f.commits, "unaudited publication cannot commit");
+        f.dao.saved.setPublished(true);
+        check(ResultService.draftPublicationBlockReason(f.dao.saved).contains("already published"),
+                "published protection takes priority over missing audit fields");
+        check(ResultService.draftPublicationBlockReason(null).contains("No saved draft"), "missing draft explained");
     }
 
     private static void staleInputs() throws Exception {
@@ -205,6 +237,7 @@ public final class ResultPublicationTest {
     private static void rejectsDraft(Consumer<CourseResult> change, String label) throws Exception {
         Fixture f = new Fixture();
         change.accept(f.dao.saved);
+        check(ResultService.draftPublicationBlockReason(f.dao.saved) != null, label + " disables the UI hint");
         rejects(ResultCalculationException.class, () -> f.service.publishResult(7, f.dao.saved.publicationSnapshot()), label);
         equal(0, f.dao.publishes, label + " cannot publish");
     }
