@@ -4,6 +4,7 @@ import junit.framework.TestCase;
 import lk.ac.ruhuna.ftms.dao.CourseOfferingDAO;
 import lk.ac.ruhuna.ftms.model.CourseOffering;
 import lk.ac.ruhuna.ftms.model.User;
+import lk.ac.ruhuna.ftms.util.NavigationUtil;
 import lk.ac.ruhuna.ftms.util.SessionManager;
 
 import java.sql.SQLException;
@@ -14,6 +15,17 @@ public class CourseOfferingServiceTest extends TestCase {
     private final CourseOfferingService service = new CourseOfferingService(dao, CourseService::isCurrentUserAdmin);
 
     @Override protected void tearDown() { SessionManager.logout(); }
+
+    public void testNavigationRejectsUnauthorizedUsersBeforeLoadingFxml() throws Exception {
+        SessionManager.logout();
+        expect(SecurityException.class, () -> NavigationUtil.navigate(
+                null, "/fxml/course_offerings.fxml", "Course Offerings"));
+        for (String role : List.of("LECTURER", "STUDENT", "TECHNICAL_OFFICER")) {
+            login(role);
+            expect(SecurityException.class, () -> NavigationUtil.navigate(
+                    null, "/fxml/course_offerings.fxml", "Course Offerings"));
+        }
+    }
 
     public void testEveryOperationRequiresAnActiveAdminSession() throws Exception {
         SessionManager.logout();

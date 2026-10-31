@@ -189,6 +189,7 @@ public final class NavigationUtil {
         String requiredRole = switch (resource) {
 
             case "/fxml/admin_enrollments.fxml",
+                 "/fxml/course_offerings.fxml",
                  "/fxml/admin_dashboard.fxml" ->
                     "ADMIN";
 
@@ -373,6 +374,16 @@ public final class NavigationUtil {
                             CourseService::isCurrentUserAdmin
                     )
             );
+        }
+
+        // This controller loads its table/dropdowns only after service injection.
+        // Both dashboard entry points must also initialize lecturer assignments.
+        if ("/fxml/course_offerings.fxml".equals(resource)) {
+            CourseOfferingController controller = loader.getController();
+            controller.setCourseOfferingService(new CourseOfferingService(
+                    new CourseOfferingDAO(), CourseService::isCurrentUserAdmin));
+            controller.setLecturerAssignmentService(new LecturerAssignmentService(
+                    new LecturerCourseAssignmentDAO()));
         }
 
         Scene scene = source.getScene();
