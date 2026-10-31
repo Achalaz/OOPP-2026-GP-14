@@ -76,6 +76,7 @@ public class StudentPortalMySqlIT extends TestCase {
         var empty = results.getMyPublishedRecords(SessionManager.requireSession());
         assertTrue(empty.grades().isEmpty());
         assertTrue(empty.semesters().isEmpty());
+        assertEquals(ResultService.NO_PUBLISHED_RESULTS,empty.emptyMessage());
         db.publishSamples();
         db.academic.login(3,"STUDENT");
         var identity = SessionManager.requireSession();
@@ -86,8 +87,10 @@ public class StudentPortalMySqlIT extends TestCase {
         var gpa = new GPAService();
         var semesters = gpa.getMyPublishedGpa(identity);
         assertEquals(1,semesters.size());
-        assertNull("Unsaved GPA stays pending for students",semesters.getFirst().result().getSgpa());
-        assertTrue(semesters.getFirst().status().contains("not been saved"));
+        assertEquals(4.0,semesters.getFirst().result().getSgpa(),0.001);
+        assertEquals(4.0,semesters.getFirst().result().getCgpa(),0.001);
+        assertTrue(semesters.getFirst().status().contains("No saved GPA summary"));
+        assertEquals(0L,((Number)db.academic.scalar("SELECT COUNT(*) FROM semester_results")).longValue());
         saveGpa();
         identity = SessionManager.requireSession();
         semesters = gpa.getMyPublishedGpa(identity);
@@ -116,12 +119,15 @@ public class StudentPortalMySqlIT extends TestCase {
         db.academic.login(3,"STUDENT");
         var results = new ResultService();
         assertEquals(1,results.getMyPublishedRecords(SessionManager.requireSession()).semesters().size());
+        saveGpa();
         // Publish through the existing lecturer workflow; no production tables are written.
         db.academic.login(1,"LECTURER");
         new MarkService().saveMark(new lk.ac.ruhuna.ftms.model.Mark(200,20,60.0,1));
         db.academic.confirmedFixtureEligibility(200);
         results.publishResult(20,results.calculateAndSaveResult(200).publicationSnapshot());
-        saveGpa();
+        assertNull("Publication invalidates the saved cache",
+                db.academic.scalar("SELECT cgpa FROM semester_results WHERE student_id=3 AND semester_id=1"));
+        // Refresh must calculate from the new publication without requiring a lecturer GPA save.
         db.academic.login(3,"STUDENT");
         var view = results.getMyPublishedRecords(SessionManager.requireSession());
         assertEquals(2,view.grades().size());
@@ -134,6 +140,45 @@ public class StudentPortalMySqlIT extends TestCase {
         assertEquals(3.6,results.getMyPublishedRecords(SessionManager.requireSession())
                 .semesters().getLast().result().getCgpa(),0.001);
         assertEquals(2L,((Number)db.academic.scalar("SELECT COUNT(*) FROM semester_results")).longValue());
+        assertNull("Student Refresh must not overwrite that cache",
+                db.academic.scalar("SELECT cgpa FROM semester_results WHERE student_id=3 AND semester_id=1"));
+    }
+
+    public void testCompletedHistoricalEnrollmentsAndOfferingsRemainVisible() throws Exception {
+        db.publishSamples();
+        db.academic.execute("UPDATE enrollments SET status='COMPLETED' WHERE enrollment_id=100");
+        db.academic.execute("UPDATE course_offerings SET status='COMPLETED' WHERE offering_id=10");
+        db.academic.execute("UPDATE courses SET is_active=FALSE WHERE course_id=1");
+        db.academic.execute("UPDATE semesters SET is_active=FALSE");
+        db.academic.execute("UPDATE academic_years SET is_active=FALSE");
+        db.academic.login(3,"STUDENT");
+        var view=new ResultService().getMyPublishedRecords(SessionManager.requireSession());
+        assertEquals(1,view.grades().size());
+        assertEquals("TEST-A",view.grades().getFirst().courseCode());
+        assertEquals(4.0,view.semesters().getFirst().result().getSgpa(),0.001);
+    }
+
+    public void testMissingProfileAndInvalidEnrollmentsHaveDistinctFeedback() throws Exception {
+        db.academic.execute("UPDATE enrollments SET status='WITHDRAWN' WHERE student_id=3");
+        var results=new ResultService();
+        assertEquals(ResultService.NO_VALID_ENROLLMENT,
+                results.getMyPublishedRecords(SessionManager.requireSession()).emptyMessage());
+        db.academic.execute("DELETE FROM enrollments WHERE student_id=3");
+        assertEquals(ResultService.NO_VALID_ENROLLMENT,
+                results.getMyPublishedRecords(SessionManager.requireSession()).emptyMessage());
+        db.academic.execute("DELETE FROM students WHERE student_id=3");
+        try { results.getMyPublishedRecords(SessionManager.requireSession()); fail("Missing profile accepted"); }
+        catch(SecurityException expected) { assertTrue(expected.getMessage().contains("profile is missing")); }
+    }
+
+    public void testFailedResultsQueryPropagatesInsteadOfReturningEmptyRecords() throws Exception {
+        var dao=new lk.ac.ruhuna.ftms.dao.CourseResultDAO() {
+            @Override public java.util.List<PublishedStudentResult> findPublishedForStudent(java.sql.Connection c,int student)
+                    throws java.sql.SQLException { throw new java.sql.SQLException("Fixture query failure","42S02"); }
+        };
+        var results=new ResultService(dao,new lk.ac.ruhuna.ftms.dao.GradeRuleDAO(),new lk.ac.ruhuna.ftms.dao.EligibilityDAO());
+        try { results.getMyPublishedRecords(SessionManager.requireSession()); fail("Query failure swallowed"); }
+        catch(java.sql.SQLException expected) { assertEquals("42S02",expected.getSQLState()); }
     }
 
     public void testPendingGpaForUnresolvedRepeatAndNoApplicablePublishedGrades() throws Exception {
@@ -147,11 +192,12 @@ public class StudentPortalMySqlIT extends TestCase {
         assertNull(repeated.semesters().getFirst().result().getSgpa());
         assertNull(repeated.semesters().getFirst().result().getCgpa());
         db.academic.execute("UPDATE enrollments SET attempt_no=1 WHERE enrollment_id=100");
-        db.academic.execute("UPDATE course_results SET grade_point=NULL,grade_letter=NULL,result_status='PENDING' WHERE enrollment_id=100");
+        db.academic.execute("UPDATE course_results SET grade_point=NULL,grade_letter=NULL,result_status='INCOMPLETE' WHERE enrollment_id=100");
         var pending = results.getMyPublishedRecords(SessionManager.requireSession());
         assertNull(pending.grades().getFirst().gradePoint());
         assertNull(pending.semesters().getFirst().result().getSgpa());
         assertNull(pending.semesters().getFirst().result().getCgpa());
+        assertTrue(pending.semesters().getFirst().status().contains("SGPA Pending: no included published credits"));
     }
 
     public void testWithdrawnAndCancelledExcludedFromBothTables() throws Exception {

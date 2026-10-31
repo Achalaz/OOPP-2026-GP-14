@@ -72,6 +72,22 @@ public class SemesterResultDAO {
             while(r.next())rows.add(new StudentOption(r.getInt(1),r.getString(2),r.getString(3)));
         }return rows;
     }
+    /** Only own identity or students already enrolled in an assigned offering; no unrelated roster scan. */
+    public List<StudentOption> getGpaCandidates(Connection c,int actor,boolean studentView)throws SQLException {
+        String scope=studentView ? "s.student_id=?" : """
+                EXISTS (SELECT 1 FROM enrollments e JOIN course_offerings o ON o.offering_id=e.offering_id
+                        JOIN lecturer_course_assignments a ON a.offering_id=o.offering_id
+                        WHERE e.student_id=s.student_id AND e.status<>'WITHDRAWN' AND o.status<>'CANCELLED'
+                        AND a.lecturer_id=? AND a.assignment_type IN ('PRIMARY','ASSISTANT','PRACTICAL'))
+                """;
+        var rows=new ArrayList<StudentOption>();
+        try(var p=c.prepareStatement("SELECT s.student_id,s.registration_no,CONCAT(u.first_name,' ',u.last_name) "
+                + "FROM students s JOIN users u ON u.user_id=s.student_id WHERE " + scope + " ORDER BY s.registration_no")) {
+            p.setInt(1,actor);p.setQueryTimeout(15);
+            try(var r=p.executeQuery()){while(r.next())rows.add(new StudentOption(r.getInt(1),r.getString(2),r.getString(3)));}
+        }
+        return List.copyOf(rows);
+    }
     public void saveOrUpdateSemesterResult(SemesterResult result)throws SQLException {
         try(var c=DBConnection.getConnection()){saveOrUpdateSemesterResult(c,result);}
     }

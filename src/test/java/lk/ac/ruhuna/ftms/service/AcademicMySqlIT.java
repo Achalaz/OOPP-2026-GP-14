@@ -64,12 +64,41 @@ public class AcademicMySqlIT extends TestCase {
         assertEquals(draft.getCalculatedAt(),published.getCalculatedAt());
         reject(()->service.publishResult(10,draft.publicationSnapshot()));
         reject(()->service.calculateAndSaveResult(100));
-        reject(()->new MarkService().saveMark(new Mark(100,10,30.0,1)));
+        try {
+            new MarkService().saveMark(new Mark(100,10,30.0,1));
+            fail("Published marks must remain protected.");
+        } catch (lk.ac.ruhuna.ftms.exception.PublishedResultProtectedException expected) {
+            assertTrue(expected.getMessage().contains("formal correction policy"));
+        }
+        assertEquals(40.0, ((Number) db.scalar("SELECT marks_obtained FROM marks WHERE enrollment_id=100 AND assessment_id=10")).doubleValue(), 0.00001);
+        assertEquals(published.publicationSnapshot(),new CourseResultDAO().getByEnrollmentId(100).publicationSnapshot());
         reject(()->new AssessmentService().save(new Assessment(10,"Extra","QUIZ",10,0,null,null)));
         assertTrue(new CourseResultDAO().getByEnrollmentId(100).isPublished());
         assertEquals(80.0,new ReportService().getStudentReport(3).getFirst().getOverallMark(),0.00001);
         assertEquals(2,new ReportService().getMarkDetails(100).size());
         assertEquals(1,new ReportService().countPassed(new ReportService().getOfferingReport(10)));
+    }
+    public void testUnauditedSavedDraftLoadsButRequiresExplicitResave() throws Exception {
+        completeMarks();db.confirmedFixtureEligibility(100);
+        var service = new ResultService();
+        service.calculateAndSaveResult(100);
+        // AcademicDatabaseFixture shadows course_results with a connection-local temporary table.
+        db.execute("UPDATE course_results SET calculated_by=NULL WHERE enrollment_id=100");
+        var row = service.getBatchResults(10).stream().filter(r -> r.enrollmentId()==100).findFirst().orElseThrow();
+        assertEquals(CourseResult.ResultStatus.PASS, row.result().getResultStatus());
+        assertEquals(Boolean.TRUE, row.overallEligible());
+        assertNull(row.result().getCalculatedBy());
+        assertTrue(ResultService.draftPublicationBlockReason(row.result()).contains("calculating lecturer"));
+        var before = row.result().publicationSnapshot();
+        reject(() -> service.publishResult(10, before));
+        assertEquals(before, new CourseResultDAO().getByEnrollmentId(100).publicationSnapshot());
+
+        var saved = service.calculateAndSaveResult(100);
+        assertEquals(before.resultId(), saved.getResultId());
+        assertEquals(Integer.valueOf(1), saved.getCalculatedBy());
+        assertFalse(saved.isPublished());
+        assertNull(saved.getPublishedAt());
+        assertNull(ResultService.draftPublicationBlockReason(saved));
     }
     public void testRollbackRestoresMarkAndEligibility()throws Exception{
         completeMarks();db.confirmedFixtureEligibility(100);
@@ -205,8 +234,9 @@ public class AcademicMySqlIT extends TestCase {
         results.publishResult(10,results.calculateAndSaveResult(100).publicationSnapshot());
         var gpa=new GPAService();
         db.login(3,"STUDENT");
-        assertNull(gpa.getSemesterView(3,9).result().getSgpa());
+        assertEquals(4.0,gpa.getSemesterView(3,9).result().getSgpa(),0.00001);
         assertFalse(gpa.getSemesterView(3,9).savedCurrent());
+        assertEquals(0L,((Number)db.scalar("SELECT COUNT(*) FROM semester_results")).longValue());
         db.login(1,"LECTURER");
         gpa.saveSemesterResult(gpa.calculateSemesterGPA(3,9));
         SessionManager.logout();db.login(3,"STUDENT");
@@ -215,8 +245,9 @@ public class AcademicMySqlIT extends TestCase {
         assertEquals(1,new ResultService().getMyPublishedResults(SessionManager.requireSession()).size());
         // Published grade snapshots are retained; an external course-credit change invalidates the summary.
         db.execute("UPDATE courses SET credits=4 WHERE course_id=1");
-        assertNull(gpa.getSemesterView(3,9).result().getSgpa());
-        assertTrue(gpa.getSemesterView(3,9).message().contains("no longer matches"));
+        assertEquals(4.0,gpa.getSemesterView(3,9).result().getSgpa(),0.00001);
+        assertTrue(gpa.getSemesterView(3,9).message().contains("differs from current published results"));
+        assertEquals(3.0,new SemesterResultDAO().getByStudentAndSemester(3,9).getTotalRegisteredCredits(),0.00001);
         db.login(1,"LECTURER");gpa.saveSemesterResult(gpa.calculateSemesterGPA(3,9));
         db.login(3,"STUDENT");assertTrue(gpa.getSemesterView(3,9).savedCurrent());
         db.execute("DELETE FROM students WHERE student_id=3");

@@ -123,7 +123,16 @@ public final class StudentPortalViewSmokeTest {
                 fx(() -> {
                     check(table("recordsTable").getItems().isEmpty(),"no draft rows in results");
                     check(table("summaryTable").getItems().isEmpty() && !node("summaryBox").isVisible(),"empty GPA summary hidden");
-                    check(((Label)node("statusLabel")).getText().equals("No published results available."),"exact empty message");
+                    check(((Label)node("statusLabel")).getText().equals(lk.ac.ruhuna.ftms.service.ResultService.NO_PUBLISHED_RESULTS),"exact empty message");
+                    return null;
+                });
+                // Simulate a publication arriving from another application while this screen stays open.
+                // This changes only the connection-local fixture; the publication service is tested separately.
+                db.academic.execute("UPDATE course_results SET published=TRUE WHERE enrollment_id=100");
+                fx(() -> { button("refreshButton").fire(); return null; }); ready();
+                fx(() -> {
+                    check(table("recordsTable").getItems().size()==1,"Refresh sees newly published result");
+                    check(table("summaryTable").getItems().toString().contains("4.00"),"Refresh sees newly calculated GPA");
                     button("logoutButton").fire();
                     check("loginRoot".equals(scene.getRoot().getId()),"viewer logout opens login");
                     check(!SessionManager.isLoggedIn(),"viewer logout ends session");

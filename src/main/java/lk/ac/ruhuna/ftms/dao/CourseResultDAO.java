@@ -20,6 +20,23 @@ public class CourseResultDAO {
                                          String semester, String grade, BigDecimal gradePoint,
                                          BigDecimal credits, int attempt) {}
 
+    /** Distinguish unavailable enrollments from enrolled students awaiting publication. */
+    public boolean hasAccessibleEnrollment(Connection connection, int studentId) throws SQLException {
+        try (var statement = connection.prepareStatement("""
+                SELECT 1 FROM enrollments e
+                JOIN course_offerings o ON o.offering_id=e.offering_id
+                JOIN courses c ON c.course_id=o.course_id
+                JOIN semesters s ON s.semester_id=o.semester_id
+                JOIN academic_years ay ON ay.academic_year_id=s.academic_year_id
+                WHERE e.student_id=? AND e.status<>'WITHDRAWN' AND o.status<>'CANCELLED'
+                LIMIT 1
+                """)) {
+            statement.setInt(1, studentId);
+            statement.setQueryTimeout(15);
+            try (var rows = statement.executeQuery()) { return rows.next(); }
+        }
+    }
+
     /** Publication is filtered in SQL: drafts never reach the student viewer. */
     public List<PublishedStudentResult> findPublishedForStudent(Connection connection, int studentId)
             throws SQLException {

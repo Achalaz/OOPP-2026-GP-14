@@ -9,6 +9,13 @@ import java.util.*;
 
 /** Published grade snapshots are authoritative; later grade-rule edits never rewrite historical GPA. */
 public class GPAService {
+    /** Blocked students' identities, grades and GPA are never returned in selection diagnostics. */
+    public record StudentSelection(List<StudentOption> students, int assignedOfferings, int blockedStudents,
+                                   List<AcademicAccessDAO.OfferingGap> missingAssignments, String message) {
+        public StudentSelection {
+            students=List.copyOf(students);missingAssignments=List.copyOf(missingAssignments);
+        }
+    }
     public record PublishedSemester(SemesterOption semester, SemesterResult result, String status) {
         public PublishedSemester(SemesterOption semester, SemesterResult result) { this(semester,result,""); }
     }
@@ -105,12 +112,15 @@ public class GPAService {
         boolean savedCurrent=sameSummary(stored,current);
         String state=stored==null ? "Not saved." : savedCurrent ? "Saved and current." : "Saved GPA is stale; recalculate and save.";
         String detail=cumulativeTotals.repeatPending() ? "Repeat replacement policy is unconfirmed. Affected GPA is Pending; repeated courses are not counted twice."
+                : totals.includedCredits()==0 ? "SGPA Pending: no included published credits in this semester. "
+                    + (cumulativeTotals.includedCredits()==0 ? "CGPA Pending: no included published credits to date."
+                        : "CGPA uses earlier published credits only.")
                 : cumulativeTotals.excludedCourses()>0 ? "Provisional: unpublished/incomplete courses are excluded from the published-results calculation."
-                : totals.includedCredits()==0 ? "Pending: no included published credits." : "Credit-weighted published results.";
+                : "Credit-weighted published results.";
         if(studentView && !savedCurrent) {
-            current.setSgpa(null);current.setCgpa(null);
-            state="Pending: " + (stored==null ? "GPA has not been saved." : "saved GPA no longer matches current published results.")
-                    + " Ask an authorized lecturer to calculate and save it.";
+            // semester_results is a cache, not a second publication gate. Never write during a student read.
+            state="Calculated from current published results. "
+                    + (stored==null ? "No saved GPA summary." : "Saved GPA differs from current published results.");
         } else if(savedCurrent) current=stored;
         return new SemesterView(rows,current,savedCurrent,totals.includedCredits(),totals.excludedCourses(),repeated,state+" "+detail);
     }
@@ -152,13 +162,38 @@ public class GPAService {
         });
     }
     public List<StudentOption> getStudents()throws SQLException {
+        return getStudentSelection().students();
+    }
+    public StudentSelection getStudentSelection()throws SQLException {
         return AcademicTransaction.run((c,id)->{
             var actor=access.actor(c,id);var rows=new ArrayList<StudentOption>();
             if(!List.of("LECTURER","STUDENT").contains(actor.getRole()))throw new SecurityException("Academic access denied.");
-            for(var student:dao.getStudents(c)) {
-                try {access.transcript(c,id,student.studentId(),false);rows.add(student);}
-                catch(SecurityException|IllegalArgumentException denied){/* Exclude inaccessible transcripts. */}
-            }return rows;
+            if("STUDENT".equals(actor.getRole())) {
+                access.transcript(c,id,id.userId(),false);
+                return new StudentSelection(dao.getGpaCandidates(c,id.userId(),true),0,0,List.of(),
+                        "Your own published academic records. GPA uses published grades only.");
+            }
+            int assignments=access.lecturerAssignmentCount(c,id);
+            if(assignments==0) return new StudentSelection(List.of(),0,0,List.of(),
+                    "No lecturer course assignments. Ask Admin to review your teaching assignments, then Refresh.");
+            var missing=new TreeMap<Integer,AcademicAccessDAO.OfferingGap>();
+            int blocked=0;
+            for(var student:dao.getGpaCandidates(c,id.userId(),false)) {
+                var coverage=access.transcriptCoverage(c,id.userId(),student.studentId());
+                if(coverage.complete()) rows.add(student);
+                else {
+                    blocked++;
+                    for(var offering:coverage.missingAssignments())missing.put(offering.offeringId(),offering);
+                }
+            }
+            String message=rows.isEmpty() && blocked==0
+                    ? "Your assigned offerings have no available student enrollments. Ask Admin to review enrollments."
+                    : rows.size()+" accessible full transcript(s). Select a student and semester.";
+            if(blocked>0) message=(rows.isEmpty()?"No accessible full transcripts.":rows.size()+" accessible full transcript(s).")
+                    +" "+blocked+" student(s) in your assigned courses also have unassigned offerings. "
+                    +"Full GPA requires every included offering, including historical courses. "
+                    +"Ask Admin to review the missing assignments below. Use Assigned Course Reports for your current access.";
+            return new StudentSelection(rows,assignments,blocked,new ArrayList<>(missing.values()),message);
         });
     }
     public List<SemesterOption> getSemestersForStudent(int student)throws SQLException {

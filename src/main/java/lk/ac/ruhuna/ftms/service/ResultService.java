@@ -28,8 +28,17 @@ import java.util.List;
 import java.util.Objects;
 
 public class ResultService {
+    public static final String NO_PUBLISHED_RESULTS =
+            "No published results yet. Please contact your lecturer if your results were expected.";
+    public static final String NO_VALID_ENROLLMENT =
+            "No valid course enrollments are available. Please contact the faculty office to check your enrollment.";
+
     public record StudentPublishedRecords(List<CourseResultDAO.PublishedStudentResult> grades,
-                                          List<GPAService.PublishedSemester> semesters) {
+                                          List<GPAService.PublishedSemester> semesters, String emptyMessage) {
+        public StudentPublishedRecords(List<CourseResultDAO.PublishedStudentResult> grades,
+                                       List<GPAService.PublishedSemester> semesters) {
+            this(grades, semesters, NO_PUBLISHED_RESULTS);
+        }
         public StudentPublishedRecords {
             grades = List.copyOf(grades);
             semesters = List.copyOf(semesters);
@@ -42,7 +51,9 @@ public class ResultService {
             var grades = resultDAO.findPublishedForStudent(connection, student);
             var semesters = grades.isEmpty() ? List.<GPAService.PublishedSemester>of()
                     : new GPAService().getPublishedGpa(connection, student);
-            return new StudentPublishedRecords(grades, semesters);
+            String emptyMessage = grades.isEmpty() && !resultDAO.hasAccessibleEnrollment(connection, student)
+                    ? NO_VALID_ENROLLMENT : NO_PUBLISHED_RESULTS;
+            return new StudentPublishedRecords(grades, semesters, emptyMessage);
         });
     }
 
@@ -276,17 +287,33 @@ public class ResultService {
     }
 
     private void requirePublishableDraft(CourseResult saved) {
-        if (saved == null) { throw new ResultCalculationException("No saved draft exists for this enrollment."); }
-        if (saved.isPublished()) { throw new ResultCalculationException("This result is already published. Refresh to view it."); }
-        if (saved.getPublishedAt() != null || saved.getCalculatedAt() == null || saved.getCalculatedBy() == null
-                || saved.getCalculatedBy() <= 0 || saved.getResultId() <= 0
+        String reason = draftPublicationBlockReason(saved);
+        if (reason != null) { throw new ResultCalculationException(reason); }
+    }
+
+    /**
+     * Explains draft-only validation without database access or mutations. A null reason is only a UI
+     * hint: publishResult still checks authority, the reviewed snapshot and current inputs in its transaction.
+     */
+    public static String draftPublicationBlockReason(CourseResult saved) {
+        if (saved == null) { return "No saved draft exists for this enrollment. Calculate and save a result first."; }
+        if (saved.isPublished()) { return "This result is already published. Refresh to view it."; }
+        if (saved.getResultId() <= 0) { return "This result is a preview. Save / Update Result before publishing."; }
+        if (saved.getCalculatedBy() == null || saved.getCalculatedBy() <= 0) {
+            return "This saved draft has no recorded calculating lecturer. Calculate Result, then Save / Update Result before publishing.";
+        }
+        if (saved.getCalculatedAt() == null) {
+            return "This saved draft has no calculation time. Calculate Result, then Save / Update Result before publishing.";
+        }
+        if (saved.getPublishedAt() != null
                 || !(saved.getResultStatus() == ResultStatus.PASS || saved.getResultStatus() == ResultStatus.FAIL)
                 || saved.getOverallMark() == null || saved.getOverallMark().signum() < 0
                 || saved.getOverallMark().compareTo(HUNDRED) > 0 || saved.getGradeRuleId() == null
                 || saved.getGradeRuleId() <= 0 || saved.getGradeLetter() == null || saved.getGradeLetter().isBlank()
                 || saved.getGradePoint() == null || saved.getGradePoint().signum() < 0) {
-            throw new ResultCalculationException("Only a complete, audited PASS or FAIL draft can be published. Recalculate and save it first.");
+            return "Only a complete, audited PASS or FAIL draft can be published. Check marks and eligibility, then recalculate and save it.";
         }
+        return null;
     }
 
     private boolean sameCalculatedResult(CourseResult saved, CourseResult current) {
