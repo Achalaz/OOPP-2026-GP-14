@@ -27,12 +27,12 @@ $fx = @('base','graphics','controls','fxml') | ForEach-Object {
     "$Repository/org/openjfx/javafx-$_/25/javafx-$_-25-win.jar"
 }
 $classpath = "target/test-classes;target/classes;$Repository/com/mysql/mysql-connector-j/9.4.0/mysql-connector-j-9.4.0.jar"
-$runners = @('controller.AcademicViewsSmokeTest','controller.ResultsViewSmokeTest',
+$runners = @('controller.AcademicViewsSmokeTest','controller.ResultsViewSmokeTest','controller.MarksSaveViewSmokeTest',
     'controller.MarksEntryIntegrationTest','controller.LecturerNavigationSmokeTest',
     'controller.AcademicAcceptanceSmokeTest')
 if ($AllRegressions) {
     $runners = @('service.ResultServiceTest','service.ResultPublicationTest','service.ResultPublicationDatabaseTest',
-        'controller.ResultsViewSmokeTest','dao.ResultDatabaseSmokeTest','service.ProfileServiceTest',
+        'controller.ResultsViewSmokeTest','controller.MarksSaveViewSmokeTest','dao.ResultDatabaseSmokeTest','service.ProfileServiceTest',
         'service.ProfilePictureServiceTest','service.CourseMaterialServiceTest','service.NoticeServiceTest',
         'dao.NoticeDatabaseSmokeTest','controller.NoticeViewSmokeTest','service.LecturerAccessSmokeTest',
         'controller.LecturerViewSmokeTest','controller.LecturerNavigationSmokeTest','controller.MarksEntryIntegrationTest',

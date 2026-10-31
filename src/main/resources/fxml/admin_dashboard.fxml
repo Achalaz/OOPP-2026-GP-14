@@ -41,6 +41,12 @@
                     styleClass="nav-button"
                     onAction="#handleCourseOfferings"/>
 
+            <Button text="Student Enrollments" maxWidth="Infinity"
+                    styleClass="nav-button" onAction="#handleEnrollments"/>
+
+            <Button id="gpaNavButton" text="SGPA / CGPA Management" maxWidth="Infinity"
+                    styleClass="nav-button" onAction="#handleGpa"/>
+
             <Button text="✉  Notices"
                     maxWidth="Infinity"
                     styleClass="nav-button"
@@ -175,6 +181,20 @@
                                     onAction="#handleCourseOfferings"/>
                         </VBox>
 
+                        <VBox styleClass="dashboard-card" GridPane.columnIndex="1" GridPane.rowIndex="2">
+                            <Label text="Student Enrollments" styleClass="card-title"/>
+                            <Label text="Enroll students in course offerings and manage enrollment status."
+                                   styleClass="card-description" wrapText="true"/>
+                            <Button text="Manage Student Enrollments" styleClass="card-button"
+                                    wrapText="true" onAction="#handleEnrollments"/>
+                        </VBox>
+                        <VBox styleClass="dashboard-card" GridPane.columnIndex="0" GridPane.rowIndex="3">
+                            <Label text="SGPA / CGPA Management" styleClass="card-title"/>
+                            <Label text="Calculate and save full student GPA using published results."
+                                   styleClass="card-description" wrapText="true"/>
+                            <Button id="gpaCardButton" text="Manage SGPA / CGPA" styleClass="card-button"
+                                    wrapText="true" onAction="#handleGpa"/>
+                        </VBox>
                     </GridPane>
 
                 </VBox>

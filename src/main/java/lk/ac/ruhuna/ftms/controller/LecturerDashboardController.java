@@ -115,12 +115,8 @@ public class LecturerDashboardController {
 
 
     @FXML
-    private void handleCourseMaterials() throws IOException {
-        NavigationUtil.navigate(
-                lecturerRoot,
-                "/lk/ac/ruhuna/ftms/view/course_materials.fxml",
-                "FTMS - Course Materials"
-        );
+    private void handleCourseMaterials() {
+        openWorkspace("materials", "Course Materials");
     }
 
 
@@ -181,6 +177,7 @@ public class LecturerDashboardController {
     private void handleLogout() {
 
         try {
+            SessionManager.requireSession(identity);
             SessionManager.logout();
 
             NavigationUtil.navigate(
@@ -188,8 +185,6 @@ public class LecturerDashboardController {
                     "/fxml/login.fxml",
                     "FTMS - Login"
             );
-
-            SessionManager.logout();
 
         } catch (IOException | SecurityException e) {
             showError("Logout failed: " + e.getMessage());

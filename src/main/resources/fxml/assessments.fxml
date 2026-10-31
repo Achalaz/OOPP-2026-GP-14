@@ -18,15 +18,18 @@
    <Label text="Date" GridPane.rowIndex="2"/><DatePicker fx:id="dateField" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
    <Label text="Description" GridPane.columnIndex="2" GridPane.rowIndex="2"/><TextArea fx:id="descriptionField" prefRowCount="2" GridPane.columnIndex="3" GridPane.rowIndex="2"/>
   </GridPane>
-  <HBox spacing="10">
-   <Button text="New / Clear" onAction="#handleNew"/><Button fx:id="saveButton" text="Save Assessment" onAction="#handleSave"/>
+  <FlowPane hgap="10" vgap="8">
+   <Button fx:id="newButton" text="New / Clear" onAction="#handleNew"/><Button fx:id="saveButton" text="Save Assessment" onAction="#handleSave"/>
    <Button fx:id="deleteButton" text="Delete Unreferenced Assessment" onAction="#handleDelete"/>
+   <Button fx:id="releaseButton" text="Release Assessment" onAction="#handleRelease" disable="true"/>
    <Button fx:id="refreshButton" text="Refresh" onAction="#handleRefresh"/>
-  </HBox>
+  </FlowPane>
   <Label fx:id="statusLabel" wrapText="true" text="Build a complete assessment plan before calculating results."/>
   <TableView fx:id="assessmentTable" VBox.vgrow="ALWAYS"><columns>
    <TableColumn fx:id="nameColumn" text="Assessment" prefWidth="280"/><TableColumn fx:id="typeColumn" text="Type" prefWidth="180"/>
    <TableColumn fx:id="maxColumn" text="Maximum mark" prefWidth="150"/><TableColumn fx:id="weightColumn" text="Weight %" prefWidth="150"/>
+   <TableColumn fx:id="publicationColumn" text="Status" prefWidth="100"/>
+   <TableColumn fx:id="publishedAtColumn" text="Released at" prefWidth="180"/>
   </columns></TableView>
  </VBox></center>
 </BorderPane>

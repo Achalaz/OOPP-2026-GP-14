@@ -1,73 +1,137 @@
+
 package lk.ac.ruhuna.ftms.controller;
 
 import javafx.fxml.FXML;
 import javafx.scene.control.Alert;
+import javafx.scene.control.Label;
+import javafx.scene.layout.BorderPane;
+
+import lk.ac.ruhuna.ftms.model.User;
+import lk.ac.ruhuna.ftms.util.NavigationUtil;
+import lk.ac.ruhuna.ftms.util.SessionManager;
 
 import java.io.IOException;
 
+/**
+ * Admin Dashboard Controller.
+ *
+ * Admin can manage:
+ * - User Profiles
+ * - Courses
+ * - Notices
+ * - Timetables
+ */
 public class AdminDashboardController {
 
-    @FXML private javafx.scene.layout.BorderPane adminRoot;
-    @FXML private javafx.scene.control.Label nameLabel;
+    @FXML
+    private BorderPane adminRoot;
 
-    @FXML public void initialize() {
-        var user = lk.ac.ruhuna.ftms.util.SessionManager.getCurrentUser();
-        if (user == null || !user.isActive() || !"ADMIN".equals(user.getRole()))
-            throw new SecurityException("Active administrator access required.");
-        nameLabel.setText("Welcome back, " + user.getFullName());
+    @FXML
+    private Label nameLabel;
+
+    // Initialize Admin Dashboard
+    @FXML
+    public void initialize() {
+
+        User user = SessionManager.getCurrentUser();
+
+        if (user == null
+                || !user.isActive()
+                || !"ADMIN".equals(user.getRole())) {
+
+            throw new SecurityException(
+                    "Active administrator access required."
+            );
+        }
+
+        nameLabel.setText(
+                "Welcome back, " + user.getFullName()
+        );
     }
 
+    // Common navigation method
     private void navigate(String fxmlFile) {
+
         try {
-            lk.ac.ruhuna.ftms.util.NavigationUtil.navigate(adminRoot, "/fxml/" + fxmlFile, "FTMS");
-        } catch (IOException | RuntimeException e) {
-            showError("Unable to open the requested screen.");
+
+            NavigationUtil.navigate(
+                    adminRoot,
+                    "/fxml/" + fxmlFile,
+                    "FTMS"
+            );
+
+        } catch (IOException | RuntimeException error) {
+
+            error.printStackTrace();
+
+            showError(
+                    "Unable to open the requested screen."
+            );
         }
     }
 
+    // Admin Dashboard Home
     @FXML
     private void handleDashboard() {
+
         navigate("admin_dashboard.fxml");
     }
 
+    // Manage Users
     @FXML
     private void handleUsers() {
+
         navigate("Users.fxml");
     }
 
+    // Manage Courses
     @FXML
     private void handleCourses() {
+
         navigate("courses.fxml");
     }
 
+    // Manage Notices
     @FXML
     private void handleNotices() {
-        navigate("notices.fxml");
 
+        navigate("notices.fxml");
     }
 
+    // NEW: Admin Timetable Management
     @FXML
     private void handleTimetables() {
-        showInfo("Timetable Management will be connected after CRUD implementation.");
+
+        navigate("admin_timetable.fxml");
     }
 
+    // Admin Profile
     @FXML
     private void handleProfile() {
+
         navigate("profile.fxml");
     }
 
+    // Admin Logout
     @FXML
     private void handleLogout() {
-        lk.ac.ruhuna.ftms.util.SessionManager.logout();
+
+        SessionManager.logout();
+
         navigate("login.fxml");
     }
 
-    private void showInfo(String message) {
-        new Alert(Alert.AlertType.INFORMATION, message).showAndWait();
-    }
-
+    // Display error message
     private void showError(String message) {
-        new Alert(Alert.AlertType.ERROR, message).showAndWait();
+
+        Alert alert = new Alert(
+                Alert.AlertType.ERROR,
+                message
+        );
+
+        alert.setTitle("FTMS Admin Dashboard");
+        alert.setHeaderText(null);
+        alert.showAndWait();
     }
 
 
@@ -76,5 +140,14 @@ public class AdminDashboardController {
         navigate("course_offerings.fxml");
     }
 
-}
+    @FXML
+    private void handleEnrollments() {
+        navigate("admin_enrollments.fxml");
+    }
 
+    @FXML
+    private void handleGpa() {
+        navigate("gpa.fxml");
+    }
+
+}

@@ -14,10 +14,15 @@
             <padding>
                 <Insets top="18" right="20" bottom="18" left="20"/>
             </padding>
-            <Label text="FTMS - User Management"
-                   style="-fx-font-size: 24px;
-                          -fx-font-weight: bold;
-                          -fx-text-fill: white;"/>
+            <HBox spacing="12" alignment="CENTER_LEFT">
+                <Label text="FTMS - User Management"
+                       style="-fx-font-size: 24px;
+                              -fx-font-weight: bold;
+                              -fx-text-fill: white;"/>
+                <Region HBox.hgrow="ALWAYS"/>
+                <Button fx:id="dashboardButton" text="Back to Dashboard"
+                        onAction="#handleBackToDashboard"/>
+            </HBox>
         </VBox>
     </top>
 
@@ -49,8 +54,12 @@
                 <Label text="Password" GridPane.rowIndex="3"
                        GridPane.columnIndex="0"/>
                 <PasswordField fx:id="passwordField"
+                               promptText="Leave blank to keep password on update"
                                GridPane.rowIndex="3"
                                GridPane.columnIndex="1"/>
+                <Label text="Required when adding a user; optional when updating (at least 8 characters)."
+                       wrapText="true" maxWidth="360"
+                       GridPane.rowIndex="3" GridPane.columnIndex="2"/>
 
                 <Label text="Role" GridPane.rowIndex="4"
                        GridPane.columnIndex="0"/>

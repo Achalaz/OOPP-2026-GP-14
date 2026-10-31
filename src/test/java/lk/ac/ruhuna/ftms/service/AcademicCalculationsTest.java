@@ -49,7 +49,35 @@ public class AcademicCalculationsTest extends TestCase {
         assertNull(GPAService.totals(List.of(row("A",3,null,"PENDING",false))).gpa());
     }
     public void testRepeatPolicyRemainsPending(){
-        assertNull(GPAService.totals(List.of(row("A",3,4.0,"PASS",true),row("A",3,2.0,"PASS",true))).gpa());
+        var total=GPAService.totals(List.of(row("A",3,4.0,"PASS",true),row("A",3,2.0,"PASS",true),row("B",2,3.0,"PASS",true)));
+        assertNull(total.gpa());
+        assertTrue(total.repeatPending());
+        assertEquals(5.0,total.registered(),0.00001);
+        assertEquals(2.0,total.earned(),0.00001);
+        assertEquals(6.0,total.quality(),0.00001);
+        assertEquals(2.0,total.includedCredits(),0.00001);
+        assertEquals(2,total.excludedCourses());
+    }
+    public void testGpaDoesNotTreatIncompleteOrMissingGradesAsZero(){
+        var total=GPAService.totals(List.of(row("A",3,4.0,"PASS",true),
+                row("B",8,4.0,"INCOMPLETE",true),row("C",2,null,"PASS",true),
+                row("D",1,0.0,"FAIL",false)));
+        assertEquals(4.0,total.gpa(),0.00001);
+        assertEquals(3.0,total.includedCredits(),0.00001);
+        assertEquals(12.0,total.quality(),0.00001);
+        assertEquals(3,total.excludedCourses());
+        assertNull(GPAService.qualityPoints(row("B",8,4.0,"INCOMPLETE",true)));
+        assertNull(GPAService.qualityPoints(row("C",2,null,"PASS",true)));
+    }
+    public void testZeroCreditPublishedResultKeepsGpaPending(){
+        var total=GPAService.totals(List.of(row("A",0,4.0,"PASS",true)));
+        assertNull(total.gpa());
+        assertEquals(0.0,total.quality(),0.00001);
+    }
+    public void testGpaUsesConsistentHalfUpRounding(){
+        var total=GPAService.totals(List.of(row("A",1,3.125,"PASS",true)));
+        assertEquals(3.13,total.gpa(),0.00001);
+        assertEquals(3.13,total.quality(),0.00001);
     }
     public void testAttendanceMissingVersusZero(){
         var missing=new AttendanceCounts(1,0,0,0,0,0,0,0,0,0,0);
