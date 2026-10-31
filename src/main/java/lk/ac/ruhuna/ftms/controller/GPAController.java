@@ -17,7 +17,7 @@ import java.util.concurrent.Callable;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-/** Existing GPA screen: authorized published snapshots and lecturer persistence. */
+/** Shared GPA screen: Admin management, fully assigned lecturers, and read-only student access. */
 public class GPAController {
     @FXML private ComboBox<StudentOption> studentCombo;
     @FXML private ComboBox<SemesterOption> semesterCombo;
@@ -46,6 +46,7 @@ public class GPAController {
     @FXML public void initialize(){
         requireScreenSession();
         studentView="STUDENT".equals(SessionManager.getCurrentUser().getRole());
+        boolean adminView="ADMIN".equals(SessionManager.getCurrentUser().getRole());
         courseTable.setEditable(false);
         courseTable.setPlaceholder(new Label("Select a student and semester to view published course results."));
         column(courseCodeColumn,GpaCourseRow::courseCode);
@@ -65,6 +66,7 @@ public class GPAController {
         refreshButton.disableProperty().bind(busy);
         reportsButton.disableProperty().bind(busy);
         reportsButton.setText(studentView?"My Reports":"Assigned Course Reports");
+        reportsButton.setVisible(!adminView);reportsButton.setManaged(!adminView);
         clearButton.disableProperty().bind(busy);
         progressIndicator.visibleProperty().bind(busy);progressIndicator.managedProperty().bind(busy);
         saveButton.setVisible(!studentView);saveButton.setManaged(!studentView);
@@ -102,8 +104,8 @@ public class GPAController {
                 studentCombo.setValue(selected);
             } finally {updatingSelections=false;}
             statusLabel.setText(selection.blockedStudents()>0
-                    ? (students.isEmpty()?"No accessible full transcripts. Review the assignment details above or open Assigned Course Reports."
-                        : "Select an accessible student and semester. Assignment details are shown above.")
+                    ? (students.isEmpty()?"No accessible full transcripts. An Admin can manage full GPA; use Assigned Course Reports for your assigned offerings."
+                        : "Select an accessible student and semester. An Admin can manage GPA for students outside your full transcript access.")
                     : selection.message());
             if(students.isEmpty())courseTable.setPlaceholder(new Label("No accessible students. See the access details above."));
             if(studentCombo.getValue()!=null)loadSemesters(studentCombo.getValue(),previousSemester);
@@ -180,8 +182,8 @@ public class GPAController {
     private static String number(Double value){return value==null?"Pending":String.format(Locale.ROOT,"%.2f",value);}
     private void requireScreenSession(){
         SessionManager.requireSession(identity);var user=SessionManager.getCurrentUser();
-        if(user==null || !user.isActive() || !Set.of("LECTURER","STUDENT").contains(user.getRole()))
-            throw new SecurityException("An active lecturer or student session is required for GPA.");
+        if(user==null || !user.isActive() || !Set.of("ADMIN","LECTURER","STUDENT").contains(user.getRole()))
+            throw new SecurityException("An active Admin, lecturer or student session is required for GPA.");
     }
     private <T> void run(String message,Callable<T> work,Consumer<T> success){
         if(disposed || activeTask!=null)return;
@@ -219,7 +221,7 @@ public class GPAController {
         return "Unable to complete the GPA action. Refresh to check the latest saved state.";
     }
     @FXML private void handleBack(){
-        navigate(studentView?"/fxml/student_dashboard.fxml":"/fxml/lecturer_dashboard.fxml","FTMS - Dashboard");
+        navigate("/fxml/dashboard.fxml","FTMS - Dashboard");
     }
     @FXML private void handleReports(){navigate("/fxml/reports.fxml","FTMS - Reports");}
     private void navigate(String resource,String title){

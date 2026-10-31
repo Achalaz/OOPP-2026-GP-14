@@ -73,7 +73,7 @@ public class GpaSelectionMySqlIT extends TestCase {
         denied(gpa::getStudentSelection);
         db.academic.login(2,"LECTURER");db.academic.execute("UPDATE users SET is_active=FALSE WHERE user_id=2");
         denied(gpa::getStudentSelection);
-        db.academic.login(5,"ADMIN");denied(gpa::getStudentSelection);
+        db.academic.login(6,"TECHNICAL_OFFICER");denied(gpa::getStudentSelection);
     }
 
     public void testStudentOwnPublishedResultsAndNoPublishedResults() throws Exception {

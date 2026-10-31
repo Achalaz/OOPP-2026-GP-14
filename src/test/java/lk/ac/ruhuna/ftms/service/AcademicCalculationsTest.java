@@ -58,6 +58,22 @@ public class AcademicCalculationsTest extends TestCase {
         assertEquals(2.0,total.includedCredits(),0.00001);
         assertEquals(2,total.excludedCourses());
     }
+    public void testGpaDoesNotTreatIncompleteOrMissingGradesAsZero(){
+        var total=GPAService.totals(List.of(row("A",3,4.0,"PASS",true),
+                row("B",8,4.0,"INCOMPLETE",true),row("C",2,null,"PASS",true),
+                row("D",1,0.0,"FAIL",false)));
+        assertEquals(4.0,total.gpa(),0.00001);
+        assertEquals(3.0,total.includedCredits(),0.00001);
+        assertEquals(12.0,total.quality(),0.00001);
+        assertEquals(3,total.excludedCourses());
+        assertNull(GPAService.qualityPoints(row("B",8,4.0,"INCOMPLETE",true)));
+        assertNull(GPAService.qualityPoints(row("C",2,null,"PASS",true)));
+    }
+    public void testZeroCreditPublishedResultKeepsGpaPending(){
+        var total=GPAService.totals(List.of(row("A",0,4.0,"PASS",true)));
+        assertNull(total.gpa());
+        assertEquals(0.0,total.quality(),0.00001);
+    }
     public void testGpaUsesConsistentHalfUpRounding(){
         var total=GPAService.totals(List.of(row("A",1,3.125,"PASS",true)));
         assertEquals(3.13,total.gpa(),0.00001);

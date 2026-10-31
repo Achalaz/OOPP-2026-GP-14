@@ -28,7 +28,36 @@ public final class GpaSelectionViewSmokeTest {
     }
     private static void fixture() throws Exception {
         try(var db=new StudentDatabaseFixture()) {
-            db.publishSamples();load(new GPAService());ready();
+            db.publishSamples();
+            db.academic.login(5,"ADMIN");
+            fx(()->{
+                Parent root=FXMLLoader.load(GpaSelectionViewSmokeTest.class.getResource("/fxml/admin_dashboard.fxml"));
+                scene=new Scene(root,1280,900);
+                root.applyCss();root.layout();
+                button("gpaNavButton").fire();scene.getRoot().applyCss();scene.getRoot().layout();return null;
+            });ready();
+            fx(()->{
+                check(combo("studentCombo").getItems().size()==2,"Admin can select every student without lecturer assignments");
+                check(label("accessLabel").contains("Admin GPA management"),"Admin workflow explained");
+                check(!button("reportsButton").isVisible(),"Admin GPA does not expose lecturer reports");
+                combo("studentCombo").getSelectionModel().selectLast();return null;
+            });ready();selectSemester(9);ready();
+            fx(()->{
+                check(label("sgpaLabel").equals("3.00"),"Admin sees previously restricted student's published GPA");
+                button("calculateButton").fire();return null;
+            });ready();fx(()->{button("saveButton").fire();return null;});ready();
+            check(((Number)db.academic.scalar("SELECT sgpa FROM semester_results WHERE student_id=4 AND semester_id=9")).doubleValue()==3.0,"Admin Save persists recalculated GPA");
+            fx(()->{button("refreshButton").fire();return null;});ready();
+            fx(()->{
+                check(label("savedStateLabel").contains("Saved and current"),"Admin refresh reloads saved GPA");
+                snapshot("gpa-selection-admin");
+                button("dashboardButton").fire();
+                check(scene.getRoot().getId().equals("adminRoot"),"GPA Back returns Admin to own dashboard");
+                scene.getRoot().applyCss();scene.getRoot().layout();
+                button("gpaCardButton").fire();scene.getRoot().applyCss();scene.getRoot().layout();return null;
+            });ready();
+            fx(()->{check(combo("studentCombo").getItems().size()==2,"Admin dashboard card opens GPA");return null;});
+            db.academic.login(1,"LECTURER");load(new GPAService());ready();
             fx(()->{
                 check(combo("studentCombo").getItems().size()==1,"fully authorized student selectable");
                 check(label("accessLabel").contains("1 accessible full transcript"),"mixed access explained");
@@ -57,6 +86,7 @@ public final class GpaSelectionViewSmokeTest {
                 check(combo("studentCombo").getItems().isEmpty(),"partial lecturer cannot select full transcript");
                 check(combo("semesterCombo").isDisabled()&&button("calculateButton").isDisabled(),"partial GPA controls disabled");
                 check(details().contains("Offering 10")&&details().contains("TEST-A"),"partial missing offering identified");
+                check(label("accessLabel").contains("Admin dashboard"),"partial lecturer directed to Admin GPA workflow");
                 check(table("courseTable").getItems().isEmpty(),"partial lecturer receives no unassigned grades");
                 snapshot("gpa-selection-partial");button("reportsButton").fire();return null;
             });ready();
