@@ -229,6 +229,9 @@ public final class NavigationUtil {
             case "/fxml/student_timetable.fxml" ->
                     "STUDENT";
 
+            case "/fxml/lecturer_timetable.fxml" ->
+                    "LECTURER";
+
             default -> null;
         };
 
@@ -328,6 +331,7 @@ public final class NavigationUtil {
                 && !Set.of(
                 "/fxml/lecturer_dashboard.fxml",
                 "/fxml/lecturer_workspace.fxml",
+                "/fxml/lecturer_timetable.fxml",
                 "/fxml/course_materials.fxml",
                 "/fxml/marks_entry.fxml",
                 "/fxml/assessments.fxml",
@@ -420,6 +424,7 @@ public final class NavigationUtil {
                         || Set.of(
                         "adminTimetableRoot",
                         "timetableRoot",
+                        "lecturerTimetableRoot",
                         "studentTimetableRoot"
                 ).contains(
                         String.valueOf(

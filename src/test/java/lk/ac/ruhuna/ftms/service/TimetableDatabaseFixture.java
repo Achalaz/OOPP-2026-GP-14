@@ -84,6 +84,7 @@ public final class TimetableDatabaseFixture implements AutoCloseable {
     public AdminTimetableService admin() { return new AdminTimetableService(new TimetableDAO(), this::borrow); }
     public TimetableService officer() { return new TimetableService(new TimetableDAO(), new AttendanceAccessDAO(), this::borrow); }
     public StudentTimetableService student() { return new StudentTimetableService(new TimetableDAO(), this::borrow); }
+    public LecturerTimetableService lecturer() { return new LecturerTimetableService(new TimetableDAO(), this::borrow); }
     public void afterNextWrite(Runnable callback) { afterWrite = callback; }
     public void failNextConnection(SQLException failure) { nextConnectionFailure.set(failure); }
     public static void login(int id, String role) { SessionManager.startSession(new User(id,"tt-fixture","Timetable Fixture",null,role,true)); }
