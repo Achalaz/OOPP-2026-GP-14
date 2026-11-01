@@ -115,6 +115,11 @@ public class LecturerDashboardController {
 
 
     @FXML
+    private void handleMyTimetable() {
+        openScreen("/fxml/lecturer_timetable.fxml", "FTMS - My Timetable");
+    }
+
+    @FXML
     private void handleCourseMaterials() {
         openWorkspace("materials", "Course Materials");
     }

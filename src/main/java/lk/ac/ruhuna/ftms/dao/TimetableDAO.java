@@ -247,6 +247,19 @@ public final class TimetableDAO {
         }
     }
 
+    /** Direct session assignments only; sharing a course does not grant access to its other sessions. */
+    public List<TimetableEntry> findForLecturer(
+            Connection connection, int lecturerId) throws SQLException {
+        Objects.requireNonNull(connection, "Connection is required.");
+        positive(lecturerId, "Lecturer ID");
+
+        try (PreparedStatement statement = connection.prepareStatement(
+                BASE_SELECT + " WHERE t.lecturer_id = ? " + SORT)) {
+            statement.setInt(1, lecturerId);
+            return readRows(statement);
+        }
+    }
+
     // Get timetable for one enrolled student
 
     public List<TimetableEntry> findForStudent(

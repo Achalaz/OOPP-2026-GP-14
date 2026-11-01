@@ -36,6 +36,7 @@
                         <Button id="gpaNav" text="  SGPA / CGPA" styleClass="nav-button" maxWidth="Infinity" onAction="#handleGPA"/>
                         <Button id="reportsNav" text="  Academic Reports" styleClass="nav-button" maxWidth="Infinity" onAction="#handleAcademicReports"/>
                         <Label text="TEACHING AND SUPPORT" styleClass="sidebar-heading"/>
+                        <Button id="timetableNav" text="  My Timetable" styleClass="nav-button" maxWidth="Infinity" onAction="#handleMyTimetable"/>
                         <Button text="  Course Materials" styleClass="nav-button" maxWidth="Infinity" onAction="#handleCourseMaterials"/>
                         <Button text="  Undergraduates" styleClass="nav-button" maxWidth="Infinity" onAction="#handleStudentDetails"/>
                         <Button text="  Attendance Records" styleClass="nav-button" maxWidth="Infinity" onAction="#handleAttendance"/>
@@ -175,6 +176,13 @@
                         <Label text="Your profile, course materials and student records." wrapText="true" styleClass="section-subtitle"/>
                     </VBox>
                     <TilePane hgap="18" vgap="18" prefTileWidth="335" prefTileHeight="220">
+                        <VBox styleClass="feature-card" spacing="10">
+                            <Label text="TT" styleClass="feature-icon"/>
+                            <Label text="My Timetable" styleClass="card-title"/>
+                            <Label text="View your assigned teaching sessions, rooms and effective dates." wrapText="true" styleClass="card-description"/>
+                            <Region VBox.vgrow="ALWAYS"/>
+                            <Button id="timetableCard" text="My Timetable" styleClass="primary-action" onAction="#handleMyTimetable"/>
+                        </VBox>
                         <VBox styleClass="feature-card" spacing="10">
                             <Label text="PR" styleClass="feature-icon"/>
 
