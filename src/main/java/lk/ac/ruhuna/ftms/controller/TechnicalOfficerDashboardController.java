@@ -2,7 +2,6 @@
 package lk.ac.ruhuna.ftms.controller;
 
 import javafx.fxml.FXML;
-import javafx.scene.control.Alert;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.BorderPane;
@@ -341,7 +340,31 @@ public class TechnicalOfficerDashboardController {
     @FXML
     private void handleNotices() {
 
-        showComingSoon("Notices");
+        try {
+
+            requireTechnicalOfficer();
+
+            NavigationUtil.navigate(
+                    technicalOfficerRoot,
+                    "/fxml/view_notices.fxml",
+                    "FTMS - Faculty Notices"
+            );
+
+        } catch (SecurityException error) {
+
+            showSessionError(error);
+
+        } catch (IOException | RuntimeException error) {
+
+            statusLabel.setText(
+                    "Unable to open Faculty Notices. "
+                            + "Please try again."
+            );
+
+            error.printStackTrace();
+
+            contentScroll.setVvalue(1);
+        }
     }
 
     // =====================================
@@ -375,55 +398,6 @@ public class TechnicalOfficerDashboardController {
             error.printStackTrace();
 
             contentScroll.setVvalue(1);
-        }
-    }
-
-    // =====================================
-    // COMING SOON DIALOG
-    // =====================================
-
-    /**
-     * Still used for features that
-     * have not yet been implemented.
-     */
-    private void showComingSoon(String feature) {
-
-        try {
-
-            requireTechnicalOfficer();
-
-            Alert alert = new Alert(
-                    Alert.AlertType.INFORMATION
-            );
-
-            alert.setTitle(
-                    "FTMS - " + feature
-            );
-
-            alert.setHeaderText(
-                    feature + " - Coming Soon"
-            );
-
-            alert.setContentText(
-                    "This feature will be available soon."
-            );
-
-            if (technicalOfficerRoot.getScene() != null
-                    && technicalOfficerRoot.getScene()
-                    .getWindow() != null) {
-
-                alert.initOwner(
-                        technicalOfficerRoot
-                                .getScene()
-                                .getWindow()
-                );
-            }
-
-            alert.showAndWait();
-
-        } catch (SecurityException error) {
-
-            showSessionError(error);
         }
     }
 
