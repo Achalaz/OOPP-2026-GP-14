@@ -20,8 +20,12 @@ department authorization; see [Attendance integration](technical-officer-attenda
   editor exists. Its service/DAO update only personal details or the picture reference.
 - Attendance opens the existing management screen with scoped course, session, and
   undergraduate selectors, saving/updating records, and read-only summaries.
-- Medical, Notices, and Department Timetable display the information
-  dialog **This feature will be available soon.** Each has its own controller handler.
+- Notices opens the shared read-only Faculty Notices screen from the sidebar and
+  the View Notices card. It shows published notices for All or Technical Officers
+  within their publication dates, supports Refresh Notices, and returns to this
+  dashboard with Back to Dashboard.
+- Medical and Department Timetable open their existing management and timetable
+  screens through separate controller handlers.
 
 The dashboard itself makes no database queries. Opening My Profile uses the existing
 profile module and its normal asynchronous database reads. No records or statistics

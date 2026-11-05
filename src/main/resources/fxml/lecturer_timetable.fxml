@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1"
+            fx:id="lecturerTimetableRoot"
+            fx:controller="lk.ac.ruhuna.ftms.controller.LecturerTimetableController"
+            stylesheets="@../css/lecturer_dashboard.css"
+            prefWidth="1180" prefHeight="740" minWidth="0" minHeight="0">
+    <top>
+        <HBox alignment="CENTER_LEFT" spacing="18" styleClass="welcome-banner">
+            <VBox spacing="6" minWidth="0" HBox.hgrow="ALWAYS">
+                <Label text="FTMS / LECTURER PORTAL" styleClass="welcome-tag"/>
+                <Label text="My Timetable" wrapText="true" styleClass="welcome-title"/>
+                <Label fx:id="lecturerNameLabel" text="My Timetable" styleClass="welcome-description"/>
+            </VBox>
+            <Button fx:id="backButton" text="Back to Dashboard" minWidth="-Infinity"
+                    onAction="#handleBack" styleClass="secondary-action"/>
+        </HBox>
+    </top>
+    <center>
+        <ScrollPane fitToWidth="true" fitToHeight="true" styleClass="page-scroll">
+            <content>
+                <VBox spacing="18" styleClass="main-content">
+                    <Label text="Your Teaching Schedule" styleClass="section-title"/>
+                    <Label text="View the sessions assigned to you. Contact your department for timetable changes."
+                           wrapText="true" styleClass="page-subtitle"/>
+                    <HBox alignment="CENTER_LEFT" spacing="15">
+                        <Button fx:id="refreshButton" text="Refresh" onAction="#handleRefresh" styleClass="primary-action"/>
+                        <Label fx:id="summaryLabel" text="Loading timetable..." wrapText="true" styleClass="date-label"/>
+                    </HBox>
+                    <TableView fx:id="timetableTable" editable="false" minWidth="0"
+                               prefHeight="410" minHeight="240" VBox.vgrow="ALWAYS">
+                        <columns>
+                            <TableColumn fx:id="dayColumn" text="Day" prefWidth="110"/>
+                            <TableColumn fx:id="startColumn" text="Start Time" prefWidth="90"/>
+                            <TableColumn fx:id="endColumn" text="End Time" prefWidth="90"/>
+                            <TableColumn fx:id="courseColumn" text="Course" prefWidth="250"/>
+                            <TableColumn fx:id="groupColumn" text="Group" prefWidth="80"/>
+                            <TableColumn fx:id="typeColumn" text="Session Type" prefWidth="110"/>
+                            <TableColumn fx:id="roomColumn" text="Room" prefWidth="90"/>
+                            <TableColumn fx:id="dateColumn" text="Effective Dates" prefWidth="200"/>
+                        </columns>
+                    </TableView>
+                </VBox>
+            </content>
+        </ScrollPane>
+    </center>
+    <bottom>
+        <HBox alignment="CENTER_LEFT" spacing="18" style="-fx-padding: 12 26;">
+            <Label fx:id="statusLabel" text="Loading your timetable..." wrapText="true"
+                   minWidth="0" HBox.hgrow="ALWAYS" styleClass="page-subtitle"/>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Label text="LECTURER VIEW ONLY" minWidth="-Infinity" styleClass="eyebrow"/>
+        </HBox>
+    </bottom>
+</BorderPane>

@@ -64,12 +64,41 @@ public class AcademicMySqlIT extends TestCase {
         assertEquals(draft.getCalculatedAt(),published.getCalculatedAt());
         reject(()->service.publishResult(10,draft.publicationSnapshot()));
         reject(()->service.calculateAndSaveResult(100));
-        reject(()->new MarkService().saveMark(new Mark(100,10,30.0,1)));
+        try {
+            new MarkService().saveMark(new Mark(100,10,30.0,1));
+            fail("Published marks must remain protected.");
+        } catch (lk.ac.ruhuna.ftms.exception.PublishedResultProtectedException expected) {
+            assertTrue(expected.getMessage().contains("formal correction policy"));
+        }
+        assertEquals(40.0, ((Number) db.scalar("SELECT marks_obtained FROM marks WHERE enrollment_id=100 AND assessment_id=10")).doubleValue(), 0.00001);
+        assertEquals(published.publicationSnapshot(),new CourseResultDAO().getByEnrollmentId(100).publicationSnapshot());
         reject(()->new AssessmentService().save(new Assessment(10,"Extra","QUIZ",10,0,null,null)));
         assertTrue(new CourseResultDAO().getByEnrollmentId(100).isPublished());
         assertEquals(80.0,new ReportService().getStudentReport(3).getFirst().getOverallMark(),0.00001);
         assertEquals(2,new ReportService().getMarkDetails(100).size());
         assertEquals(1,new ReportService().countPassed(new ReportService().getOfferingReport(10)));
+    }
+    public void testUnauditedSavedDraftLoadsButRequiresExplicitResave() throws Exception {
+        completeMarks();db.confirmedFixtureEligibility(100);
+        var service = new ResultService();
+        service.calculateAndSaveResult(100);
+        // AcademicDatabaseFixture shadows course_results with a connection-local temporary table.
+        db.execute("UPDATE course_results SET calculated_by=NULL WHERE enrollment_id=100");
+        var row = service.getBatchResults(10).stream().filter(r -> r.enrollmentId()==100).findFirst().orElseThrow();
+        assertEquals(CourseResult.ResultStatus.PASS, row.result().getResultStatus());
+        assertEquals(Boolean.TRUE, row.overallEligible());
+        assertNull(row.result().getCalculatedBy());
+        assertTrue(ResultService.draftPublicationBlockReason(row.result()).contains("calculating lecturer"));
+        var before = row.result().publicationSnapshot();
+        reject(() -> service.publishResult(10, before));
+        assertEquals(before, new CourseResultDAO().getByEnrollmentId(100).publicationSnapshot());
+
+        var saved = service.calculateAndSaveResult(100);
+        assertEquals(before.resultId(), saved.getResultId());
+        assertEquals(Integer.valueOf(1), saved.getCalculatedBy());
+        assertFalse(saved.isPublished());
+        assertNull(saved.getPublishedAt());
+        assertNull(ResultService.draftPublicationBlockReason(saved));
     }
     public void testRollbackRestoresMarkAndEligibility()throws Exception{
         completeMarks();db.confirmedFixtureEligibility(100);
@@ -154,6 +183,88 @@ public class AcademicMySqlIT extends TestCase {
         db.afterWrite(()->db.login(1,"LECTURER"));
         reject(()->service.publishResult(10,draft.publicationSnapshot()));
         assertEquals(draft.publicationSnapshot(),new CourseResultDAO().getByEnrollmentId(100).publicationSnapshot());
+    }
+    public void testConfirmedBackendEligibilityPolicyIsConnectedWithoutUiOverride() throws Exception {
+        completeMarks();
+        // Synthetic threshold only: this constructor is the existing approved-policy integration seam.
+        var configured=new EligibilityService(new AttendanceEligibilityService(100));
+        var confirmed=configured.evaluate(100,true);
+        assertEquals(Boolean.TRUE,confirmed.isAttendanceEligible());
+        assertEquals(Boolean.TRUE,confirmed.isOverallEligible());
+        var results=new ResultService();
+        assertTrue(results.publishResult(10,results.calculateAndSaveResult(100).publicationSnapshot()).isPublished());
+        new MarkService().saveMark(new Mark(101,10,40.0,1));
+        new MarkService().saveMark(new Mark(101,11,80.0,1));
+        assertEquals(Boolean.FALSE,configured.evaluateEligibility(101,100,true).isOverallEligible());
+        db.execute("UPDATE attendance_records SET attendance_status='MEDICAL' WHERE enrollment_id=101 AND session_id=1");
+        assertNull(configured.evaluate(101,false).isOverallEligible());
+    }
+    public void testContradictoryEligibilityAndEquivalentInputEditsCannotPublish() throws Exception {
+        completeMarks();db.confirmedFixtureEligibility(100);
+        var results=new ResultService();
+        var draft=results.calculateAndSaveResult(100);
+        db.execute("UPDATE eligibility_records SET attendance_eligible=FALSE WHERE enrollment_id=100");
+        reject(()->results.publishResult(10,draft.publicationSnapshot()));
+        db.confirmedFixtureEligibility(100);
+        db.execute("UPDATE eligibility_records SET ca_score=79 WHERE enrollment_id=100");
+        reject(()->results.publishResult(10,draft.publicationSnapshot()));
+        db.confirmedFixtureEligibility(100);
+        var latest=results.calculateAndSaveResult(100).publicationSnapshot();
+        // Both source timestamps are later although the numerical calculation is unchanged.
+        db.execute("UPDATE assessments SET updated_at=DATE_ADD(CURRENT_TIMESTAMP,INTERVAL 2 SECOND) WHERE assessment_id=10");
+        reject(()->results.publishResult(10,latest));
+        db.execute("UPDATE assessments SET updated_at='2000-01-01' WHERE assessment_id=10");
+        db.execute("UPDATE eligibility_records SET calculated_at=DATE_ADD(CURRENT_TIMESTAMP,INTERVAL 2 SECOND) WHERE enrollment_id=100");
+        reject(()->results.publishResult(10,latest));
+        assertFalse(new CourseResultDAO().getByEnrollmentId(100).isPublished());
+    }
+    public void testMissingGradeRuleAndUnresolvedEligibilityNeverPublish() throws Exception {
+        completeMarks();
+        var results=new ResultService();
+        var pending=results.calculateAndSaveResult(100);
+        reject(()->results.publishResult(10,pending.publicationSnapshot()));
+        db.confirmedFixtureEligibility(100);
+        db.execute("UPDATE grade_rules SET is_active=FALSE");
+        reject(()->results.calculateAndSaveResult(100));
+        assertFalse(new CourseResultDAO().getByEnrollmentId(100).isPublished());
+    }
+    public void testStudentSavedGpaRefreshStalenessAndRecreatedServices() throws Exception {
+        completeMarks();db.confirmedFixtureEligibility(100);
+        var results=new ResultService();
+        results.publishResult(10,results.calculateAndSaveResult(100).publicationSnapshot());
+        var gpa=new GPAService();
+        db.login(3,"STUDENT");
+        assertEquals(4.0,gpa.getSemesterView(3,9).result().getSgpa(),0.00001);
+        assertFalse(gpa.getSemesterView(3,9).savedCurrent());
+        assertEquals(0L,((Number)db.scalar("SELECT COUNT(*) FROM semester_results")).longValue());
+        db.login(1,"LECTURER");
+        gpa.saveSemesterResult(gpa.calculateSemesterGPA(3,9));
+        SessionManager.logout();db.login(3,"STUDENT");
+        assertTrue(new GPAService().getSemesterView(3,9).savedCurrent());
+        assertEquals(4.0,new GPAService().getSemesterView(3,9).result().getSgpa(),0.00001);
+        assertEquals(1,new ResultService().getMyPublishedResults(SessionManager.requireSession()).size());
+        // Published grade snapshots are retained; an external course-credit change invalidates the summary.
+        db.execute("UPDATE courses SET credits=4 WHERE course_id=1");
+        assertEquals(4.0,gpa.getSemesterView(3,9).result().getSgpa(),0.00001);
+        assertTrue(gpa.getSemesterView(3,9).message().contains("differs from current published results"));
+        assertEquals(3.0,new SemesterResultDAO().getByStudentAndSemester(3,9).getTotalRegisteredCredits(),0.00001);
+        db.login(1,"LECTURER");gpa.saveSemesterResult(gpa.calculateSemesterGPA(3,9));
+        db.login(3,"STUDENT");assertTrue(gpa.getSemesterView(3,9).savedCurrent());
+        db.execute("DELETE FROM students WHERE student_id=3");
+        reject(()->gpa.getSemesterView(3,9));
+    }
+    public void testGpaSaveRollbackAndCancelledResultSave() throws Exception {
+        completeMarks();db.confirmedFixtureEligibility(100);
+        var results=new ResultService();
+        db.afterWrite(()->Thread.currentThread().interrupt());
+        try { reject(()->results.calculateAndSaveResult(100)); }
+        finally { Thread.interrupted(); }
+        assertNull(new CourseResultDAO().getByEnrollmentId(100));
+        results.publishResult(10,results.calculateAndSaveResult(100).publicationSnapshot());
+        var gpa=new GPAService();var requested=gpa.calculateSemesterGPA(3,9);
+        db.failAfterWrite("INSERT INTO semester_results");
+        reject(()->gpa.saveSemesterResult(requested));
+        assertEquals(0L,((Number)db.scalar("SELECT COUNT(*) FROM semester_results")).longValue());
     }
     private interface Action{void run()throws Exception;}
 }

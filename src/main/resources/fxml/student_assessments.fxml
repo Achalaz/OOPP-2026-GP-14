@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1"
+            fx:id="studentRecordsRoot" userData="assessments"
+            fx:controller="lk.ac.ruhuna.ftms.controller.StudentRecordsController"
+            prefWidth="1100" prefHeight="700" minWidth="0" styleClass="profile-root" stylesheets="@../css/profile.css">
+    <top>
+        <VBox spacing="12" styleClass="profile-header">
+            <FlowPane hgap="12" vgap="8">
+                <Button fx:id="dashboardButton" text="Back to Student Dashboard" onAction="#handleDashboard" styleClass="secondary-button"/>
+                <Button fx:id="refreshButton" text="Refresh" onAction="#handleRefresh" styleClass="primary-button"/>
+                <Button text="Logout" onAction="#handleLogout" styleClass="secondary-button"/>
+            </FlowPane>
+            <Label fx:id="titleLabel" styleClass="page-title"/>
+            <Label fx:id="descriptionLabel" wrapText="true" styleClass="muted"/>
+        </VBox>
+    </top>
+    <center>
+        <VBox spacing="16" minWidth="0" style="-fx-padding:24;">
+            <VBox fx:id="summaryBox" visible="false" managed="false">
+                <Label fx:id="summaryLabel"/>
+                <TableView fx:id="summaryTable" editable="false"/>
+            </VBox>
+            <Label text="Released Assessments" styleClass="section-title"/>
+            <TableView fx:id="recordsTable" editable="false" minWidth="0" VBox.vgrow="ALWAYS"/>
+            <TextArea id="assessmentDescription" editable="false" wrapText="true" prefRowCount="3"
+                      promptText="Select an assessment to read its full description."/>
+        </VBox>
+    </center>
+    <bottom>
+        <HBox spacing="12" alignment="CENTER_LEFT" styleClass="profile-status">
+            <ProgressIndicator fx:id="progressIndicator" prefWidth="20" prefHeight="20" maxWidth="20" maxHeight="20"/>
+            <Label fx:id="statusLabel" wrapText="true" styleClass="status-info"/>
+        </HBox>
+    </bottom>
+</BorderPane>

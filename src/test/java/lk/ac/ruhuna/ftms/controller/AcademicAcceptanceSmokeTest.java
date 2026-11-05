@@ -47,6 +47,25 @@ public final class AcademicAcceptanceSmokeTest {
                 check(new AssessmentService().getAssessments(10).stream().anyMatch(a -> a.getAssessmentName().equals("Updated practice")), "assessment UPDATE persisted");
                 fx(() -> { selectAssessment("Updated practice"); dialog("deleteButton", ButtonType.OK, "Delete the unreferenced assessment"); return null; }); ready();
                 check(new AssessmentService().getAssessments(10).size() == 2, "assessment DELETE persisted");
+                fx(() -> {
+                    selectAssessment("CA");
+                    ((TextArea)scene.getRoot().lookup("#descriptionField")).setText("Read chapter 1 before the quiz.");
+                    ((DatePicker)scene.getRoot().lookup("#dateField")).setValue(java.time.LocalDate.of(2026,11,1));
+                    return null;
+                });
+                click("saveButton"); ready();
+                fx(() -> { selectAssessment("CA"); dialog("releaseButton", ButtonType.CANCEL, "Marks and final results are published separately"); return null; });
+                check(!new AssessmentService().getAssessments(10).getFirst().isPublished(), "cancelled assessment release remains Draft");
+                fx(() -> { dialog("releaseButton", ButtonType.OK, "cannot be edited or deleted"); return null; }); ready();
+                var releasedAssessment = new AssessmentService().getAssessments(10).getFirst();
+                check(releasedAssessment.isPublished() && releasedAssessment.getPublishedAt()!=null, "assessment release persists flag and timestamp");
+                fx(() -> {
+                    selectAssessment("CA");
+                    check(button("saveButton").isDisabled() && button("deleteButton").isDisabled() && button("releaseButton").isDisabled(), "released assessment write actions disabled");
+                    check(field("nameField").isDisabled(), "released details protected");
+                    check(table("assessmentTable").getColumns().stream().anyMatch(c -> "Status".equals(c.getText())), "publication status column loaded");
+                    return null;
+                });
                 textClick("Marks Entry");
                 select("offeringCombo", o -> ((EligibilityOffering)o).offeringId() == 10);
                 saveMark(10, "40"); saveMark(11, "80");
@@ -84,7 +103,7 @@ public final class AcademicAcceptanceSmokeTest {
                 fx(() -> { check(label("sgpaLabel").getText().equals("4.00") && label("cgpaLabel").getText().equals("4.00"), "published result flows into GPA UI"); return null; });
                 click("saveButton"); ready();
                 check(new SemesterResultDAO().getByStudentAndSemester(3,9).getSgpa() == 4.0, "GPA save persisted recomputed value");
-                textClick("Reports"); ready();
+                click("reportsButton"); ready();
                 select("studentCombo", o -> o.toString().contains("TEST/3")); click("studentReportButton"); ready();
                 fx(() -> { check(table("reportTable").getItems().size() == 2, "individual report includes published and pending enrollment"); check(label("passLabel").getText().equals("1"), "individual pass count"); return null; });
                 select("batchCombo", o -> o.equals(2024)); click("batchReportButton"); ready();
@@ -99,11 +118,28 @@ public final class AcademicAcceptanceSmokeTest {
                 var results = new ResultService();
                 results.publishResult(10, results.calculateAndSaveResult(101).publicationSnapshot());
                 results.calculateAndSaveResult(200); // own unpublished row must stay hidden
+                new AssessmentService().release(20,20); // metadata release must leave that result unpublished
+                check(!new CourseResultDAO().getByEnrollmentId(200).isPublished(), "assessment release preserves draft result");
                 logout();
                 login(3, password, "studentRoot");
                 var student = SessionManager.requireSession();
-                for (String entry : List.of("studentResultsCard", "studentGpaCard")) {
-                    click(entry); ready();
+                for (String entry : List.of("My Assessments", "View Released Assessments")) {
+                    textClick(entry); ready();
+                    fx(() -> {
+                        check(table("recordsTable").getItems().size()==2, "only released assessments in own offerings visible");
+                        check(!table("recordsTable").isEditable(), "assessment viewer read only");
+                        check(scene.getRoot().lookup("#saveButton")==null && scene.getRoot().lookup("#releaseButton")==null && scene.getRoot().lookup("#deleteButton")==null, "student has no assessment management controls");
+                        check(table("recordsTable").getColumns().size()==11, "all assessment metadata columns loaded");
+                        table("recordsTable").getSelectionModel().selectFirst();
+                        var description=(TextArea)scene.getRoot().lookup("#assessmentDescription");
+                        check(!description.isEditable() && description.getText().equals("Read chapter 1 before the quiz."), "full description displayed read only");
+                        check(table("recordsTable").getItems().getFirst().toString().contains("2026-11-01"), "assessment date visible");
+                        return null;
+                    });
+                    dashboard(student, "studentRoot");
+                }
+                for (String entry : List.of("My Grades and GPA", "View Results")) {
+                    textClick(entry); ready();
                     fx(() -> {
                         check(table("recordsTable").getItems().size() == 1, "only own published course visible");
                         check(((List<?>)table("recordsTable").getItems().getFirst()).get(3).equals("A"), "own grade shown, other student's B hidden");
@@ -116,9 +152,12 @@ public final class AcademicAcceptanceSmokeTest {
                 var retained = new StudentAccessService(student);
                 logout();
                 login(4, password, "studentRoot");
+                textClick("My Assessments"); ready();
+                fx(() -> { check(table("recordsTable").getItems().size()==1, "second student cannot see released assessment from another offering"); return null; });
+                dashboard(SessionManager.requireSession(), "studentRoot");
                 try { retained.requireSession(); throw new AssertionError("Old student session accepted"); }
                 catch (SecurityException expected) { checks++; }
-                click("studentResultsCard"); ready();
+                textClick("View Results"); ready();
                 var secondStudentResults = new ResultService().getMyPublishedResults(SessionManager.requireSession());
                 check(secondStudentResults.size() == 1 && secondStudentResults.getFirst().grade().equals("B"), "second login has its own publication only");
                 logout();

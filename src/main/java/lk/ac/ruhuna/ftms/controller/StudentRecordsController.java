@@ -59,6 +59,11 @@ public class StudentRecordsController {
     @FXML public void initialize() {
         access.requireSession();
         feature = Objects.toString(studentRecordsRoot.getUserData());
+        if ("assessments".equals(feature)) {
+            var description = (TextArea) studentRecordsRoot.lookup("#assessmentDescription");
+            recordsTable.getSelectionModel().selectedItemProperty().addListener((value, old, selected) ->
+                    description.setText(selected == null ? "" : selected.get(8)));
+        }
         if ("courses".equals(feature)) {
             viewMaterialsButton = (Button) studentRecordsRoot.lookup("#viewMaterialsButton");
             viewMaterialsButton.setDisable(true);
@@ -69,6 +74,7 @@ public class StudentRecordsController {
             case "attendance" -> "My Attendance";
             case "medical" -> "My Medical";
             case "courses" -> "My Courses";
+            case "assessments" -> "My Assessments";
             case "results" -> "My Grades and GPA";
             default -> throw new IllegalArgumentException("Unknown student view.");
         });
@@ -76,6 +82,7 @@ public class StudentRecordsController {
             case "attendance" -> "Your recorded sessions and attendance percentages. Unmarked sessions remain unmarked.";
             case "medical" -> "Your medical records and their current stored review statuses.";
             case "courses" -> "Your enrolled courses, semesters, credits and enrollment status.";
+            case "assessments" -> "Released assessment details for your enrolled courses. View published marks separately in My Grades and GPA.";
             default -> "Your published grades and GPA. GPA follows the existing academic rules; unresolved values remain Pending.";
         });
         summaryLabel.setText("attendance".equals(feature) ? "Attendance by course" : "Semester GPA");
@@ -129,14 +136,7 @@ public class StudentRecordsController {
         task.setOnFailed(event -> {
             if (!accept(task)) return;
             clear();
-            Throwable error = task.getException();
-            while (!(error instanceof SecurityException) && error.getCause() != null && error.getCause() != error)
-                error = error.getCause();
-            String message = error instanceof SecurityException ? error.getMessage()
-                    : "Unable to load your records: " + Objects.toString(error.getMessage(),error.getClass().getSimpleName())
-                    + ". Please try Refresh.";
-            statusLabel.setText(message);
-            recordsTable.setPlaceholder(new Label(message));
+            showMessage(loadFailureMessage(task.getException()));
             setBusy(false);
         });
         task.setOnCancelled(event -> {
@@ -174,6 +174,7 @@ public class StudentRecordsController {
             case "attendance" -> attendance();
             case "medical" -> medical();
             case "courses" -> courses();
+            case "assessments" -> assessments();
             case "results" -> results();
             default -> throw new IllegalStateException("Unknown student view.");
         };
@@ -189,6 +190,19 @@ public class StudentRecordsController {
         }
         return new View(new Table(List.of("Course code","Course name","Semester","Credits","Attempt","Status"),rows),
                 null,"No enrolled courses available.", mapping);
+    }
+
+    private View assessments() throws Exception {
+        var rows = new ArrayList<List<String>>();
+        for (var released : new StudentAssessmentService(identity).getMyAssessments()) {
+            var c = released.course(); var a = released.assessment();
+            rows.add(row(c.courseCode()+" - "+c.courseName(),c.semester(),c.offeringId(),
+                    a.getAssessmentName(),a.getAssessmentType(),a.getMaxMark(),a.getWeightPercentage(),
+                    a.getAssessmentDate(),a.getDescription(),a.getPublicationStatus(),a.getPublishedAt()));
+        }
+        return new View(new Table(List.of("Enrolled Course","Semester","Offering","Assessment Name","Assessment Type",
+                "Maximum Marks","Weight Percentage","Assessment Date","Description","Released Status","Released At"),rows),
+                null,"No released assessments are available for your enrolled courses.");
     }
 
     private View medical() throws Exception {
@@ -225,9 +239,26 @@ public class StudentRecordsController {
                 r.gradePoint(),r.credits(),r.attempt()));
         var summaries = new ArrayList<List<String>>();
         for (var semester : published.semesters())
-            summaries.add(row(semester.semester(),decimal(semester.result().getSgpa()),decimal(semester.result().getCgpa())));
+            summaries.add(row(semester.semester(),decimal(semester.result().getSgpa()),decimal(semester.result().getCgpa()),semester.status()));
         return new View(new Table(List.of("Course code","Course name","Semester","Published grade","Grade point","Credits","Attempt"),rows),
-                new Table(List.of("Semester","SGPA","CGPA"),summaries),"No published results available.");
+                new Table(List.of("Semester","SGPA","CGPA","GPA status"),summaries),published.emptyMessage());
+    }
+
+    static String loadFailureMessage(Throwable error) {
+        for (Throwable cause = error; cause != null; cause = cause.getCause()) {
+            if (cause instanceof SecurityException) return cause.getMessage();
+            if (cause instanceof java.sql.SQLException sql) {
+                if (sql instanceof java.sql.SQLTransientConnectionException
+                        || sql instanceof java.sql.SQLNonTransientConnectionException
+                        || (sql.getSQLState() != null && sql.getSQLState().startsWith("08")))
+                    return "Database connection failed. Please check the connection and try Refresh.";
+                return "Database query failed: " + Objects.toString(sql.getMessage(), "Unable to read records")
+                        + ". Please try Refresh or contact support.";
+            }
+            if (cause.getCause() == cause) break;
+        }
+        return "Unable to load your records: " + Objects.toString(error.getMessage(), error.getClass().getSimpleName())
+                + ". Please try Refresh.";
     }
 
     private static List<String> row(Object... values) {
@@ -239,12 +270,33 @@ public class StudentRecordsController {
     private static void populate(TableView<List<String>> table, Table data) {
         table.setEditable(false);
         table.getColumns().clear();
+        boolean grades = data.columns().contains("Published grade");
+        boolean gpa = data.columns().contains("GPA status");
+        if (grades || gpa) table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         for (int index = 0; index < data.columns().size(); index++) {
             int columnIndex = index;
             var column = new TableColumn<List<String>,String>(data.columns().get(index));
             column.setCellValueFactory(cell -> new ReadOnlyStringWrapper(cell.getValue().get(columnIndex)));
             column.setEditable(false);
             column.setPrefWidth(index == 1 || data.columns().get(index).equals("Semester") ? 210 : 140);
+            if (grades || gpa) column.setPrefWidth(switch (data.columns().get(index)) {
+                case "Course name", "Semester" -> 210;
+                case "SGPA", "CGPA", "Credits", "Attempt" -> 85;
+                default -> 120;
+            });
+            if (data.columns().get(index).equals("GPA status")) {
+                column.setPrefWidth(520);
+                column.setCellFactory(ignored -> new TableCell<>() {
+                    private final javafx.scene.text.Text detail = new javafx.scene.text.Text();
+                    { detail.wrappingWidthProperty().bind(column.widthProperty().subtract(16)); }
+                    @Override protected void updateItem(String item, boolean empty) {
+                        super.updateItem(item, empty);
+                        detail.setText(empty ? "" : item);
+                        setGraphic(empty ? null : detail);
+                        setTooltip(empty ? null : new Tooltip(item));
+                    }
+                });
+            }
             table.getColumns().add(column);
         }
         table.getItems().setAll(data.rows());

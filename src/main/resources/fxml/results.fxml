@@ -17,7 +17,7 @@
                 <Label text="FTMS - Individual and Batch Course Results"
                        style="-fx-text-fill: #d1d5db; -fx-font-size: 13px;"/>
             </VBox>
-
+            <Button id="logoutButton" text="Logout" onAction="#handleLogout"/>
         </HBox>
     </top>
     <center>
@@ -63,6 +63,7 @@
                     <Label fx:id="gradePointLabel" text="--" GridPane.columnIndex="3" GridPane.rowIndex="2"/>
                 </GridPane>
                 <Label fx:id="reasonLabel" text="Select an enrollment to view a result." wrapText="true"/>
+                <Label fx:id="eligibilityLabel" text="Eligibility: select an enrollment." wrapText="true"/>
                 <Label text="CA and final exam values are percentages within each component. The overall mark uses this offering's assessment weights. A dash means unavailable or not applicable."
                        wrapText="true" maxWidth="Infinity" style="-fx-text-fill: #4b5563;"/>
                 <Label text="Grades use the configured database rules. Current sample rules are demo data, not confirmed official grading policy."
@@ -95,10 +96,14 @@
                         <TableColumn fx:id="gradeLetterColumn" text="Grade" prefWidth="65"/>
                         <TableColumn fx:id="gradePointColumn" text="Grade point" prefWidth="90"/>
                         <TableColumn fx:id="stateColumn" text="Saved state" prefWidth="180"/>
+                        <TableColumn fx:id="eligibilityColumn" text="Eligibility" prefWidth="120"/>
                     </columns>
                 </TableView>
             </VBox>
-            <Label fx:id="statusLabel" text="Loading course offerings..." wrapText="true" maxWidth="Infinity"/>
+            <HBox spacing="10" alignment="CENTER_LEFT">
+                <ProgressIndicator fx:id="progressIndicator" prefWidth="20" prefHeight="20" maxWidth="20" maxHeight="20"/>
+                <Label fx:id="statusLabel" text="Loading course offerings..." wrapText="true" maxWidth="Infinity"/>
+            </HBox>
         </VBox>
         </content>
         </ScrollPane>

@@ -98,9 +98,16 @@ public class AttendanceEligibilityService
     @Override
     public Optional<AttendanceEligibility> findByEnrollmentId(
             int enrollmentId) throws SQLException {
+        return decide(getAttendanceCounts(enrollmentId));
+    }
 
-        AttendanceCounts counts =
-                getAttendanceCounts(enrollmentId);
+    /** Service integration must read attendance in the same academic transaction as the CA inputs. */
+    public Optional<AttendanceEligibility> findByEnrollmentId(java.sql.Connection connection, int enrollmentId)
+            throws SQLException {
+        return decide(attendanceDAO.findByEnrollmentId(connection, enrollmentId));
+    }
+
+    private Optional<AttendanceEligibility> decide(AttendanceCounts counts) {
 
         // No enrollment, no official threshold, or
         // unresolved attendance statuses:

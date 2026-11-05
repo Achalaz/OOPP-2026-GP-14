@@ -30,7 +30,13 @@ public final class StudentGradesLoadingSmokeTest {
         Platform.startup(started::countDown);
         check(started.await(10,TimeUnit.SECONDS),"JavaFX starts");
         try {
+            if (args.length == 1 && "--live".equals(args[0])) {
+                liveReadOnly();
+                System.out.println("Live student grades JavaFX checks passed: " + checks + "; SELECT-only.");
+                return;
+            }
             login(3);
+            emptyAndAccessFeedback();
             failureAndRecovery();
             cancellation();
             navigationIgnoresLateRead();
@@ -42,6 +48,70 @@ public final class StudentGradesLoadingSmokeTest {
             SessionManager.logout();
             Platform.exit();
         }
+    }
+
+    /** Existing demo accounts, actual JDBC reads, no fixture data or production mutations. */
+    private static void liveReadOnly() throws Exception {
+        try (var c=lk.ac.ruhuna.ftms.database.DBConnection.getConnection();
+             var p=c.prepareStatement("""
+                     SELECT u.user_id,u.username FROM users u JOIN students s ON s.student_id=u.user_id
+                     WHERE u.role='STUDENT' AND u.is_active=TRUE AND u.username IN (?,?) ORDER BY u.username
+                     """)) {
+            p.setString(1,"stu");p.setString(2,"demo_stu01");
+            try (var accounts=p.executeQuery()) {
+                int count=0;
+                while(accounts.next()) {
+                    login(accounts.getInt(1));
+                    String username=accounts.getString(2);
+                    var expected=new ResultService().getMyPublishedRecords(SessionManager.requireSession());
+                    var screen=load(new ResultService());
+                    ready(screen);
+                    fx(() -> {
+                        check(rows(screen).getItems().size()==expected.grades().size(),username+" live result rows");
+                        if (username.equals("stu")) {
+                            check(status(screen).equals(ResultService.NO_PUBLISHED_RESULTS),"live empty account explained");
+                        } else {
+                            check(rows(screen).getItems().size()==2,"live published demo results visible");
+                            check(((TableView<?>)node(screen,"summaryTable")).getItems().toString().contains("3.15"),
+                                    "live demo SGPA/CGPA visible");
+                        }
+                        refresh(screen).fire();
+                        return null;
+                    });
+                    ready(screen);
+                    fx(() -> {
+                        check(rows(screen).getItems().size()==expected.grades().size(),"live Refresh rereads MySQL");
+                        check(!rows(screen).isEditable(),"live results remain read only");
+                        return null;
+                    });
+                    count++;
+                }
+                check(count==2,"both existing demo accounts checked");
+            }
+        }
+    }
+
+    private static void emptyAndAccessFeedback() throws Exception {
+        for (String message : List.of(ResultService.NO_PUBLISHED_RESULTS,ResultService.NO_VALID_ENROLLMENT)) {
+            var screen=load(new ResultService() {
+                @Override public StudentPublishedRecords getMyPublishedRecords(SessionManager.SessionIdentity identity) {
+                    return new StudentPublishedRecords(List.of(),List.of(),message);
+                }
+            });
+            ready(screen);
+            fx(() -> {
+                check(status(screen).equals(message),"empty/enrollment feedback distinguished");
+                check(((Label)rows(screen).getPlaceholder()).getText().equals(message),"table explains empty state");
+                check(!node(screen,"summaryBox").isVisible(),"empty results never invent GPA");
+                return null;
+            });
+        }
+        check(StudentRecordsController.loadFailureMessage(new SQLException("Unavailable","08001"))
+                .startsWith("Database connection failed"),"connection failure distinguished");
+        check(StudentRecordsController.loadFailureMessage(new SQLException("Missing table","42S02"))
+                .startsWith("Database query failed"),"query failure distinguished");
+        check(StudentRecordsController.loadFailureMessage(new SecurityException("Student profile is missing"))
+                .contains("profile is missing"),"profile failure preserved");
     }
 
     private static void failureAndRecovery() throws Exception {

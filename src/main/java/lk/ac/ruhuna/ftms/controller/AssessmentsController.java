@@ -8,6 +8,8 @@ import lk.ac.ruhuna.ftms.model.*;
 import lk.ac.ruhuna.ftms.service.AssessmentService;
 import lk.ac.ruhuna.ftms.util.*;
 import java.util.concurrent.Callable;
+import java.time.format.DateTimeFormatter;
+import javafx.beans.property.ReadOnlyStringWrapper;
 
 /** Form editing only; validation, authorization and persistence live in AssessmentService. */
 public class AssessmentsController {
@@ -17,10 +19,11 @@ public class AssessmentsController {
     @FXML private TextArea descriptionField;
     @FXML private DatePicker dateField;
     @FXML private TableView<Assessment> assessmentTable;
-    @FXML private TableColumn<Assessment,String> nameColumn,typeColumn;
+    @FXML private TableColumn<Assessment,String> nameColumn,typeColumn,publicationColumn,publishedAtColumn;
     @FXML private TableColumn<Assessment,Double> maxColumn,weightColumn;
     @FXML private Label statusLabel;
-    @FXML private Button saveButton,deleteButton,refreshButton;
+    @FXML private Button saveButton,deleteButton,refreshButton,releaseButton,newButton;
+    private boolean busy;
     private final AssessmentService service=new AssessmentService();
     private final SessionManager.SessionIdentity identity=SessionManager.requireSession();
     @FXML public void initialize(){
@@ -28,9 +31,13 @@ public class AssessmentsController {
         typeColumn.setCellValueFactory(new PropertyValueFactory<>("assessmentType"));
         maxColumn.setCellValueFactory(new PropertyValueFactory<>("maxMark"));
         weightColumn.setCellValueFactory(new PropertyValueFactory<>("weightPercentage"));
+        publicationColumn.setCellValueFactory(new PropertyValueFactory<>("publicationStatus"));
+        publishedAtColumn.setCellValueFactory(cell->new ReadOnlyStringWrapper(cell.getValue().getPublishedAt()==null
+                ? "" : cell.getValue().getPublishedAt().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))));
         typeCombo.getItems().setAll(AssessmentService.TYPES);typeCombo.setValue("OTHER");
         offeringCombo.valueProperty().addListener((o,old,v)->handleRefresh());
         assessmentTable.getSelectionModel().selectedItemProperty().addListener((o,old,a)->{
+            updateControls();
             if(a==null)return;
             nameField.setText(a.getAssessmentName());typeCombo.setValue(a.getAssessmentType());
             maxField.setText(""+a.getMaxMark());weightField.setText(""+a.getWeightPercentage());
@@ -61,9 +68,27 @@ public class AssessmentsController {
         run(()->{service.delete(selected.getOfferingId(),selected.getAssessmentId());var rows=service.getAssessments(selected.getOfferingId());
             return ()->{handleNew();assessmentTable.getItems().setAll(rows);statusLabel.setText("Assessment deleted.");};});
     }
+    @FXML private void handleRelease(){
+        var selected=assessmentTable.getSelectionModel().getSelectedItem();
+        if(busy || selected==null || selected.isPublished() || selected.getPublishedAt()!=null)return;
+        var confirm=new Alert(Alert.AlertType.CONFIRMATION,
+                "Release '"+selected.getAssessmentName()+"' to students enrolled in this offering?\n\n"
+                +"Students will see the saved assessment details. Marks and final results are published separately.\n\n"
+                +"After release, this assessment cannot be edited or deleted.",ButtonType.CANCEL,ButtonType.OK);
+        confirm.setTitle("Release Assessment");
+        confirm.setHeaderText("Confirm assessment publication");
+        if(confirm.showAndWait().orElse(ButtonType.CANCEL)!=ButtonType.OK)return;
+        run(()->{
+            service.release(selected.getOfferingId(),selected.getAssessmentId());
+            var rows=service.getAssessments(selected.getOfferingId());
+            return ()->{handleNew();assessmentTable.getItems().setAll(rows);
+                statusLabel.setText("Assessment released. Enrolled students can now view its details.");};
+        });
+    }
     @FXML private void handleNew(){
         assessmentTable.getSelectionModel().clearSelection();nameField.clear();maxField.setText("100");
         weightField.clear();typeCombo.setValue("OTHER");dateField.setValue(null);descriptionField.clear();
+        updateControls();
     }
     @FXML private void handleBack()throws java.io.IOException{
         SessionManager.requireSession(identity);NavigationUtil.navigate(assessmentTable,"/fxml/marks_entry.fxml","FTMS - Marks Entry");
@@ -79,5 +104,15 @@ public class AssessmentsController {
         task.setOnFailed(e->{setBusy(false);assessmentTable.getItems().clear();statusLabel.setText(task.getException().getMessage());});
         Thread thread=new Thread(task,"ftms-assessments");thread.setDaemon(true);thread.start();
     }
-    private void setBusy(boolean busy){offeringCombo.setDisable(busy);saveButton.setDisable(busy);deleteButton.setDisable(busy);refreshButton.setDisable(busy);}
+    private void setBusy(boolean busy){this.busy=busy;updateControls();}
+    private void updateControls(){
+        var selected=assessmentTable.getSelectionModel().getSelectedItem();
+        boolean released=selected!=null && (selected.isPublished() || selected.getPublishedAt()!=null);
+        offeringCombo.setDisable(busy);assessmentTable.setDisable(busy);newButton.setDisable(busy);
+        saveButton.setDisable(busy || released);deleteButton.setDisable(busy || selected==null || released);
+        releaseButton.setDisable(busy || selected==null || released);refreshButton.setDisable(busy);
+        nameField.setDisable(busy || released);typeCombo.setDisable(busy || released);
+        maxField.setDisable(busy || released);weightField.setDisable(busy || released);
+        dateField.setDisable(busy || released);descriptionField.setDisable(busy || released);
+    }
 }

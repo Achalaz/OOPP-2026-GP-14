@@ -3,6 +3,7 @@ package lk.ac.ruhuna.ftms.dao;
 
 import lk.ac.ruhuna.ftms.database.DBConnection;
 import lk.ac.ruhuna.ftms.model.User;
+import lk.ac.ruhuna.ftms.util.SessionManager;
 
 import java.sql.*;
 import java.util.ArrayList;
@@ -224,6 +225,37 @@ public class UserDAO {
 
     // Update existing user
     public void updateUser(User user) throws SQLException {
+        updateUser(user, null);
+    }
+
+    /** optionalPasswordHash must be produced by PasswordUtil; null preserves the existing hash. */
+    public void updateUser(User user, String optionalPasswordHash) throws SQLException {
+        var identity = SessionManager.requireSession();
+        var actor = SessionManager.getCurrentUser();
+        if (actor == null || !actor.isActive() || !"ADMIN".equals(actor.getRole())) {
+            throw new SecurityException("Active administrator access is required to update users.");
+        }
+        try (Connection con = DBConnection.getConnection()) {
+            con.setAutoCommit(false);
+            try {
+                if (!exists(con, "SELECT 1 FROM users WHERE user_id = ? AND role = 'ADMIN' AND is_active = TRUE FOR SHARE", identity.userId())) {
+                    throw new SecurityException("Your administrator account is no longer available. Sign in again.");
+                }
+                if (!exists(con, "SELECT 1 FROM users WHERE user_id = ? FOR UPDATE", user.getUserId())) {
+                    throw new IllegalArgumentException("The selected user no longer exists. Refresh the user list.");
+                }
+                updateUserDetails(con, user);
+                if (optionalPasswordHash != null) updatePasswordHash(con, user.getUserId(), optionalPasswordHash);
+                SessionManager.requireSession(identity);
+                con.commit();
+            } catch (SQLException | RuntimeException error) {
+                try { con.rollback(); } catch (SQLException rollback) { error.addSuppressed(rollback); }
+                throw error;
+            }
+        }
+    }
+
+    private void updateUserDetails(Connection con, User user) throws SQLException {
 
         String sql = """
                 UPDATE users
@@ -231,25 +263,32 @@ public class UserDAO {
                     first_name = ?,
                     last_name = ?,
                     email = ?,
-                    role = ?,
-                    is_active = ?
+                    role = ?
                 WHERE user_id = ?
                 """;
 
         String[] names = splitName(user.getFullName());
 
-        try (Connection con = DBConnection.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql)) {
+        try (PreparedStatement ps = con.prepareStatement(sql)) {
 
             ps.setString(1, user.getUsername());
             ps.setString(2, names[0]);
             ps.setString(3, names[1]);
             ps.setString(4, user.getEmail());
             ps.setString(5, user.getRole());
-            ps.setBoolean(6, user.isActive());
-            ps.setInt(7, user.getUserId());
+            // Activation is managed separately, never copied from a potentially stale table row.
+            ps.setInt(6, user.getUserId());
 
             ps.executeUpdate();
+        }
+    }
+
+    /** Uses the same transaction and never changes account activation. */
+    private void updatePasswordHash(Connection con, int userId, String passwordHash) throws SQLException {
+        try (PreparedStatement ps = con.prepareStatement("UPDATE users SET password_hash = ? WHERE user_id = ?")) {
+            ps.setString(1, passwordHash);
+            ps.setInt(2, userId);
+            if (ps.executeUpdate() != 1) throw new SQLException("The selected user's password could not be updated.");
         }
     }
 

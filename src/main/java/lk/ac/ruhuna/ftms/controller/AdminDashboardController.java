@@ -145,4 +145,9 @@ public class AdminDashboardController {
         navigate("admin_enrollments.fxml");
     }
 
+    @FXML
+    private void handleGpa() {
+        navigate("gpa.fxml");
+    }
+
 }

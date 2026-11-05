@@ -1,6 +1,7 @@
 package lk.ac.ruhuna.ftms.model;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 public class Assessment {
     @Override public String toString() { return assessmentId + " - " + assessmentName + " (max " + maxMark + ")"; }
@@ -13,6 +14,14 @@ public class Assessment {
     private double weightPercentage;
     private LocalDate assessmentDate;
     private String description;
+    private boolean published;
+    private LocalDateTime publishedAt;
+
+    public boolean isPublished() { return published; }
+    public void setPublished(boolean published) { this.published = published; }
+    public LocalDateTime getPublishedAt() { return publishedAt; }
+    public void setPublishedAt(LocalDateTime publishedAt) { this.publishedAt = publishedAt; }
+    public String getPublicationStatus() { return published ? "Released" : "Draft"; }
 
     public Assessment() {
     }

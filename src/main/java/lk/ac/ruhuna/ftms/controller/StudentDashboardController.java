@@ -272,6 +272,11 @@ public class StudentDashboardController {
     // ==========================================
 
     @FXML
+    private void handleAssessments() {
+        openAcademicScreen("/fxml/student_assessments.fxml", "My Assessments");
+    }
+
+    @FXML
     private void handleGrades() {
 
         openAcademicScreen(

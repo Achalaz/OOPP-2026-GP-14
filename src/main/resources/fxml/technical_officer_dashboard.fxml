@@ -135,7 +135,7 @@
                         <VBox spacing="12" minWidth="0" maxWidth="Infinity" styleClass="feature-card,notices-card" GridPane.columnIndex="1" GridPane.rowIndex="1">
                             <HBox alignment="CENTER_LEFT" spacing="6">
                                 <StackPane styleClass="card-icon"><SVGPath content="M3 10 L20 4 V20 L3 14 Z M6 15 L8 22 H12 L10 16 M20 9 H23 V15 H20"/></StackPane>
-                                <Region HBox.hgrow="ALWAYS"/><Label text="COMING SOON" styleClass="coming-soon"/>
+                                <Region HBox.hgrow="ALWAYS"/><Label text="AVAILABLE" styleClass="account-badge"/>
                             </HBox>
                             <Label text="Notices" wrapText="true" styleClass="card-title"/>
                             <Label text="View published faculty notices." wrapText="true" styleClass="card-description" VBox.vgrow="ALWAYS" maxHeight="Infinity"/>

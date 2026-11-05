@@ -1,7 +1,50 @@
 
 package lk.ac.ruhuna.ftms.service;
 
+import lk.ac.ruhuna.ftms.dao.UserDAO;
+import lk.ac.ruhuna.ftms.model.User;
+import lk.ac.ruhuna.ftms.util.PasswordUtil;
+import lk.ac.ruhuna.ftms.util.SessionManager;
+
+import java.sql.SQLException;
+import java.util.Arrays;
+import java.util.Objects;
+
 public class UserService {
+
+    private final UserDAO userDAO;
+
+    public UserService() { this(new UserDAO()); }
+
+    public UserService(UserDAO userDAO) { this.userDAO = Objects.requireNonNull(userDAO); }
+
+    /** A blank password means details only; the DAO commits both changes together. */
+    public boolean updateUser(User user, String optionalPassword) throws SQLException {
+        var actor = SessionManager.getCurrentUser();
+        if (actor == null || !actor.isActive() || !"ADMIN".equals(actor.getRole())) {
+            throw new SecurityException("Active administrator access is required to update users.");
+        }
+        if (user == null || user.getUserId() <= 0) {
+            throw new IllegalArgumentException("Please select a user first.");
+        }
+        validateUser(user.getUsername(), user.getFullName(), user.getEmail(), user.getRole());
+        boolean changePassword = optionalPassword != null && !optionalPassword.isBlank();
+        char[] passwordChars = null;
+        try {
+            String passwordHash = null;
+            if (changePassword) {
+                validatePassword(optionalPassword);
+                passwordChars = optionalPassword.toCharArray();
+                passwordHash = PasswordUtil.hashPassword(passwordChars);
+            }
+            User updated = new User(user.getUserId(), user.getUsername().trim(),
+                    user.getFullName().trim(), user.getEmail().trim(), user.getRole(), user.isActive());
+            userDAO.updateUser(updated, passwordHash);
+            return changePassword;
+        } finally {
+            if (passwordChars != null) Arrays.fill(passwordChars, '\0');
+        }
+    }
 
     public void validateUser(String username,
                              String fullName,
