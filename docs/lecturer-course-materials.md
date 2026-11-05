@@ -15,6 +15,7 @@ The overlapping plural `CourseMaterialsController`, `CourseMaterialsService`, `C
 - Save: asynchronous work, duplicate-click prevention, success confirmation followed by refreshed list. If saving succeeds but refresh fails, the message explicitly says the save succeeded and asks for Refresh instead of another upload.
 - Download: authorized selected record, existing Save File dialog, bounded managed-file reads and byte-preserving export. Legacy paths remain metadata and fail with an uploader re-upload message. Missing/empty/oversized files and invalid paths fail without claiming success.
 - Edit: assigned lecturers may view/download each other's materials. Only the original uploader may change metadata or replace the file. Both service and SQL enforce ownership. SQL also requires the original offering and current assignment, preserves `material_id`, and never moves a material to another offering. UI read-only controls supplement the service and SQL checks.
+- Availability window: the original uploader may set or clear a starting date and expiry date on upload or edit. Both dates are optional; start and expiry dates are inclusive, and expiry cannot precede start. Students can download only during the window. The student list shows the configured dates and whether a material is upcoming, expired or available.
 - Back uses the same JavaFX scene/window and preserves login; logout invalidates the session. Database/storage work stays in background Tasks. Expired task completions clear material data and show a session-expiry message.
 
 ## Storage
@@ -24,6 +25,10 @@ Default: `<user-home>/.ftms/course-materials`. Override with JVM property `-Dftm
 If lecturer and student installations run on different machines, configure them to access the same physical shared directory with appropriate filesystem permissions. Identical path strings on separate local disks do not share files. No cloud service, web server, automatic migration, managed-file movement or managed-file deletion was introduced. Replaced files and uncertain database-outcome files are retained.
 
 Managed storage rejects redirected roots and symlink file resources; generated basenames prevent path traversal. Export rejects redirected destination parents, symlink targets and destinations inside managed storage. It writes a temporary sibling and atomically replaces the destination only after successful writing and authorization revalidation. Filesystems that cannot perform the atomic move report failure; no unsafe truncating fallback is used. Only export temporary files are cleaned up. Keep storage and its parent directories protected from untrusted local filesystem modifications: path checks are not a sandbox against a local attacker concurrently replacing directory components. Availability is a point-in-time check, revalidated on download.
+
+## Database update
+
+Fresh databases include nullable `available_from` and `expires_on` columns on `course_materials`. Existing databases must run [add_course_material_availability_dates.sql](database/add_course_material_availability_dates.sql) against the selected FTMS database before using the updated application. The application does not run schema migrations automatically; existing materials remain unrestricted because both columns are nullable.
 
 ## Validation actually executed
 

@@ -23,10 +23,16 @@ public final class CourseMaterialServiceTest {
             byte[] original=Files.readAllBytes(source);
             Path store=temp.resolve("store");
             var service=new CourseMaterialService(access,dao,store);
-            service.save(12,0,"  Notes  ","Week one","LECTURE_NOTE",source);
+            var initialStart=java.time.LocalDate.now().plusDays(1);
+            var initialExpiry=initialStart.plusDays(7);
+            service.save(12,0,"  Notes  ","Week one","LECTURE_NOTE",initialStart,initialExpiry,source);
             check(dao.saved.title().equals("Notes"),"trimmed title");
             check(!dao.saved.resourcePath().contains("note"),"managed resource name");
             check(dao.saved.uploadedBy()==7,"authenticated uploader");
+            check(dao.saved.availableFrom().equals(initialStart) && dao.saved.expiresOn().equals(initialExpiry),"date window saved on upload");
+            check(!dao.saved.isAvailableOn(initialStart.minusDays(1)) && dao.saved.isAvailableOn(initialStart),"start date is inclusive");
+            check(dao.saved.isAvailableOn(initialExpiry) && !dao.saved.isAvailableOn(initialExpiry.plusDays(1)),"expiry date is inclusive");
+            check(new CourseMaterial(1,12,"Always available","","OTHER","file",7).isAvailableOn(java.time.LocalDate.now()),"missing dates leave material unrestricted");
             check(Arrays.equals(service.download(12,1),original),"PDF download matches upload");
             check(Arrays.equals(Files.readAllBytes(source),original),"source preserved");
             check(Files.isRegularFile(store.resolve(dao.saved.resourcePath())),"managed file exists");
@@ -39,6 +45,11 @@ public final class CourseMaterialServiceTest {
             check(Arrays.equals(service.download(12,1),original),"metadata edit preserves resource");
             check(dao.saved.materialId()==1 && dao.saved.description().equals("New description")
                     && dao.saved.materialType().equals("PRACTICAL"),"edit preserves ID and saves metadata");
+                var editedStart=java.time.LocalDate.now().plusDays(2);
+                var editedExpiry=editedStart.plusDays(7);
+                service.save(12,1,"Edited","Date window","PRACTICAL",editedStart,editedExpiry,null);
+                check(dao.saved.availableFrom().equals(editedStart) && dao.saved.expiresOn().equals(editedExpiry),"date window saved on edit");
+                reject(()->service.save(12,1,"Edited","Invalid window","PRACTICAL",editedExpiry,editedStart,null));
             Files.writeString(source,"Replacement");service.save(12,1,"Edited","","PRACTICAL",source);
             check(new String(service.download(12,1)).equals("Replacement"),"file replacement");
             var own=dao.saved;
@@ -142,6 +153,6 @@ public final class CourseMaterialServiceTest {
     private static final class MemoryDAO extends CourseMaterialDAO {
         CourseMaterial saved;
         @Override public List<CourseMaterial> findByOffering(int id){return saved==null?List.of():List.of(saved);}
-        @Override public void save(CourseMaterial m,int lecturer){saved=new CourseMaterial(1,m.offeringId(),m.title(),m.description(),m.materialType(),m.resourcePath(),lecturer);}
+        @Override public void save(CourseMaterial m,int lecturer){saved=new CourseMaterial(1,m.offeringId(),m.title(),m.description(),m.materialType(),m.resourcePath(),lecturer,null,null,"Not checked",m.availableFrom(),m.expiresOn());}
     }
 }

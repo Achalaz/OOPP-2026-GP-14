@@ -58,13 +58,15 @@ public final class LecturerViewSmokeTest {
                     } else {
                         var rows=(TableView<?>)root.lookup("#materialTable");
                         check(rows.getItems().size()==2,"all offering materials displayed");
-                        check(rows.getColumns().size()==6,"material metadata columns");
+                        check(rows.getColumns().size()==8,"material metadata columns");
                         rows.getSelectionModel().selectLast();
                         check(((Button)root.lookup("#saveMaterialButton")).isDisabled(),"other uploader cannot edit");
                         ((TextField)root.lookup("#search")).setText("Test PDF");
                         check(rows.getItems().size()==1,"material search filters rows");
                         rows.getSelectionModel().selectFirst();
                         check(!((Button)root.lookup("#saveMaterialButton")).isDisabled(),"owner may edit");
+                        check(((DatePicker)root.lookup("#availableFrom")).getValue().equals(java.time.LocalDate.of(2026,1,1)),"existing start date loaded for edit");
+                        check(((DatePicker)root.lookup("#expiresOn")).getValue().equals(java.time.LocalDate.of(2026,1,31)),"existing expiry date loaded for edit");
                         button("Save Material").fire();button("Save Material").fire();
                     }
                     return null;
@@ -127,12 +129,13 @@ public final class LecturerViewSmokeTest {
     private static final class StubMaterials extends CourseMaterialService {
         @Override public List<CourseMaterial> list(int offering){
             check(!Platform.isFxApplicationThread(),"async material listing");
-            return List.of(new CourseMaterial(1,1,"Test PDF","Description","LECTURE_NOTE","test.pdf",7),
+            return List.of(new CourseMaterial(1,1,"Test PDF","Description","LECTURE_NOTE","test.pdf",7,null,null,"Available",java.time.LocalDate.of(2026,1,1),java.time.LocalDate.of(2026,1,31)),
                     new CourseMaterial(2,1,"Other notes","Shared","OTHER","legacy.pdf",8));
         }
-        @Override public void save(int offering,int id,String title,String description,String type,java.nio.file.Path source) {
+        @Override public void save(int offering,int id,String title,String description,String type,java.time.LocalDate availableFrom,java.time.LocalDate expiresOn,java.nio.file.Path source) {
             check(!Platform.isFxApplicationThread(),"async material saving");
-            check(offering==1 && id==1 && title.equals("Test PDF"),"existing material edit payload");materialSaves++;
+            check(offering==1 && id==1 && title.equals("Test PDF"),"existing material edit payload");
+            check(availableFrom.equals(java.time.LocalDate.of(2026,1,1)) && expiresOn.equals(java.time.LocalDate.of(2026,1,31)),"date window included in edit payload");materialSaves++;
         }
     }
 }

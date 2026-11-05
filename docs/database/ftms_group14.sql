@@ -251,6 +251,8 @@ CREATE TABLE IF NOT EXISTS course_materials (
     material_type ENUM('LECTURE_NOTE','PRACTICAL','ASSIGNMENT','LINK','OTHER')
         NOT NULL DEFAULT 'OTHER',
     resource_path VARCHAR(500),
+    available_from DATE NULL,
+    expires_on DATE NULL,
     uploaded_by INT NOT NULL,
     uploaded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_material_offering
@@ -665,6 +667,30 @@ SET @ftms_stmt = (
     FROM information_schema.COLUMNS
     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users'
       AND COLUMN_NAME = 'profile_picture'
+);
+PREPARE ftms_upgrade FROM @ftms_stmt;
+EXECUTE ftms_upgrade;
+DEALLOCATE PREPARE ftms_upgrade;
+
+SET @ftms_stmt = (
+        SELECT IF(COUNT(*) = 0,
+            'ALTER TABLE course_materials ADD COLUMN available_from DATE NULL',
+            'SELECT ''course_materials.available_from already exists'' AS info')
+        FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'course_materials'
+            AND COLUMN_NAME = 'available_from'
+);
+PREPARE ftms_upgrade FROM @ftms_stmt;
+EXECUTE ftms_upgrade;
+DEALLOCATE PREPARE ftms_upgrade;
+
+SET @ftms_stmt = (
+        SELECT IF(COUNT(*) = 0,
+            'ALTER TABLE course_materials ADD COLUMN expires_on DATE NULL',
+            'SELECT ''course_materials.expires_on already exists'' AS info')
+        FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'course_materials'
+            AND COLUMN_NAME = 'expires_on'
 );
 PREPARE ftms_upgrade FROM @ftms_stmt;
 EXECUTE ftms_upgrade;

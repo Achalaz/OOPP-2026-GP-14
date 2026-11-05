@@ -5,6 +5,7 @@ import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.time.LocalDate;
 import java.util.List;
 import lk.ac.ruhuna.ftms.dao.CourseMaterialDAO;
 import lk.ac.ruhuna.ftms.dao.EnrollmentDAO;
@@ -22,11 +23,18 @@ public final class StudentCourseMaterialService {
         return access.read((connection, student) -> {
             MaterialStorage.checkCancelled();
             enrollments.requireMaterialAccess(connection, student, offering);
-            return materials.findByOffering(connection, offering).stream().map(m -> new CourseMaterial(
-                    m.materialId(), m.offeringId(), m.title(), m.description(), m.materialType(),
-                    MaterialStorage.managedName(m.resourcePath()) ? m.resourcePath() : null,
-                    m.uploadedBy(), m.uploadedAt(), m.uploaderName(),
-                    "Available".equals(storage.availability(m.resourcePath())) ? "Available" : UNAVAILABLE)).toList();
+            var today = LocalDate.now();
+            return materials.findByOffering(connection, offering).stream().map(m -> {
+                String dateStatus = "Available";
+                if (m.availableFrom() != null && today.isBefore(m.availableFrom()))
+                    dateStatus = "Available from " + m.availableFrom();
+                else if (m.expiresOn() != null && today.isAfter(m.expiresOn()))
+                    dateStatus = "Expired on " + m.expiresOn();
+                String availability = "Available".equals(storage.availability(m.resourcePath())) ? dateStatus : UNAVAILABLE;
+                return new CourseMaterial(m.materialId(), m.offeringId(), m.title(), m.description(), m.materialType(),
+                        MaterialStorage.managedName(m.resourcePath()) ? m.resourcePath() : null,
+                        m.uploadedBy(), m.uploadedAt(), m.uploaderName(), availability, m.availableFrom(), m.expiresOn());
+            }).toList();
         });
     }
 
@@ -45,6 +53,7 @@ public final class StudentCourseMaterialService {
                 MaterialStorage.checkCancelled();
                 enrollments.requireMaterialAccess(connection, student, offering);
                 CourseMaterial material = find(connection, offering, materialId);
+                if (!material.isAvailableOn(LocalDate.now())) throw new UncheckedIOException(new IOException(UNAVAILABLE));
                 byte[] bytes;
                 try { bytes = storage.read(material.resourcePath()); }
                 catch (IOException | SecurityException error) { throw new UncheckedIOException(new IOException(UNAVAILABLE)); }

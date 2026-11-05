@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<VBox xmlns:fx="http://javafx.com/fxml" fx:controller="lk.ac.ruhuna.ftms.controller.LecturerWorkspaceController"
-      fx:id="workspaceRoot" prefWidth="1200" prefHeight="800" minWidth="0" minHeight="0" spacing="18" styleClass="main-content" stylesheets="@../css/lecturer_dashboard.css">
+<ScrollPane xmlns:fx="http://javafx.com/fxml" fx:controller="lk.ac.ruhuna.ftms.controller.LecturerWorkspaceController"
+            fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED" pannable="true">
+ <content>
+  <VBox fx:id="workspaceRoot" prefWidth="1200" prefHeight="800" minWidth="0" minHeight="0" spacing="18" styleClass="main-content" stylesheets="@../css/lecturer_dashboard.css">
  <FlowPane hgap="12" vgap="8" minHeight="-Infinity">
    <Button fx:id="dashboardButton" text="&#8592; Back to Dashboard" onAction="#dashboard" styleClass="secondary-action" minWidth="-Infinity"/>
    <Button text="Log Out" onAction="#logout" styleClass="logout-button" minWidth="-Infinity"/>
@@ -23,7 +25,10 @@
    <TextField fx:id="materialTitle" promptText="Material title"/>
    <ComboBox fx:id="materialType" promptText="Material type"/>
    <TextArea fx:id="description" promptText="Description" prefRowCount="4" wrapText="true"/>
+  <HBox spacing="12"><DatePicker fx:id="availableFrom" promptText="Starting date"/><DatePicker fx:id="expiresOn" promptText="Expiry date"/></HBox>
    <HBox spacing="12"><Button fx:id="chooseFileButton" text="Choose File" onAction="#chooseFile"/><Label fx:id="fileLabel" text="No file selected"/></HBox>
    <Button fx:id="saveMaterialButton" text="Save Material" onAction="#saveMaterial" styleClass="primary-action"/>
  </VBox>
-</VBox>
+  </VBox>
+ </content>
+</ScrollPane>

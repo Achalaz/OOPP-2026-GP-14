@@ -14,6 +14,7 @@ import lk.ac.ruhuna.ftms.util.NavigationUtil;
 import lk.ac.ruhuna.ftms.util.SessionManager;
 
 import java.io.IOException;
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Objects;
 import java.util.concurrent.Callable;
@@ -41,6 +42,8 @@ public final class StudentCourseMaterialsController {
         column("Description", CourseMaterial::description, 280);
         column("Uploaded Date", m -> m.uploadedAt() == null ? "Not recorded"
                 : m.uploadedAt().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")), 155);
+        column("Available from", m -> Objects.toString(m.availableFrom(), "No limit"), 120);
+        column("Expires on", m -> Objects.toString(m.expiresOn(), "No expiry"), 120);
         column("Availability", CourseMaterial::availability, 310);
         materialsTable.setPlaceholder(new Label("Select a course from My Courses."));
         materialsTable.getSelectionModel().selectedItemProperty().addListener((value, old, material) -> {

@@ -2,6 +2,7 @@ package lk.ac.ruhuna.ftms.service;
 import java.io.*;
 import java.nio.file.*;
 import java.sql.SQLException;
+import java.time.LocalDate;
 import java.util.*;
 import lk.ac.ruhuna.ftms.dao.CourseMaterialDAO;
 import lk.ac.ruhuna.ftms.model.CourseMaterial;
@@ -26,11 +27,17 @@ public class CourseMaterialService {
         access.requireOffering(offering);return rows;
     }
     public void save(int offering,int id,String title,String description,String type,Path source) throws SQLException,IOException {
+        save(offering,id,title,description,type,null,null,source);
+    }
+    public void save(int offering,int id,String title,String description,String type,
+                     LocalDate availableFrom,LocalDate expiresOn,Path source) throws SQLException,IOException {
         access.requireOffering(offering);
         if(title==null || title.isBlank() || title.strip().length()>180) throw new IllegalArgumentException("Enter a title of 1–180 characters.");
         if(description!=null && description.length()>10000) throw new IllegalArgumentException("Description is too long (maximum 10000 characters).");
         if(type==null || !Set.of("LECTURE_NOTE","PRACTICAL","ASSIGNMENT","OTHER").contains(type)) throw new IllegalArgumentException("Select a file material type.");
         if(id<0) throw new IllegalArgumentException("Invalid material ID.");
+        if(availableFrom!=null && expiresOn!=null && expiresOn.isBefore(availableFrom))
+            throw new IllegalArgumentException("Expiry date must be on or after the starting date.");
         CourseMaterial existing=id==0?null:find(offering,id);
         if(existing!=null && existing.uploadedBy()!=access.requireLecturer())
             throw new SecurityException("Only the original uploader may edit this material.");
@@ -39,7 +46,8 @@ public class CourseMaterialService {
         if(source!=null) stored=storage.store(source);
         access.requireOffering(offering);
         // Retain staged files on uncertain database outcomes; never delete a possibly committed resource.
-        dao.save(new CourseMaterial(id,offering,title.strip(),description,type,stored,access.requireLecturer()),access.requireLecturer());
+        dao.save(new CourseMaterial(id,offering,title.strip(),description,type,stored,access.requireLecturer(),
+            null,null,"Not checked",availableFrom,expiresOn),access.requireLecturer());
     }
     public byte[] download(int offering,int id) throws SQLException,IOException {
         CourseMaterial material=find(offering,id);

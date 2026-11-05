@@ -8,6 +8,7 @@ import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.stage.FileChooser;
 import java.nio.file.*;
+import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.function.Consumer;
@@ -20,6 +21,7 @@ public class LecturerWorkspaceController {
     @FXML private Label heading,message,fileLabel;
     @FXML private ComboBox<EligibilityOffering> offering;
     @FXML private TextField search,markValue,materialTitle;
+    @FXML private DatePicker availableFrom,expiresOn;
     @FXML private TextArea description;
     @FXML private ComboBox<String> materialType;
     @FXML private ComboBox<CourseMaterial> materials;
@@ -54,10 +56,12 @@ public class LecturerWorkspaceController {
         materials.setOnAction(e->{
             var m=materials.getValue();upload=null;fileLabel.setText("No replacement selected");
             materialTitle.setText(m==null?"":m.title());description.setText(m==null?"":m.description());
+            availableFrom.setValue(m==null?null:m.availableFrom());expiresOn.setValue(m==null?null:m.expiresOn());
             materialType.setValue(m==null?"LECTURE_NOTE":m.materialType());
             boolean readOnly=m!=null && m.uploadedBy()!=identity.userId();
             materialTitle.setEditable(!readOnly);description.setEditable(!readOnly);
-            materialType.setDisable(readOnly);chooseFileButton.setDisable(readOnly);saveMaterialButton.setDisable(readOnly);
+            materialType.setDisable(readOnly);availableFrom.setDisable(readOnly);expiresOn.setDisable(readOnly);
+            chooseFileButton.setDisable(readOnly);saveMaterialButton.setDisable(readOnly);
             materialDetails.setText(m==null?"New material":m.availability()+" | "+
                     (readOnly?"Only the original uploader may edit this material.":"You may edit this material."));
             if(m!=materialTable.getSelectionModel().getSelectedItem()) materialTable.getSelectionModel().select(m);
@@ -68,6 +72,8 @@ public class LecturerWorkspaceController {
         materialColumn("Title",CourseMaterial::title,180);
         materialColumn("Type",CourseMaterial::materialType,130);
         materialColumn("Description",CourseMaterial::description,220);
+        materialColumn("Available from",m->Objects.toString(m.availableFrom(),"No limit"),120);
+        materialColumn("Expires on",m->Objects.toString(m.expiresOn(),"No expiry"),120);
         materialColumn("Uploader",m->m.uploaderName()==null || m.uploaderName().isBlank()?"User #"+m.uploadedBy():m.uploaderName(),140);
         materialColumn("Uploaded",m->Objects.toString(m.uploadedAt(),"Unavailable"),160);
         materialColumn("File status",CourseMaterial::availability,240);
@@ -135,9 +141,11 @@ public class LecturerWorkspaceController {
     }
     @FXML private void newMaterial() {
         materials.getSelectionModel().clearSelection();materialTitle.clear();description.clear();
+        availableFrom.setValue(null);expiresOn.setValue(null);
         materialType.setValue("LECTURE_NOTE");upload=null;fileLabel.setText("No file selected");
         materialTable.getSelectionModel().clearSelection();
         materialTitle.setEditable(true);description.setEditable(true);materialType.setDisable(false);
+        availableFrom.setDisable(false);expiresOn.setDisable(false);
         chooseFileButton.setDisable(false);saveMaterialButton.setDisable(false);materialDetails.setText("New material");
     }
     @FXML private void chooseFile() {
@@ -149,8 +157,9 @@ public class LecturerWorkspaceController {
     @FXML private void saveMaterial() {
         if(offering.getValue()==null){message.setText("Choose an assigned course.");return;}
         int offeringId=offering.getValue().offeringId();var current=materials.getValue();int id=current==null?0:current.materialId();
-        String title=materialTitle.getText(),text=description.getText(),type=materialType.getValue();Path source=upload;
-        run(()->{materialService.save(offeringId,id,title,text,type,source);return true;},ok->{
+        String title=materialTitle.getText(),text=description.getText(),type=materialType.getValue();
+        var start=availableFrom.getValue();var expiry=expiresOn.getValue();Path source=upload;
+        run(()->{materialService.save(offeringId,id,title,text,type,start,expiry,source);return true;},ok->{
             materialSaved=true;search.clear();reload();
         });
     }
@@ -173,7 +182,7 @@ public class LecturerWorkspaceController {
             table.setItems(FXCollections.observableArrayList());
             materials.setItems(FXCollections.observableArrayList());
             materialTable.setItems(FXCollections.observableArrayList());
-            materialTitle.clear();description.clear();markValue.clear();
+            materialTitle.clear();description.clear();availableFrom.setValue(null);expiresOn.setValue(null);markValue.clear();
         }
         try{NavigationUtil.navigate(workspaceRoot,logout?"/fxml/login.fxml":NavigationUtil.dashboardResource(),logout?"FTMS - Login":"FTMS - Lecturer Dashboard");}
         catch(Exception e){message.setText("Unable to open screen. Please retry.");}
@@ -183,7 +192,9 @@ public class LecturerWorkspaceController {
         Task<T> next=new Task<>(){@Override protected T call() throws Exception{SessionManager.requireSession(identity);return work.call();}};task=next;
         next.setOnSucceeded(e->{if(disposed || !checkSession())return;setBusy(false);success.accept(next.getValue());});
         next.setOnFailed(e->{if(disposed || !checkSession())return;setBusy(false);
-            var error=next.getException();message.setText(error instanceof SecurityException
+            var error=next.getException();message.setText(missingMaterialDateColumn(error)
+                ? "Material date columns are missing. Run docs/database/add_course_material_availability_dates.sql and retry."
+                : error instanceof SecurityException
                     || error instanceof IllegalArgumentException
                     || error instanceof lk.ac.ruhuna.ftms.exception.InvalidMarkException
                     || error instanceof java.io.IOException ? error.getMessage()
@@ -192,11 +203,17 @@ public class LecturerWorkspaceController {
         });
         var thread=new Thread(next,"lecturer-workspace");thread.setDaemon(true);thread.start();
     }
+    private static boolean missingMaterialDateColumn(Throwable error) {
+        if(!(error instanceof SQLException sql) || sql.getMessage()==null) return false;
+        String details=sql.getMessage().toLowerCase(Locale.ROOT);
+        return details.contains("unknown column")
+                && (details.contains("available_from") || details.contains("expires_on"));
+    }
     private boolean checkSession() {
         if(SessionManager.isCurrentSession(identity))return true;
         setBusy(false);materialEditor.setDisable(true);offering.setDisable(true);refresh.setDisable(true);
         materials.setItems(FXCollections.observableArrayList());materialTable.setItems(FXCollections.observableArrayList());
-        materialTitle.clear();description.clear();upload=null;
+        materialTitle.clear();description.clear();availableFrom.setValue(null);expiresOn.setValue(null);upload=null;
         message.setText("Your session has ended. Please log out and sign in again.");return false;
     }
     private void setBusy(boolean value){busy=value;offering.setDisable(value);refresh.setDisable(value);markEditor.setDisable(value);materialEditor.setDisable(value);}
