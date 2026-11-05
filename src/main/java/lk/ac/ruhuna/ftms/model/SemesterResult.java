@@ -128,4 +128,5 @@ public class SemesterResult {
     public void setCalculatedAt(LocalDateTime calculatedAt) {
         this.calculatedAt = calculatedAt;
     }
+
 }

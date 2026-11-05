@@ -6,6 +6,7 @@ import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 
 import lk.ac.ruhuna.ftms.exception.InvalidMarkException;
+import lk.ac.ruhuna.ftms.exception.PublishedResultProtectedException;
 import lk.ac.ruhuna.ftms.model.Mark;
 import lk.ac.ruhuna.ftms.service.MarkService;
 import lk.ac.ruhuna.ftms.util.NavigationUtil;
@@ -166,6 +167,15 @@ public class MarksController {
             clearFields();
             loadMarks();
 
+        } catch (PublishedResultProtectedException e) {
+
+            showAlert(
+                    Alert.AlertType.WARNING,
+                    "Published Result",
+                    "Marks cannot be changed because this enrollment's result is already published. "
+                            + "No changes were saved. Please contact the faculty administrator about the required formal correction policy."
+            );
+
         } catch (SecurityException e) {
 
             marksTable.getItems().clear();
@@ -320,7 +330,8 @@ public class MarksController {
                 .clearSelection();
     }
 
-    private void showAlert(
+    /** Package-visible so controller tests can inspect feedback without opening a dialog. */
+    void showAlert(
             Alert.AlertType type,
             String title,
             String message) {

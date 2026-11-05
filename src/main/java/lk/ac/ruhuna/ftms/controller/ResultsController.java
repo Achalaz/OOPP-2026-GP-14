@@ -7,6 +7,11 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.collections.ListChangeListener;
+import javafx.scene.chart.BarChart;
+import javafx.scene.chart.PieChart;
+import javafx.scene.chart.XYChart;
+import javafx.scene.control.Tooltip;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.scene.control.Alert;
@@ -26,6 +31,8 @@ import lk.ac.ruhuna.ftms.util.SessionManager;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.function.Consumer;
@@ -45,6 +52,8 @@ public class ResultsController {
     @FXML private Label reasonLabel;
     @FXML private Label statusLabel;
     @FXML private Label publicationPolicyLabel;
+    @FXML private Label eligibilityLabel;
+    @FXML private javafx.scene.control.ProgressIndicator progressIndicator;
     @FXML private Button calculateButton;
     @FXML private Button saveButton;
     @FXML private Button publishButton;
@@ -52,6 +61,10 @@ public class ResultsController {
     @FXML private Button refreshButton;
     @FXML private Button backButton;
     @FXML private TableView<ResultRow> batchTable;
+    @FXML private BarChart<String, Number> marksChart;
+    @FXML private PieChart statusChart;
+    @FXML private PieChart eligibilityChart;
+    @FXML private Label chartMessageLabel;
     @FXML private TableColumn<ResultRow, String> enrollmentColumn;
     @FXML private TableColumn<ResultRow, String> studentColumn;
     @FXML private TableColumn<ResultRow, String> caMarkColumn;
@@ -61,6 +74,7 @@ public class ResultsController {
     @FXML private TableColumn<ResultRow, String> gradeLetterColumn;
     @FXML private TableColumn<ResultRow, String> gradePointColumn;
     @FXML private TableColumn<ResultRow, String> stateColumn;
+    @FXML private TableColumn<ResultRow, String> eligibilityColumn;
 
     private final SessionManager.SessionIdentity screenIdentity = SessionManager.requireSession();
     private final ResultService resultService;
@@ -69,7 +83,11 @@ public class ResultsController {
     private final ObjectProperty<Integer> readyEnrollment = new SimpleObjectProperty<>();
     private final BooleanProperty publicationAuthorized = new SimpleBooleanProperty();
     private final BooleanProperty publishableSelection = new SimpleBooleanProperty();
+    private final BooleanProperty publishedSelection = new SimpleBooleanProperty();
     private boolean updatingSelection;
+    private Task<?> activeTask;
+    private boolean disposed;
+    private record Batch(java.util.List<ResultRow> rows, boolean publicationAllowed) {}
 
     public ResultsController() { this(new ResultService()); }
 
@@ -88,8 +106,13 @@ public class ResultsController {
 
     @FXML
     public void initialize() {
+        requireScreenSession();
         enrollmentCombo.setItems(rows);
         batchTable.setItems(rows);
+        // Chart data comes from the SAME observable rows as the batch table.
+        // Rebuild on offering changes, result saves, publication and refresh.
+        rows.addListener((ListChangeListener<ResultRow>) change -> updateCharts());
+        updateCharts();
         batchTable.setPlaceholder(new Label("Select a course/offering to view enrollments."));
         column(enrollmentColumn, row -> Integer.toString(row.enrollmentId()));
         column(studentColumn, row -> row.registrationNo() + " - " + row.studentName());
@@ -100,18 +123,23 @@ public class ResultsController {
         column(gradeLetterColumn, row -> grade(row.result()));
         column(gradePointColumn, row -> number(row.result(), CourseResult::getGradePoint));
         column(stateColumn, row -> state(row.result()));
+        column(eligibilityColumn, ResultsController::eligibility);
 
         offeringCombo.disableProperty().bind(busy);
         enrollmentCombo.disableProperty().bind(busy.or(offeringCombo.valueProperty().isNull()));
         batchTable.disableProperty().bind(busy);
-        calculateButton.disableProperty().bind(busy.or(enrollmentCombo.valueProperty().isNull()));
+        calculateButton.disableProperty().bind(busy.or(enrollmentCombo.valueProperty().isNull()).or(publishedSelection));
         saveButton.disableProperty().bind(busy.or(readyEnrollment.isNull()));
         publishButton.visibleProperty().bind(publicationAuthorized);
         publishButton.managedProperty().bind(publicationAuthorized);
         publishButton.disableProperty().bind(busy.or(publicationAuthorized.not()).or(publishableSelection.not()));
         clearButton.disableProperty().bind(busy);
         refreshButton.disableProperty().bind(busy);
-        backButton.disableProperty().bind(busy);
+        progressIndicator.visibleProperty().bind(busy);
+        progressIndicator.managedProperty().bind(busy);
+        batchTable.sceneProperty().addListener((observable, old, scene) -> {
+            if(old!=null && scene==null) {disposed=true;if(activeTask!=null)activeTask.cancel(true);}
+        });
 
         offeringCombo.valueProperty().addListener((observable, previous, selected) -> loadEnrollments(selected));
         enrollmentCombo.valueProperty().addListener((observable, previous, selected) -> selectRow(selected));
@@ -134,6 +162,7 @@ public class ResultsController {
     }
 
     private void loadEnrollments(EligibilityOffering offering) {
+        publicationAuthorized.set(false);
         readyEnrollment.set(null);
         rows.clear();
         selectRow(null);
@@ -143,10 +172,12 @@ public class ResultsController {
             return;
         }
         batchTable.setPlaceholder(new Label("No enrollments found for this offering."));
-        runTask("Loading batch results...", () -> resultService.getBatchResults(offering.offeringId()), results -> {
-            rows.setAll(results);
-            statusLabel.setText(results.isEmpty() ? "No enrollments found for this offering."
-                    : results.size() + " enrollments loaded. Select one to view or calculate a result.");
+        runTask("Loading batch results...", () -> new Batch(resultService.getBatchResults(offering.offeringId()),
+                resultService.canPublishResult(offering.offeringId())), batch -> {
+            publicationAuthorized.set(batch.publicationAllowed());
+            rows.setAll(batch.rows());display(null);
+            statusLabel.setText(batch.rows().isEmpty() ? "No enrollments found for this offering."
+                    : batch.rows().size() + " enrollments loaded. Select one to view or calculate a result.");
         });
     }
 
@@ -170,9 +201,11 @@ public class ResultsController {
     private void handleCalculate() {
         ResultRow selected = enrollmentCombo.getValue();
         if (selected == null) { return; }
+        int offering = offeringCombo.getValue().offeringId();
         readyEnrollment.set(null);
-        runTask("Calculating result...", () -> resultService.calculateResult(selected.enrollmentId()), result -> {
-            replaceRow(selected.withResult(result));
+        runTask("Calculating result...", () -> refreshedRow(offering, selected,
+                resultService.calculateResult(selected.enrollmentId())), row -> {
+            replaceRow(row);
             readyEnrollment.set(selected.enrollmentId());
             statusLabel.setText("Result calculated. Save / Update recalculates and saves an unpublished draft.");
         });
@@ -182,10 +215,11 @@ public class ResultsController {
     private void handleSave() {
         ResultRow selected = enrollmentCombo.getValue();
         if (selected == null || !Objects.equals(readyEnrollment.get(), selected.enrollmentId())) { return; }
+        int offering = offeringCombo.getValue().offeringId();
         readyEnrollment.set(null);
         runTask("Recalculating and saving result...",
-                () -> resultService.calculateAndSaveResult(selected.enrollmentId()), result -> {
-                    replaceRow(selected.withResult(result));
+                () -> refreshedRow(offering, selected, resultService.calculateAndSaveResult(selected.enrollmentId())), row -> {
+                    replaceRow(row);
                     statusLabel.setText("Unpublished result saved for enrollment " + selected.enrollmentId() + ".");
                 });
     }
@@ -195,7 +229,9 @@ public class ResultsController {
         ResultRow selected = enrollmentCombo.getValue();
         EligibilityOffering offering = offeringCombo.getValue();
         if (busy.get() || selected == null || selected.result() == null || offering == null
-                || !publishableSelection.get() || !resultService.canPublishResult(offering.offeringId())) { return; }
+                || !publishableSelection.get() || !publicationAuthorized.get()) { return; }
+        try { requireScreenSession(); }
+        catch (SecurityException error) { statusLabel.setText(error.getMessage()); return; }
         var reviewed = selected.result().publicationSnapshot();
         var identity = SessionManager.requireSession();
         if (!confirmPublication(selected, reviewed)) { return; }
@@ -227,8 +263,14 @@ public class ResultsController {
         return confirmation.showAndWait().filter(ButtonType.OK::equals).isPresent();
     }
 
-    @FXML private void handleGpa() throws IOException { NavigationUtil.navigate(batchTable,"/fxml/gpa.fxml","FTMS - GPA"); }
-    @FXML private void handleReports() throws IOException { NavigationUtil.navigate(batchTable,"/fxml/reports.fxml","FTMS - Reports"); }
+    @FXML private void handleGpa() { navigate("/fxml/gpa.fxml", "FTMS - SGPA / CGPA"); }
+    @FXML private void handleReports() { navigate("/fxml/reports.fxml", "FTMS - Reports"); }
+    private ResultRow refreshedRow(int offering,ResultRow selected,CourseResult calculated) {
+        return resultService.getBatchResults(offering).stream()
+                .filter(row -> row.enrollmentId()==selected.enrollmentId()).findFirst()
+                .orElseThrow(() -> new ResultCalculationException("Enrollment is unavailable. Refresh the offering."))
+                .withResult(calculated);
+    }
     private void replaceRow(ResultRow replacement) {
         updatingSelection = true;
         try {
@@ -260,23 +302,116 @@ public class ResultsController {
 
     @FXML
     private void handleBack() {
-        try { NavigationUtil.navigate(batchTable, NavigationUtil.dashboardResource(), "FTMS - Marks Entry"); }
-        catch (IOException error) { showError("Unable to open Marks Entry. Please retry.", error); }
+        navigate("/fxml/lecturer_dashboard.fxml", "FTMS - Lecturer Dashboard");
+    }
+
+    private void navigate(String resource,String title) {
+        try { requireScreenSession();NavigationUtil.navigate(batchTable,resource,title); }
+        catch(IOException | SecurityException error){statusLabel.setText(error.getMessage());}
+    }
+    @FXML private void handleLogout() {
+        if(SessionManager.isCurrentSession(screenIdentity))SessionManager.logout();
+        else if(SessionManager.isLoggedIn()){statusLabel.setText("This screen belongs to an earlier session.");return;}
+        if(activeTask!=null)activeTask.cancel(true);
+        rows.clear();
+        try{NavigationUtil.navigate(batchTable,"/fxml/login.fxml","FTMS - Login");}
+        catch(IOException error){statusLabel.setText("You are logged out. Try Logout again to open sign in.");}
+    }
+    private void requireScreenSession() {
+        SessionManager.requireSession(screenIdentity);
+        var user=SessionManager.getCurrentUser();
+        if(user==null || !user.isActive() || !"LECTURER".equals(user.getRole()))
+            throw new SecurityException("An active lecturer session is required for Result Publication.");
+    }
+    /** Refresh the charts from the already-authorized batch rows; no additional SQL query. */
+    private void updateCharts() {
+        if (marksChart == null || statusChart == null || eligibilityChart == null) return;
+
+        XYChart.Series<String, Number> ca = new XYChart.Series<>();
+        ca.setName("CA %");
+        XYChart.Series<String, Number> exam = new XYChart.Series<>();
+        exam.setName("Final exam %");
+        XYChart.Series<String, Number> overall = new XYChart.Series<>();
+        overall.setName("Overall %");
+
+        Map<String, Integer> statuses = new LinkedHashMap<>();
+        Map<String, Integer> eligibilityCounts = new LinkedHashMap<>();
+        int withMarks = 0;
+
+        for (ResultRow row : rows) {
+            CourseResult result = row.result();
+            String category = row.registrationNo() + " (#" + row.enrollmentId() + ")";
+            if (result != null) {
+                addChartBar(ca, category, result.getCaMark(), row, "CA");
+                addChartBar(exam, category, result.getFinalExamMark(), row, "Final exam");
+                addChartBar(overall, category, result.getOverallMark(), row, "Overall");
+                if (result.getCaMark() != null || result.getFinalExamMark() != null ||
+                        result.getOverallMark() != null) withMarks++;
+            }
+
+            String status = result == null || result.getResultStatus() == null
+                    ? "PENDING" : result.getResultStatus().name();
+            statuses.merge(status, 1, Integer::sum);
+            eligibilityCounts.merge(eligibility(row), 1, Integer::sum);
+        }
+
+        // Long batches scroll horizontally instead of squeezing the student labels.
+        marksChart.setMinWidth(Math.max(860, rows.size() * 145.0));
+        marksChart.getData().setAll(ca, exam, overall);
+        statusChart.setData(toPieData(statuses));
+        eligibilityChart.setData(toPieData(eligibilityCounts));
+        chartMessageLabel.setText(rows.isEmpty()
+                ? "Select a course offering to display its charts."
+                : rows.size() + " enrollments | " + withMarks
+                + " with at least one available mark. Missing marks are NOT plotted as zero."
+                + " Status includes drafts and unpublished results.");
+    }
+
+    private static ObservableList<PieChart.Data> toPieData(Map<String, Integer> counts) {
+        ObservableList<PieChart.Data> data = FXCollections.observableArrayList();
+        counts.forEach((name, count) ->
+                data.add(new PieChart.Data(name + " (" + count + ")", count)));
+        return data;
+    }
+
+    /** Each mark bar displays the existing student details on hover; click selects the row. */
+    private void addChartBar(XYChart.Series<String, Number> series, String category,
+                             BigDecimal value, ResultRow row, String markType) {
+        if (value == null) return;
+        XYChart.Data<String, Number> point = new XYChart.Data<>(category, value.doubleValue());
+        point.nodeProperty().addListener((observable, previous, node) -> {
+            if (node == null) return;
+            CourseResult result = row.result();
+            String status = result == null || result.getResultStatus() == null
+                    ? "PENDING" : result.getResultStatus().name();
+            Tooltip.install(node, new Tooltip(
+                    row.registrationNo() + " - " + row.studentName()
+                            + "\nEnrollment: " + row.enrollmentId()
+                            + "\n" + markType + ": " + value.toPlainString() + "%"
+                            + "\nGrade: " + grade(result)
+                            + " | Grade point: " + number(result, CourseResult::getGradePoint)
+                            + "\nResult: " + status + " | " + state(result)
+                            + "\nEligibility: " + eligibility(row)
+                            + "\nClick bar to view this student's result."
+            ));
+            node.setOnMouseClicked(event -> selectRow(row));
+        });
+        series.getData().add(point);
+    }
+
+    private static String eligibility(ResultRow row) {
+        return row.overallEligible()==null ? "Pending" : row.overallEligible() ? "Eligible" : "Not eligible";
     }
 
     private void display(ResultRow row) {
         CourseResult result = row == null ? null : row.result();
-        EligibilityOffering offering = offeringCombo.getValue();
-        publicationAuthorized.set(offering != null && resultService.canPublishResult(offering.offeringId()));
-        publicationPolicyLabel.setText(publicationAuthorized.get() ? "Review a saved draft before publishing."
-                : ResultService.PUBLICATION_POLICY_PENDING);
-        publishableSelection.set(result != null && result.getResultId() > 0 && !result.isPublished()
-                && result.getPublishedAt() == null && result.getCalculatedAt() != null
-                && result.getCalculatedBy() != null
-                && (result.getResultStatus() == CourseResult.ResultStatus.PASS
-                    || result.getResultStatus() == CourseResult.ResultStatus.FAIL)
-                && result.getOverallMark() != null && result.getGradeRuleId() != null
-                && result.getGradeLetter() != null && !result.getGradeLetter().isBlank() && result.getGradePoint() != null);
+        publishedSelection.set(result!=null && result.isPublished());
+        String publicationBlock = ResultService.draftPublicationBlockReason(result);
+        publishableSelection.set(publicationBlock == null);
+        publicationPolicyLabel.setText(!publicationAuthorized.get() ? ResultService.PUBLICATION_POLICY_PENDING
+                : row == null ? "Select an enrollment to review its saved result."
+                : publicationBlock != null ? publicationBlock
+                : "Review this saved draft before publishing. Current marks and eligibility will be checked again.");
         caMarkLabel.setText(number(result, CourseResult::getCaMark));
         finalExamMarkLabel.setText(number(result, CourseResult::getFinalExamMark));
         overallMarkLabel.setText(number(result, CourseResult::getOverallMark));
@@ -285,6 +420,8 @@ public class ResultsController {
         gradePointLabel.setText(number(result, CourseResult::getGradePoint));
         resultStateLabel.setText(row == null ? "No enrollment selected" : row + " | " + state(result));
         reasonLabel.setText(row == null ? "Select an enrollment to view a result." : resultService.describe(result));
+        eligibilityLabel.setText(row==null ? "Eligibility: select an enrollment." : "Eligibility: " + eligibility(row)
+                + ". " + Objects.toString(row.eligibilityReason(),"No eligibility reason recorded."));
     }
 
     private static String number(CourseResult result, Function<CourseResult, BigDecimal> property) {
@@ -303,6 +440,8 @@ public class ResultsController {
     }
 
     private <T> void runTask(String message, Callable<T> work, Consumer<T> onSuccess) {
+        if(disposed || activeTask!=null)return;
+        try{requireScreenSession();}catch(SecurityException error){rows.clear();display(null);statusLabel.setText(error.getMessage());return;}
         var identity = screenIdentity;
         busy.set(true);
         statusLabel.setText(message);
@@ -312,22 +451,32 @@ public class ResultsController {
                 return work.call();
             }
         };
+        activeTask=task;
         task.setOnSucceeded(event -> {
-            busy.set(false);
-            if (identity != null && !SessionManager.isCurrentSession(identity)) { rows.clear(); display(null); return; }
+            if(!accept(task))return;
             onSuccess.accept(task.getValue());
         });
         task.setOnFailed(event -> {
-            busy.set(false);
+            if(!accept(task))return;
             readyEnrollment.set(null);
             rows.clear(); display(null);
             Throwable error = task.getException();
             showError(error instanceof ResultCalculationException || error instanceof SecurityException ? error.getMessage()
                     : "Unable to complete the result action. Check the database connection and retry.", error);
         });
+        task.setOnCancelled(event -> {if(accept(task))statusLabel.setText("Operation cancelled. Refresh to check current records.");});
         Thread thread = new Thread(task, "ftms-results");
         thread.setDaemon(true);
         thread.start();
+    }
+
+    private boolean accept(Task<?> task) {
+        if(disposed || activeTask!=task)return false;
+        activeTask=null;busy.set(false);
+        if(!SessionManager.isCurrentSession(screenIdentity)) {
+            rows.clear();display(null);statusLabel.setText("Your session has ended. Sign in again.");return false;
+        }
+        return true;
     }
 
     private void showError(String message, Throwable error) {

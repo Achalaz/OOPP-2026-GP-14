@@ -20,6 +20,7 @@ public final class LecturerNavigationSmokeTest {
     private static int checks;
 
     public static void main(String[] args) throws Exception {
+        boolean materialsOnly=java.util.Arrays.asList(args).contains("--materials-only");
         List<User> users = new UserDAO().getAllUsers();
         User lecturer = users.stream().filter(user -> user.isActive() && user.getRole().equals("LECTURER"))
                 .findFirst().orElseThrow(() -> new AssertionError("An active lecturer is required in the test database."));
@@ -35,7 +36,7 @@ public final class LecturerNavigationSmokeTest {
                 return null;
             });
             var identity = SessionManager.requireSession();
-            for (String panel : List.of("Upload Marks", "Upload Exam Marks", "Course Materials", "Undergraduates",
+            for (String panel : materialsOnly?List.of("Course Materials","Manage Materials"):List.of("Upload Marks", "Upload Exam Marks", "Course Materials", "Undergraduates",
                     "Student Eligibility", "Assessments", "Result Publication", "View Reports", "View GPA",
                     "Attendance Records", "Medical", "My Profile")) {
                 System.out.println("Navigation panel: "+panel);
@@ -48,6 +49,20 @@ public final class LecturerNavigationSmokeTest {
                     check(SessionManager.isCurrentSession(identity), panel + " preserves exact login session");
                     return null;
                 });
+            }
+            if(materialsOnly) {
+                fx(()->{
+                    button("Course Materials").fire();return null;
+                });
+                awaitReady();
+                fx(()->{
+                    button("Log Out").fire();
+                    check(!SessionManager.isLoggedIn(),"materials logout clears session");
+                    check(scene.getRoot().lookup("#loginButton")!=null,"materials logout opens login");
+                    return null;
+                });
+                System.out.println("Lecturer materials navigation: "+checks+" checks passed; both dashboard buttons, back, session preservation and logout; MySQL reads only.");
+                return;
             }
             // The shared workspace also retains its older marks mode.
             fx(() -> {

@@ -7,7 +7,7 @@ import java.util.*;
 /** Checks every academic FXML action against its real controller without launching the toolkit. */
 public class AcademicFxmlTest extends TestCase {
     public void testAcademicHandlerMappings()throws Exception{
-        for(String name:List.of("marks_entry","assessments","eligibility","results","gpa","reports","lecturer_dashboard","student_dashboard")){
+        for(String name:List.of("marks_entry","assessments","eligibility","results","gpa","reports","lecturer_dashboard","student_dashboard","admin_dashboard")){
             var factory=DocumentBuilderFactory.newInstance();factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl",true);
             var document=factory.newDocumentBuilder().parse(getClass().getResourceAsStream("/fxml/"+name+".fxml"));
             var controller=Class.forName(document.getDocumentElement().getAttribute("fx:controller"));

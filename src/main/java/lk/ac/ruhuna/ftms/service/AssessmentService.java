@@ -16,15 +16,16 @@ public class AssessmentService {
         return new LecturerCourseAssignmentDAO().findAssigned(new LecturerAccessService().requireLecturer());
     }
     public List<Assessment> getAssessments(int offering) throws SQLException {
-        return AcademicTransaction.run((c,id)->{access.offering(c,id,offering);return dao.findByOffering(c,offering);});
+        return AcademicTransaction.run((c,id)->{requireAssignedLecturer(c,id,offering);return dao.findByOffering(c,offering);});
     }
     public int save(Assessment assessment) throws SQLException {
         validate(assessment);
         return AcademicTransaction.run((c,id)->{
-            access.offering(c,id,assessment.getOfferingId());
+            requireAssignedLecturer(c,id,assessment.getOfferingId());
             var plan=dao.findByOffering(c,assessment.getOfferingId());
             Assessment old=plan.stream().filter(a->a.getAssessmentId()==assessment.getAssessmentId()).findFirst().orElse(null);
             if(assessment.getAssessmentId()!=0 && old==null)throw new SecurityException("Assessment does not belong to this offering.");
+            if(old!=null) requireDraft(old);
             if(plan.stream().anyMatch(a->a.getAssessmentId()!=assessment.getAssessmentId()
                 && a.getAssessmentName().equalsIgnoreCase(assessment.getAssessmentName().trim())))
                 throw new IllegalArgumentException("An assessment with this name already exists in the offering.");
@@ -43,15 +44,41 @@ public class AssessmentService {
     }
     public void delete(int offering,int assessment) throws SQLException {
         AcademicTransaction.run((c,id)->{
-            access.offering(c,id,offering);
-            if(dao.findByOffering(c,offering).stream().noneMatch(a->a.getAssessmentId()==assessment))
-                throw new SecurityException("Assessment does not belong to this offering.");
+            requireAssignedLecturer(c,id,offering);
+            requireDraft(find(c,offering,assessment));
             if(dao.hasMarks(c,assessment))throw new IllegalArgumentException("An assessment with marks cannot be deleted.");
             var enrollments=editableEnrollments(c,offering);
             dao.delete(c,offering,assessment);
             for(int enrollment:enrollments)access.invalidate(c,enrollment);
             return null;
         });
+    }
+    /** Releases assessment details only. Never changes marks, eligibility, results or GPA. */
+    public void release(int offering, int assessment) throws SQLException {
+        AcademicTransaction.run((c,id)->{
+            requireAssignedLecturer(c,id,offering);
+            requireDraft(find(c,offering,assessment));
+            dao.release(c,offering,assessment);
+            return null;
+        });
+    }
+    private Assessment find(Connection c,int offering,int assessment) throws SQLException {
+        return dao.findByOffering(c,offering).stream().filter(a->a.getAssessmentId()==assessment).findFirst()
+                .orElseThrow(()->new SecurityException("Assessment does not belong to this offering."));
+    }
+    private static void requireDraft(Assessment a) {
+        if(a.isPublished() || a.getPublishedAt()!=null)
+            throw new IllegalStateException("Released assessments are protected from editing, deletion and re-release.");
+    }
+    private void requireAssignedLecturer(Connection c,lk.ac.ruhuna.ftms.util.SessionManager.SessionIdentity id,int offering)
+            throws SQLException {
+        access.offering(c,id,offering);
+        try(var p=c.prepareStatement("SELECT lecturer_id FROM lecturers WHERE lecturer_id=? FOR SHARE")) {
+            p.setInt(1,id.userId());
+            try(var r=p.executeQuery()) {
+                if(!r.next())throw new SecurityException("An active lecturer profile is required.");
+            }
+        }
     }
     private List<Integer> editableEnrollments(Connection c,int offering)throws SQLException {
         var ids=access.offeringEnrollments(c,offering);

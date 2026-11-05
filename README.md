@@ -38,6 +38,8 @@ The system is designed to manage the main academic and administrative operations
 - 🗓️ Timetables
 - 📊 Individual and batch academic summaries
 
+The **team member responsibilities** in this README follow the handwritten task-allocation pages supplied by the team. The required features and academic constraints are based on the ICT2132 mini-project handout.
+
 The project follows a layered design using:
 
 ```text
@@ -56,53 +58,55 @@ MySQL
 
 ## 👥 Group 14 Members & Module Allocation
 
-| Member | Registration No. | Main Module | Main Responsibilities |
+The following **module responsibility allocation is based on the team's handwritten division of work**. It describes the areas each member is expected to present and explain during the individual evaluation; it is not a claim about Git commit authorship.
+
+| Member | Registration No. | Assigned Module Areas | Main Responsibilities |
 |---|---|---|---|
-| **Achala Eshan** | `TG/2024/2122` | **Marks, Results, Eligibility, GPA** | Assessments, marks entry/update, CA calculation, CA eligibility, overall eligibility, final results, grades, grade points, SGPA, CGPA, individual/batch academic reports |
-| **Omethra Thisagi** | `TG/2024/2075` | **Authentication, Users, Courses, Notices** | Login/logout, password security, role-based access, user profiles, courses, course offerings, lecturer assignments, enrollments, course materials, notices, role dashboards |
-| **Lakshani Salgadu** | `TG/2024/2142` | **Attendance, Medical, Timetable** | Attendance sessions, theory/practical attendance, attendance percentages, summaries, medical records/status, medical linking, timetable management and filtered views |
+| **Achala Eshan** | `TG/2024/2122` | **Assessment, Marks, Results, Authentication & Administration** | Assessments; marks entry and updates; CA calculation; overall eligibility (attendance + CA); final results; grades and GPA; individual and batch academic reports; login/logout; password security; role-based access; Admin dashboard; Technical Officer dashboard; admin-side enrollment management |
+| **Omethra Thisagi** | `TG/2024/2075` | **Profiles, Courses, Materials, Notices & Role Dashboards** | User profiles; courses; course offerings; course/student enrollment flows; course materials; notices; Student dashboard; Lecturer dashboard |
+| **Lakshani Salgadu** | `TG/2024/2142` | **Attendance, Medical & Timetable** | Attendance session creation; theory/practical attendance; attendance percentages; individual and batch attendance summaries; medical records; medical approval; attendance eligibility; timetable |
+
+> **Enrollment is mentioned under both Thisagi and Achala in the handwritten notes.** For clarity, this README separates **course enrollment data / student-facing enrollment flow (Thisagi)** from **Admin Enrollment Management (Achala)**. Both areas use the same shared enrollment records and must remain integrated. If your team intended a different split, update these two rows consistently.
+
+### Role Dashboard Allocation
+
+| Dashboard | Assigned Member |
+|---|---|
+| Admin Dashboard | **Achala Eshan** |
+| Technical Officer Dashboard | **Achala Eshan** |
+| Student Dashboard | **Omethra Thisagi** |
+| Lecturer Dashboard | **Omethra Thisagi** |
 
 ---
 
 ## 🧩 Main Functional Modules
 
-### 🔵 1. Authentication & User Management — Omethra
+### 🔵 1. Login, Password Security & Role-Based Access — Achala
 
-- Secure username/password login
-- Role-based dashboard routing
-- User profile management
-- Admin management of user accounts
-- Lecturer and Technical Officer profile restrictions
-- Undergraduate contact/profile-picture update restrictions
-- Account active/inactive support
-- Session management
-- Password hashing using PBKDF2
-- Role authorization checks
+- Username/password authentication and login/logout workflow
+- PBKDF2-based password hashing and verification
+- Session creation, current-user tracking and session clearing on logout
+- Active/inactive account checks and access restrictions
+- Role-based navigation and authorization for `ADMIN`, `LECTURER`, `TECHNICAL_OFFICER` and `STUDENT`
+- Admin Dashboard and Technical Officer Dashboard
 
-Supported roles:
+**Main flow:** `login.fxml → LoginController → AuthService → UserDAO → PasswordUtil → SessionManager → NavigationUtil → Dashboard`.
 
-```text
-ADMIN
-LECTURER
-TECHNICAL_OFFICER
-STUDENT
-```
+**Relevant project classes:** `LoginController`, `AuthService`, `UserDAO`, `PasswordUtil`, `SessionManager`, `NavigationUtil`, `AdminDashboardController`, `TechnicalOfficerDashboardController`.
 
 ---
 
-### 🟣 2. Course Management — Omethra
+### 🟦 2. User Profiles & Courses — Thisagi
 
-- Department management
-- Course management
-- Course offerings
-- Lecturer-course assignments
-- Student enrollment representation
-- Repeat student support
-- Batch-missed student support
-- Lecturer course materials
-- Student own-course views
+- User profile creation, maintenance and role-appropriate profile updates
+- Admin maintenance of user accounts and their profiles
+- Course and course-offering management
+- Course/lecturer assignment relationships
+- Enrollment records associated with course offerings and student course views
+- Student Dashboard and Lecturer Dashboard
+- Lecturer course materials and student read-only materials view/download
 
-Core shared academic relationships:
+**Shared academic relationships:**
 
 ```text
 Course
@@ -116,69 +120,73 @@ CourseOffering
   └── Timetable
 ```
 
----
-
-### 🔴 3. Marks, Results, Eligibility & GPA — Achala
-
-- Assessment CRUD
-- Marks entry/update/delete
-- Validation for marks from `0` to `100`
-- Missing marks represented separately from numeric zero
-- CA calculation
-- CA eligibility
-- Individual CA summary
-- Batch CA summary
-- Attendance + CA overall eligibility integration
-- Final/overall marks
-- Subject-wise marks
-- Grade and grade-point mapping
-- SGPA calculation
-- CGPA calculation
-- Individual reports
-- Batch reports
-
-Confirmed CA rule:
-
-```text
-CA >= 40%  → Eligible
-CA < 40%   → Not Eligible
-```
-
-General SGPA structure:
-
-```text
-        Σ(Grade Point × Credits)
-SGPA = -------------------------
-              Σ Credits
-```
-
-> ⚠️ Exact attendance eligibility threshold, approved-medical effect, exact UGC Circular 12-2024 grade boundaries/points, and repeat/fail/incomplete GPA treatment must be confirmed before final business-rule implementation.
+**Relevant project areas:** profile, course, course offering, student course, course materials, and Student/Lecturer dashboard controllers, services and DAOs.
 
 ---
 
-### 🟢 4. Attendance & Medical — Lakshani
+### 🟠 3. Enrollment — Shared Integration (Thisagi + Achala)
 
-- Attendance session management
-- `15` Theory sessions
-- `15` Practical sessions
-- `1 Theory session = 2 hours`
-- `1 Practical session = 2 hours`
-- Attendance entry per enrolled student
-- Theory-only attendance percentage
-- Practical-only attendance percentage
-- Combined attendance percentage
-- Individual attendance summary
-- Whole-batch attendance summary
-- Medical CRUD/status workflow
-- Medical status:
-  - `PENDING`
-  - `APPROVED`
-  - `REJECTED`
-- Medical-to-absence linking
-- Lecturer scoped attendance/medical view
-- Student own attendance/medical view
+- **Thisagi:** course offering/enrollment relationships and student-facing enrolled-course views
+- **Achala:** Admin Enrollment Management — enrolling a student, viewing records, and maintaining the enrollment status through the admin interface
+- Both parts must respect user roles, course offerings, student records, data integrity and duplicate-enrollment validation
 
-Required attendance test scenarios include:
+**Relevant project classes:** `EnrollmentDAO`, `AdminEnrollmentController`, `AdminEnrollmentService` and existing student course services.
+
+---
+
+### 🔴 4. Assessments, Marks, Results, Overall Eligibility & GPA — Achala
+
+- Assessment creation, viewing, editing and deletion subject to relevant restrictions
+- Assessment type, maximum marks, weight, date and descriptions
+- Marks entry and update with validation (marks are recorded out of 100)
+- Missing marks tracked separately from an entered numeric zero
+- CA marks calculation and CA eligibility
+- Overall eligibility combining the attendance eligibility input and CA eligibility
+- Final results, subject-wise marks, grades and grade points
+- SGPA and CGPA calculation
+- Individual student reports and whole-batch academic summaries
+
+**CA eligibility stated in the assignment:**
+
+```text
+CA >= 40%  → CA Eligible
+CA < 40%   → CA Not Eligible
+```
+
+**General SGPA formula:**
+
+```text
+        Σ(Grade Point × Course Credits)
+SGPA = ---------------------------------
+                Σ Course Credits
+```
+
+**Relevant project classes:** `AssessmentsController`, `AssessmentService`, `AssessmentDAO`, `MarksController`, `MarkService`, `ResultsController`, `ResultService`, `GPAController`, `GPAService` and associated result/grade DAOs.
+
+> Grade boundaries and grade points must follow **UGC Commission Circular No. 12-2024**. The exact academic rule implementation and repeat/fail/incomplete handling should be verified against the circular and project data.
+
+---
+
+### 🟢 5. Attendance Sessions, Records, Summaries & Eligibility — Lakshani
+
+- Create and maintain attendance sessions for course offerings
+- Maintain **15 theory** and **15 practical** sessions where the subject has both components
+- Track attendance by undergraduate and by session
+- Record theory-only, practical-only and combined attendance percentages
+- Individual student and whole-batch attendance summaries
+- Attendance eligibility evaluation and provision of attendance status to the overall eligibility workflow
+- Role-scoped attendance viewing (Technical Officer, Lecturer, Student)
+
+**Assignment assumptions:**
+
+```text
+Theory sessions:    15
+Practical sessions: 15
+1T session:         2 hours
+1P session:         2 hours
+```
+
+**Required test scenarios:**
 
 ```text
 > 80% attendance
@@ -188,29 +196,48 @@ Required attendance test scenarios include:
 < 80% attendance with medical
 ```
 
-> These are required test-data scenarios and are not automatically treated as the official attendance eligibility cutoff.
+> These are the five **test scenarios** specified in the mini-project handout. The handout does not explicitly define a final attendance eligibility cutoff or how approved medicals change that cutoff; those rules must not be assumed without confirmation.
 
 ---
 
-### 🟡 5. Timetable — Lakshani
+### 🩺 6. Medical Records & Approval — Lakshani
 
-- Admin timetable CRUD
-- Technical Officer own-department timetable
-- Student own enrolled-course timetable
-- Department filtering
-- Course Offering filtering
-- Day, start time, end time and location validation
+- Record and maintain undergraduate medical details
+- Track medical approval statuses (`PENDING`, `APPROVED`, `REJECTED`)
+- Link approved/unapproved medical information to relevant absences, where supported
+- Allow appropriate Lecturer/Technical Officer views and student own-record views
+- Supply relevant medical context to the attendance eligibility workflow
 
 ---
 
-### 🟠 6. Notices — Omethra
+### 🟡 7. Timetable — Lakshani
 
-- Admin create/update/delete notices
-- Lecturer view
-- Technical Officer view
-- Student view
-- Published notice filtering
-- Optional role targeting
+- Admin timetable creation, updates and deletion
+- Technical Officer department-specific timetable views
+- Student timetable view for enrolled courses
+- Day, location, start/end time and course-offering validation
+- Appropriate department and course filters
+
+---
+
+### 📢 8. Notices — Thisagi
+
+- Admin notice creation, viewing, editing and deletion
+- Published notices visible to permitted Lecturer, Technical Officer and Student roles
+- Notice listing and audience/role restrictions supported by the application
+
+---
+
+### 🎓 9. Role-Specific Dashboard Integration — Achala & Thisagi
+
+| Dashboard | Owner | Integration Focus |
+|---|---|---|
+| Admin | **Achala** | Administration, enrollment management, user/course/notice/timetable navigation |
+| Technical Officer | **Achala** | Attendance, medical, departmental timetable and notices |
+| Lecturer | **Thisagi** | Course materials, assessments/marks, academic views, notices, attendance and medical views |
+| Student | **Thisagi** | Enrolled courses/materials, attendance, medicals, grades/GPA, timetable and notices |
+
+Dashboard ownership here refers to the notebook allocation; the linked functional modules are shared between members.
 
 ---
 
@@ -531,9 +558,9 @@ Recommended VM option for JDK 25:
 
 ---
 
-## ✅ Current Verified Development Progress
+## ✅ Development Snapshot (Reported Progress)
 
-The following items have been verified during development:
+The original README reports the following progress. These items were **not re-tested** when this README was edited:
 
 ```text
 ✅ Java 25 / Maven project setup
@@ -549,7 +576,7 @@ The following items have been verified during development:
 ✅ Marks validation structure
 ```
 
-Remaining modules continue to be implemented and integrated through the team branches.
+Source files for the major functional areas are present in the project snapshot. Functional completeness, database connectivity and role-specific UI behavior still require live verification before declaring the application finished.
 
 ---
 
@@ -716,15 +743,31 @@ git commit -m "Add timetable management and role filtering"
 
 ```mermaid
 flowchart LR
-    O[Omethra Module<br/>Auth / Users / Courses / Notices]
-    A[Achala Module<br/>Marks / Results / Eligibility / GPA]
-    L[Lakshani Module<br/>Attendance / Medical / Timetable]
+    T[Thisagi: Profiles / Courses / Materials / Notices / Student & Lecturer Dashboards]
+    A[Achala: Auth / Assessments / Marks / Overall Eligibility / Results / GPA / Admin & TO Dashboards]
+    L[Lakshani: Attendance / Medical / Attendance Eligibility / Timetable]
 
-    O -->|Users / CourseOffering / Enrollment| A
-    O -->|Users / Department / Enrollment| L
-    L -->|Attendance Eligibility Data| A
-    A -->|Grades / GPA Views| O
-    L -->|Attendance / Medical / Timetable Views| O
+    T -->|Users / CourseOffering / Enrollment| A
+    T -->|Users / CourseOffering / Enrollment| L
+    L -->|Attendance eligibility and medical context| A
+    A -->|Grades / GPA / Eligibility| T
+    A -->|Admin enrollment management| T
+    L -->|Attendance / Medical / Timetable views| T
+```
+
+### Integrated Academic Workflow
+
+```text
+User logs in (Achala)
+    ↓
+Role dashboard (Achala: Admin/TO; Thisagi: Student/Lecturer)
+    ↓
+Course offering + student enrollment data (Thisagi; admin maintenance: Achala)
+    ├── Course materials / notices (Thisagi)
+    ├── Assessments → marks → CA → results / GPA (Achala)
+    └── Attendance sessions → attendance / medicals → attendance eligibility (Lakshani)
+                                                        ↓
+                                  Overall eligibility: CA + attendance (Achala)
 ```
 
 ---
@@ -780,6 +823,17 @@ Recommended final documentation:
 - Seed/Test Data
 - Final Project Report
 - Individual Contribution Pages
+
+---
+
+## 🗓️ Submission & Evaluation (Project Handout)
+
+- **Project report and Git repository source code:** **1 November 2026, 11:59 p.m.** (as stated in the handout)
+- **Individual contributions:** **one page per group member** in the submitted report
+- **Group evaluation:** **5 November 2026** — 15-minute presentation and 10-minute discussion
+- **Individual code evaluation:** each member explains and demonstrates their own contribution
+
+The notebook-based ownership table above can be used as the starting point for those three individual contribution pages, but each member should verify the final claimed work against their actual code and Git history.
 
 ---
 

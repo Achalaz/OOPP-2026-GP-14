@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1"
+            fx:id="adminEnrollmentsRoot" fx:controller="lk.ac.ruhuna.ftms.controller.AdminEnrollmentController"
+            prefWidth="1200" prefHeight="780" minWidth="0" styleClass="profile-root" stylesheets="@../css/profile.css">
+    <top>
+        <VBox spacing="12" styleClass="profile-header">
+            <FlowPane hgap="12" vgap="8">
+                <Button text="Back to Admin Dashboard" onAction="#handleDashboard" styleClass="secondary-button"/>
+                <Button fx:id="refreshButton" text="Refresh" onAction="#handleRefresh" styleClass="primary-button"/>
+            </FlowPane>
+            <Label text="Student Enrollments" styleClass="page-title"/>
+            <Label text="Enroll active students in planned or active offerings. Manage existing enrollments by updating their status."
+                   wrapText="true" styleClass="muted"/>
+        </VBox>
+    </top>
+    <center>
+        <ScrollPane fitToWidth="true" minWidth="0" styleClass="profile-scroll">
+            <VBox spacing="18" minWidth="0" style="-fx-padding: 24;">
+                <VBox fx:id="editorBox" spacing="12" minWidth="0">
+                    <Label text="Enroll a student" styleClass="section-title"/>
+                    <FlowPane hgap="12" vgap="8">
+                        <TextField fx:id="studentSearch" promptText="Student ID, registration, name or username" prefWidth="350" onAction="#handleStudentSearch"/>
+                        <Button text="Search Students" onAction="#handleStudentSearch" styleClass="secondary-button"/>
+                    </FlowPane>
+                    <ComboBox fx:id="studentBox" promptText="Select Student" maxWidth="Infinity"/>
+                    <FlowPane hgap="12" vgap="8">
+                        <TextField fx:id="offeringSearch" promptText="Course code, name, semester, year or group" prefWidth="350" onAction="#handleOfferingSearch"/>
+                        <Button text="Search Offerings" onAction="#handleOfferingSearch" styleClass="secondary-button"/>
+                    </FlowPane>
+                    <ComboBox fx:id="offeringBox" promptText="Select Course Offering" maxWidth="Infinity"/>
+                    <Label fx:id="offeringDetails" text="Select an offering to see its details." wrapText="true" styleClass="muted"/>
+                    <FlowPane hgap="12" vgap="8" alignment="CENTER_LEFT">
+                        <Label text="Attempt Number"/>
+                        <Spinner fx:id="attemptSpinner" editable="true" prefWidth="120"/>
+                        <Button text="Enroll Student" onAction="#handleEnroll" styleClass="primary-button"/>
+                    </FlowPane>
+                    <Label text="Attempt 1 starts as ENROLLED; later attempts start as REPEAT. Each offering and attempt can be enrolled once per student."
+                           wrapText="true" styleClass="muted"/>
+                    <Separator/>
+                    <Label text="Enrollment records" styleClass="section-title"/>
+                    <FlowPane hgap="12" vgap="8">
+                        <TextField fx:id="enrollmentSearch" promptText="Search student, course or enrollment status" prefWidth="350" onAction="#handleEnrollmentSearch"/>
+                        <Button text="Search Enrollments" onAction="#handleEnrollmentSearch" styleClass="secondary-button"/>
+                    </FlowPane>
+                </VBox>
+                <TableView fx:id="enrollmentTable" editable="false" minWidth="0" prefHeight="300"/>
+                <FlowPane hgap="12" vgap="8" alignment="CENTER_LEFT">
+                    <Label text="Selected enrollment status"/>
+                    <ComboBox fx:id="statusBox" promptText="Select status" prefWidth="170"/>
+                    <Button fx:id="updateButton" text="Update Enrollment Status" onAction="#handleUpdateStatus" disable="true" styleClass="primary-button"/>
+                </FlowPane>
+                <Label text="Use WITHDRAWN to remove access while preserving academic records." wrapText="true" styleClass="muted"/>
+            </VBox>
+        </ScrollPane>
+    </center>
+    <bottom>
+        <HBox spacing="12" alignment="CENTER_LEFT" styleClass="profile-status">
+            <ProgressIndicator fx:id="progressIndicator" prefWidth="20" prefHeight="20" maxWidth="20" maxHeight="20"/>
+            <Label fx:id="statusLabel" wrapText="true" styleClass="status-info"/>
+        </HBox>
+    </bottom>
+</BorderPane>

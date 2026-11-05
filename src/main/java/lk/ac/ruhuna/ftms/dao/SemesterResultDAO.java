@@ -72,6 +72,22 @@ public class SemesterResultDAO {
             while(r.next())rows.add(new StudentOption(r.getInt(1),r.getString(2),r.getString(3)));
         }return rows;
     }
+    /** Only own identity or students already enrolled in an assigned offering; no unrelated roster scan. */
+    public List<StudentOption> getGpaCandidates(Connection c,int actor,boolean studentView)throws SQLException {
+        String scope=studentView ? "s.student_id=?" : """
+                EXISTS (SELECT 1 FROM enrollments e JOIN course_offerings o ON o.offering_id=e.offering_id
+                        JOIN lecturer_course_assignments a ON a.offering_id=o.offering_id
+                        WHERE e.student_id=s.student_id AND e.status<>'WITHDRAWN' AND o.status<>'CANCELLED'
+                        AND a.lecturer_id=? AND a.assignment_type IN ('PRIMARY','ASSISTANT','PRACTICAL'))
+                """;
+        var rows=new ArrayList<StudentOption>();
+        try(var p=c.prepareStatement("SELECT s.student_id,s.registration_no,CONCAT(u.first_name,' ',u.last_name) "
+                + "FROM students s JOIN users u ON u.user_id=s.student_id WHERE " + scope + " ORDER BY s.registration_no")) {
+            p.setInt(1,actor);p.setQueryTimeout(15);
+            try(var r=p.executeQuery()){while(r.next())rows.add(new StudentOption(r.getInt(1),r.getString(2),r.getString(3)));}
+        }
+        return List.copyOf(rows);
+    }
     public void saveOrUpdateSemesterResult(SemesterResult result)throws SQLException {
         try(var c=DBConnection.getConnection()){saveOrUpdateSemesterResult(c,result);}
     }
@@ -88,7 +104,13 @@ public class SemesterResultDAO {
         }
     }
     public SemesterResult getByStudentAndSemester(int student,int semester)throws SQLException {
-        return getSemesterResultsByStudent(student).stream().filter(r->r.getSemesterId()==semester).findFirst().orElse(null);
+        try(var c=DBConnection.getConnection()){return getByStudentAndSemester(c,student,semester);}
+    }
+    public SemesterResult getByStudentAndSemester(Connection c,int student,int semester)throws SQLException {
+        try(var p=c.prepareStatement("SELECT * FROM semester_results WHERE student_id=? AND semester_id=?")) {
+            p.setInt(1,student);p.setInt(2,semester);p.setQueryTimeout(15);
+            try(var rows=p.executeQuery()){return rows.next()?map(rows):null;}
+        }
     }
     public List<SemesterResult> getSemesterResultsByStudent(int student)throws SQLException {
         var rows=new ArrayList<SemesterResult>();
@@ -98,11 +120,15 @@ public class SemesterResultDAO {
             WHERE r.student_id=? ORDER BY ay.start_date,ay.academic_year_name,s.semester_no,s.semester_id
             """)){
             p.setInt(1,student);try(var rs=p.executeQuery()){while(rs.next()){
-                var r=new SemesterResult(student,rs.getInt("semester_id"),rs.getDouble("total_registered_credits"),
-                    rs.getDouble("total_earned_credits"),rs.getDouble("total_quality_points"),
-                    rs.getObject("sgpa")==null?null:rs.getDouble("sgpa"),rs.getObject("cgpa")==null?null:rs.getDouble("cgpa"));
-                r.setSemesterResultId(rs.getInt("semester_result_id"));r.setCalculatedAt(rs.getTimestamp("calculated_at").toLocalDateTime());rows.add(r);
+                rows.add(map(rs));
             }}
         }return rows;
+    }
+    private SemesterResult map(ResultSet rs)throws SQLException {
+        var r=new SemesterResult(rs.getInt("student_id"),rs.getInt("semester_id"),rs.getDouble("total_registered_credits"),
+                rs.getDouble("total_earned_credits"),rs.getDouble("total_quality_points"),
+                rs.getObject("sgpa")==null?null:rs.getDouble("sgpa"),rs.getObject("cgpa")==null?null:rs.getDouble("cgpa"));
+        r.setSemesterResultId(rs.getInt("semester_result_id"));
+        var time=rs.getTimestamp("calculated_at");r.setCalculatedAt(time==null?null:time.toLocalDateTime());return r;
     }
 }

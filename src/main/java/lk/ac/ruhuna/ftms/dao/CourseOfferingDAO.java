@@ -63,6 +63,25 @@ public class CourseOfferingDAO {
         """;
 
     // READ: Retrieve all course offerings
+    /** Enrollment picker uses the caller's authorized transaction and the existing offering mapper. */
+    public List<CourseOffering> findAvailableOfferings(Connection connection, String keyword) throws SQLException {
+        String sql = SELECT_SQL + """
+                WHERE co.status IN ('PLANNED','ACTIVE') AND
+                CONCAT_WS(' ',co.offering_id,c.course_code,c.course_name,s.semester_name,
+                          s.semester_no,ay.academic_year_name,co.offering_group,co.status) LIKE ?
+                ORDER BY ay.academic_year_name DESC,s.semester_no,c.course_code,co.offering_group
+                """;
+        var offerings = new ArrayList<CourseOffering>();
+        try (var statement = connection.prepareStatement(sql)) {
+            statement.setString(1, "%" + java.util.Objects.toString(keyword, "").strip() + "%");
+            statement.setQueryTimeout(15);
+            try (var rows = statement.executeQuery()) {
+                while (rows.next()) offerings.add(mapOffering(rows));
+            }
+        }
+        return List.copyOf(offerings);
+    }
+
     public List<CourseOffering> getAllOfferings()
             throws SQLException {
 

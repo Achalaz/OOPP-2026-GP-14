@@ -27,19 +27,31 @@ public final class StudentAccessService {
     public interface Read<T> { T run(Connection connection, int studentId) throws SQLException; }
 
     public <T> T read(Read<T> operation) throws SQLException {
+        return read(operation, false);
+    }
+
+    /** All non-locking reads see the same committed data, even if results are published mid-load. */
+    public <T> T readSnapshot(Read<T> operation) throws SQLException {
+        return read(operation, true);
+    }
+
+    private <T> T read(Read<T> operation, boolean snapshot) throws SQLException {
         requireSession();
         try (var connection = DBConnection.getConnection()) {
+            if (snapshot) connection.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
             connection.setAutoCommit(false);
             try {
                 // Recheck the database account and subtype; keep authorization valid until commit.
                 try (var statement = connection.prepareStatement("""
-                        SELECT u.user_id FROM users u JOIN students s ON s.student_id=u.user_id
+                        SELECT u.user_id,s.student_id FROM users u LEFT JOIN students s ON s.student_id=u.user_id
                         WHERE u.user_id=? AND u.role='STUDENT' AND u.is_active=TRUE FOR SHARE
                         """)) {
                     statement.setInt(1, identity.userId());
                     statement.setQueryTimeout(15);
                     try (var rows = statement.executeQuery()) {
                         if (!rows.next()) throw new SecurityException("Your student account is no longer available.");
+                        if (rows.getObject("student_id") == null)
+                            throw new SecurityException("Your student profile is missing. Please contact the faculty office.");
                     }
                 }
                 T result = operation.run(connection, identity.userId());

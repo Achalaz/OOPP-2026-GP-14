@@ -59,7 +59,13 @@ public class AttendanceSummaryDAO {
                 SUM(CASE
                     WHEN sess.session_type IN
                          ('THEORY', 'PRACTICAL')
-                     AND ar.attendance_status = 'MEDICAL'
+                     AND (
+                         ar.attendance_status = 'MEDICAL'
+                         OR (
+                             ar.attendance_status = 'ABSENT'
+                             AND aml.medical_id IS NOT NULL
+                         )
+                     )
                     THEN 1 ELSE 0
                 END) AS medical_count,
 
@@ -84,6 +90,10 @@ public class AttendanceSummaryDAO {
             LEFT JOIN attendance_records ar
                 ON ar.session_id = sess.session_id
                AND ar.enrollment_id = e.enrollment_id
+
+            LEFT JOIN attendance_medical_links aml
+                ON aml.attendance_record_id =
+                   ar.attendance_record_id
             """;
 
     private static final String END_SQL = """
@@ -96,43 +106,63 @@ public class AttendanceSummaryDAO {
             ORDER BY st.registration_no
             """;
 
-    // Get attendance summaries of all students
-    // enrolled in a specific course offering.
-
+    // Batch summary
     public List<AttendanceSummary> findByOfferingId(
             int offeringId) throws SQLException {
 
-        try (Connection connection = DBConnection.getConnection()) {
-            return findByOfferingId(connection, offeringId);
+        try (Connection connection =
+                     DBConnection.getConnection()) {
+
+            return findByOfferingId(
+                    connection, offeringId
+            );
         }
     }
 
-    public List<AttendanceSummary> findByOfferingId(Connection connection, int offeringId) throws SQLException {
-        return findWithFilter(connection, "WHERE e.offering_id = ?", offeringId);
+    public List<AttendanceSummary> findByOfferingId(
+            Connection connection,
+            int offeringId) throws SQLException {
+
+        return findWithFilter(
+                connection,
+                "WHERE e.offering_id = ?",
+                offeringId
+        );
     }
 
-    // Get attendance summary of one enrollment.
-
+    // Individual student summary
     public AttendanceSummary findByEnrollmentId(
             int enrollmentId) throws SQLException {
 
-        try (Connection connection = DBConnection.getConnection()) {
-            return findByEnrollmentId(connection, enrollmentId);
+        try (Connection connection =
+                     DBConnection.getConnection()) {
+
+            return findByEnrollmentId(
+                    connection, enrollmentId
+            );
         }
     }
 
-    public AttendanceSummary findByEnrollmentId(Connection connection, int enrollmentId) throws SQLException {
-        List<AttendanceSummary> summaries = findWithFilter(connection, "WHERE e.enrollment_id = ?", enrollmentId);
+    public AttendanceSummary findByEnrollmentId(
+            Connection connection,
+            int enrollmentId) throws SQLException {
+
+        List<AttendanceSummary> summaries =
+                findWithFilter(
+                        connection,
+                        "WHERE e.enrollment_id = ?",
+                        enrollmentId
+                );
 
         return summaries.isEmpty()
                 ? null
                 : summaries.get(0);
     }
 
-    // Execute the summary query.
-
+    // Execute summary query
     private List<AttendanceSummary> findWithFilter(
-            Connection connection, String filter,
+            Connection connection,
+            String filter,
             int id) throws SQLException {
 
         String sql = BASE_SQL
@@ -155,27 +185,16 @@ public class AttendanceSummaryDAO {
 
                     AttendanceSummary summary =
                             new AttendanceSummary(
-
                                     rs.getInt("enrollment_id"),
-
                                     rs.getString("registration_no"),
-
                                     rs.getString("student_name"),
-
                                     rs.getInt("theory_sessions"),
-
                                     rs.getInt("theory_present"),
-
                                     rs.getInt("practical_sessions"),
-
                                     rs.getInt("practical_present"),
-
                                     rs.getInt("late_count"),
-
                                     rs.getInt("excused_count"),
-
                                     rs.getInt("medical_count"),
-
                                     rs.getInt("unmarked_count")
                             );
 

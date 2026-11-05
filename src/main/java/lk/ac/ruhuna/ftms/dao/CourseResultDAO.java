@@ -20,6 +20,23 @@ public class CourseResultDAO {
                                          String semester, String grade, BigDecimal gradePoint,
                                          BigDecimal credits, int attempt) {}
 
+    /** Distinguish unavailable enrollments from enrolled students awaiting publication. */
+    public boolean hasAccessibleEnrollment(Connection connection, int studentId) throws SQLException {
+        try (var statement = connection.prepareStatement("""
+                SELECT 1 FROM enrollments e
+                JOIN course_offerings o ON o.offering_id=e.offering_id
+                JOIN courses c ON c.course_id=o.course_id
+                JOIN semesters s ON s.semester_id=o.semester_id
+                JOIN academic_years ay ON ay.academic_year_id=s.academic_year_id
+                WHERE e.student_id=? AND e.status<>'WITHDRAWN' AND o.status<>'CANCELLED'
+                LIMIT 1
+                """)) {
+            statement.setInt(1, studentId);
+            statement.setQueryTimeout(15);
+            try (var rows = statement.executeQuery()) { return rows.next(); }
+        }
+    }
+
     /** Publication is filtered in SQL: drafts never reach the student viewer. */
     public List<PublishedStudentResult> findPublishedForStudent(Connection connection, int studentId)
             throws SQLException {
@@ -183,7 +200,7 @@ public class CourseResultDAO {
     /** Existing eligibility must be supported by current source records, not an obsolete decision. */
     public boolean eligibilityInputsCurrent(Connection c, int enrollment) throws SQLException {
         String sql = """
-            SELECT er.calculated_at,er.attendance_percentage,er.attendance_eligible,er.ca_score,er.ca_eligible
+            SELECT er.calculated_at,er.attendance_percentage,er.attendance_eligible,er.ca_score,er.ca_eligible,er.overall_eligible
             FROM eligibility_records er WHERE er.enrollment_id=?
               AND NOT EXISTS(SELECT 1 FROM marks m WHERE m.enrollment_id=er.enrollment_id AND m.updated_at>er.calculated_at)
               AND NOT EXISTS(SELECT 1 FROM assessments a WHERE a.offering_id=? AND a.updated_at>er.calculated_at)
@@ -194,11 +211,34 @@ public class CourseResultDAO {
             p.setInt(1,enrollment);
             int offering=enrollmentOffering(c,enrollment);p.setInt(2,offering);p.setInt(3,offering);
             try(var r=p.executeQuery()) {
-                if(!r.next() || r.getObject("attendance_eligible")==null || r.getObject("attendance_percentage")==null) return false;
+                if(!r.next() || !r.getBoolean("attendance_eligible") || !r.getBoolean("overall_eligible")
+                        || r.getObject("attendance_percentage")==null) return false;
+                var inputs=findAssessmentInputs(c,enrollment);
+                if(inputs.stream().anyMatch(a -> !"FINAL_EXAM".equals(a.assessmentType())
+                        && a.weightPercentage()!=null && a.weightPercentage().signum()>0)) {
+                    var ca=lk.ac.ruhuna.ftms.service.EligibilityService.calculateCA(inputs);
+                    if(!Boolean.TRUE.equals(ca.eligible()) || !r.getBoolean("ca_eligible") || r.getBigDecimal("ca_score")==null
+                            || BigDecimal.valueOf(ca.percentage()).compareTo(r.getBigDecimal("ca_score"))!=0) return false;
+                }
                 var counts=new AttendanceEligibilityDAO().findByEnrollmentId(c,enrollment);
                 return counts!=null && !counts.requiresPolicyDecision() && counts.getCombinedPercentage()!=null
                     && BigDecimal.valueOf(counts.getCombinedPercentage()).compareTo(r.getBigDecimal("attendance_percentage"))==0;
             }
+        }
+    }
+
+    /** Application edits invalidate drafts; timestamps also detect newer externally saved inputs. */
+    public boolean draftInputsCurrent(Connection c, int enrollment, java.time.LocalDateTime calculatedAt) throws SQLException {
+        try (var p=c.prepareStatement("""
+                SELECT e.enrollment_id FROM enrollments e WHERE e.enrollment_id=?
+                  AND NOT EXISTS(SELECT 1 FROM marks m WHERE m.enrollment_id=e.enrollment_id AND m.updated_at>?)
+                  AND NOT EXISTS(SELECT 1 FROM assessments a WHERE a.offering_id=e.offering_id AND a.updated_at>?)
+                  AND NOT EXISTS(SELECT 1 FROM eligibility_records er WHERE er.enrollment_id=e.enrollment_id AND er.calculated_at>?)
+                """)) {
+            p.setInt(1,enrollment);
+            for(int i=2;i<=4;i++)p.setTimestamp(i,Timestamp.valueOf(calculatedAt));
+            p.setQueryTimeout(15);
+            try(var rows=p.executeQuery()){return rows.next();}
         }
     }
 
@@ -239,11 +279,13 @@ public class CourseResultDAO {
     public List<ResultRow> findEnrollmentRowsByOfferingId(Connection connection, int offeringId) throws SQLException {
         String sql = """
                 SELECT e.enrollment_id AS selected_enrollment_id, e.attempt_no,
-                       s.registration_no, CONCAT(u.first_name, ' ', u.last_name) AS student_name, r.*
+                       s.registration_no, CONCAT(u.first_name, ' ', u.last_name) AS student_name, r.*,
+                       er.overall_eligible,er.reason AS eligibility_reason
                 FROM enrollments e
                 JOIN students s ON s.student_id = e.student_id
                 JOIN users u ON u.user_id = s.student_id
                 LEFT JOIN course_results r ON r.enrollment_id = e.enrollment_id
+                LEFT JOIN eligibility_records er ON er.enrollment_id = e.enrollment_id
                 WHERE e.offering_id = ? AND e.status<>'WITHDRAWN' ORDER BY s.registration_no, e.attempt_no, e.enrollment_id
                 """;
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -253,7 +295,9 @@ public class CourseResultDAO {
                 while (rows.next()) {
                     results.add(new ResultRow(rows.getInt("selected_enrollment_id"),
                             rows.getString("registration_no"), rows.getString("student_name"),
-                            rows.getInt("attempt_no"), rows.getObject("result_id") == null ? null : map(rows)));
+                            rows.getInt("attempt_no"), rows.getObject("result_id") == null ? null : map(rows),
+                            rows.getObject("overall_eligible") == null ? null : rows.getBoolean("overall_eligible"),
+                            rows.getString("eligibility_reason")));
                 }
                 return results;
             }
