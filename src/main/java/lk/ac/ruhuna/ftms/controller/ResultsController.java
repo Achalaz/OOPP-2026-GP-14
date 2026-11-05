@@ -7,6 +7,11 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.collections.ListChangeListener;
+import javafx.scene.chart.BarChart;
+import javafx.scene.chart.PieChart;
+import javafx.scene.chart.XYChart;
+import javafx.scene.control.Tooltip;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.scene.control.Alert;
@@ -26,6 +31,8 @@ import lk.ac.ruhuna.ftms.util.SessionManager;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.function.Consumer;
@@ -54,6 +61,10 @@ public class ResultsController {
     @FXML private Button refreshButton;
     @FXML private Button backButton;
     @FXML private TableView<ResultRow> batchTable;
+    @FXML private BarChart<String, Number> marksChart;
+    @FXML private PieChart statusChart;
+    @FXML private PieChart eligibilityChart;
+    @FXML private Label chartMessageLabel;
     @FXML private TableColumn<ResultRow, String> enrollmentColumn;
     @FXML private TableColumn<ResultRow, String> studentColumn;
     @FXML private TableColumn<ResultRow, String> caMarkColumn;
@@ -98,6 +109,10 @@ public class ResultsController {
         requireScreenSession();
         enrollmentCombo.setItems(rows);
         batchTable.setItems(rows);
+        // Chart data comes from the SAME observable rows as the batch table.
+        // Rebuild on offering changes, result saves, publication and refresh.
+        rows.addListener((ListChangeListener<ResultRow>) change -> updateCharts());
+        updateCharts();
         batchTable.setPlaceholder(new Label("Select a course/offering to view enrollments."));
         column(enrollmentColumn, row -> Integer.toString(row.enrollmentId()));
         column(studentColumn, row -> row.registrationNo() + " - " + row.studentName());
@@ -308,6 +323,82 @@ public class ResultsController {
         if(user==null || !user.isActive() || !"LECTURER".equals(user.getRole()))
             throw new SecurityException("An active lecturer session is required for Result Publication.");
     }
+    /** Refresh the charts from the already-authorized batch rows; no additional SQL query. */
+    private void updateCharts() {
+        if (marksChart == null || statusChart == null || eligibilityChart == null) return;
+
+        XYChart.Series<String, Number> ca = new XYChart.Series<>();
+        ca.setName("CA %");
+        XYChart.Series<String, Number> exam = new XYChart.Series<>();
+        exam.setName("Final exam %");
+        XYChart.Series<String, Number> overall = new XYChart.Series<>();
+        overall.setName("Overall %");
+
+        Map<String, Integer> statuses = new LinkedHashMap<>();
+        Map<String, Integer> eligibilityCounts = new LinkedHashMap<>();
+        int withMarks = 0;
+
+        for (ResultRow row : rows) {
+            CourseResult result = row.result();
+            String category = row.registrationNo() + " (#" + row.enrollmentId() + ")";
+            if (result != null) {
+                addChartBar(ca, category, result.getCaMark(), row, "CA");
+                addChartBar(exam, category, result.getFinalExamMark(), row, "Final exam");
+                addChartBar(overall, category, result.getOverallMark(), row, "Overall");
+                if (result.getCaMark() != null || result.getFinalExamMark() != null ||
+                        result.getOverallMark() != null) withMarks++;
+            }
+
+            String status = result == null || result.getResultStatus() == null
+                    ? "PENDING" : result.getResultStatus().name();
+            statuses.merge(status, 1, Integer::sum);
+            eligibilityCounts.merge(eligibility(row), 1, Integer::sum);
+        }
+
+        // Long batches scroll horizontally instead of squeezing the student labels.
+        marksChart.setMinWidth(Math.max(860, rows.size() * 145.0));
+        marksChart.getData().setAll(ca, exam, overall);
+        statusChart.setData(toPieData(statuses));
+        eligibilityChart.setData(toPieData(eligibilityCounts));
+        chartMessageLabel.setText(rows.isEmpty()
+                ? "Select a course offering to display its charts."
+                : rows.size() + " enrollments | " + withMarks
+                + " with at least one available mark. Missing marks are NOT plotted as zero."
+                + " Status includes drafts and unpublished results.");
+    }
+
+    private static ObservableList<PieChart.Data> toPieData(Map<String, Integer> counts) {
+        ObservableList<PieChart.Data> data = FXCollections.observableArrayList();
+        counts.forEach((name, count) ->
+                data.add(new PieChart.Data(name + " (" + count + ")", count)));
+        return data;
+    }
+
+    /** Each mark bar displays the existing student details on hover; click selects the row. */
+    private void addChartBar(XYChart.Series<String, Number> series, String category,
+                             BigDecimal value, ResultRow row, String markType) {
+        if (value == null) return;
+        XYChart.Data<String, Number> point = new XYChart.Data<>(category, value.doubleValue());
+        point.nodeProperty().addListener((observable, previous, node) -> {
+            if (node == null) return;
+            CourseResult result = row.result();
+            String status = result == null || result.getResultStatus() == null
+                    ? "PENDING" : result.getResultStatus().name();
+            Tooltip.install(node, new Tooltip(
+                    row.registrationNo() + " - " + row.studentName()
+                            + "\nEnrollment: " + row.enrollmentId()
+                            + "\n" + markType + ": " + value.toPlainString() + "%"
+                            + "\nGrade: " + grade(result)
+                            + " | Grade point: " + number(result, CourseResult::getGradePoint)
+                            + "\nResult: " + status + " | " + state(result)
+                            + "\nEligibility: " + eligibility(row)
+                            + "\nClick bar to view this student's result."
+            ));
+            node.setOnMouseClicked(event -> selectRow(row));
+        });
+        series.getData().add(point);
+    }
+
     private static String eligibility(ResultRow row) {
         return row.overallEligible()==null ? "Pending" : row.overallEligible() ? "Eligible" : "Not eligible";
     }

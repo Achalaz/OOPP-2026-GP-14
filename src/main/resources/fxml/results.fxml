@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.geometry.Insets?>
+<?import javafx.scene.chart.*?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
@@ -21,91 +22,118 @@
         </HBox>
     </top>
     <center>
-        <ScrollPane fitToWidth="true" fitToHeight="true">
-        <content>
-        <VBox spacing="15">
-            <padding><Insets top="25" right="30" bottom="25" left="30"/></padding>
-            <GridPane hgap="15" vgap="8">
-                <columnConstraints>
-                    <ColumnConstraints percentWidth="52" hgrow="ALWAYS"/>
-                    <ColumnConstraints percentWidth="48" hgrow="ALWAYS"/>
-                </columnConstraints>
-                <Label text="Course / Offering" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
-                <ComboBox fx:id="offeringCombo" promptText="Select a course/offering" maxWidth="Infinity"
-                          GridPane.columnIndex="0" GridPane.rowIndex="1"/>
-                <Label text="Student / Enrollment" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
-                <ComboBox fx:id="enrollmentCombo" promptText="Select a student/enrollment" maxWidth="Infinity"
-                          GridPane.columnIndex="1" GridPane.rowIndex="1"/>
-            </GridPane>
-            <VBox spacing="10">
-                <Label text="Individual result" style="-fx-font-size: 16px; -fx-font-weight: bold;"/>
-                <Label fx:id="resultStateLabel" text="No enrollment selected" wrapText="true"/>
-                <GridPane hgap="20" vgap="10">
-                    <columnConstraints>
-                        <ColumnConstraints minWidth="145"/>
-                        <ColumnConstraints minWidth="150" hgrow="ALWAYS"/>
-                        <ColumnConstraints minWidth="145"/>
-                        <ColumnConstraints minWidth="150" hgrow="ALWAYS"/>
-                    </columnConstraints>
-                    <Label text="CA mark (%)" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
-                    <Label fx:id="caMarkLabel" text="--" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
-                    <Label text="Final exam mark (%)" GridPane.columnIndex="2" GridPane.rowIndex="0"/>
-                    <Label fx:id="finalExamMarkLabel" text="--" GridPane.columnIndex="3" GridPane.rowIndex="0"/>
-                    <Label text="Overall mark (%)" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
-                    <Label fx:id="overallMarkLabel" text="--" style="-fx-font-weight: bold;"
-                           GridPane.columnIndex="1" GridPane.rowIndex="1"/>
-                    <Label text="Result status" GridPane.columnIndex="2" GridPane.rowIndex="1"/>
-                    <Label fx:id="resultStatusLabel" text="--" style="-fx-font-weight: bold;"
-                           GridPane.columnIndex="3" GridPane.rowIndex="1"/>
-                    <Label text="Grade letter" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
-                    <Label fx:id="gradeLetterLabel" text="--" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
-                    <Label text="Grade point" GridPane.columnIndex="2" GridPane.rowIndex="2"/>
-                    <Label fx:id="gradePointLabel" text="--" GridPane.columnIndex="3" GridPane.rowIndex="2"/>
-                </GridPane>
-                <Label fx:id="reasonLabel" text="Select an enrollment to view a result." wrapText="true"/>
-                <Label fx:id="eligibilityLabel" text="Eligibility: select an enrollment." wrapText="true"/>
-                <Label text="CA and final exam values are percentages within each component. The overall mark uses this offering's assessment weights. A dash means unavailable or not applicable."
-                       wrapText="true" maxWidth="Infinity" style="-fx-text-fill: #4b5563;"/>
-                <Label text="Grades use the configured database rules. Current sample rules are demo data, not confirmed official grading policy."
-                       wrapText="true" maxWidth="Infinity" style="-fx-text-fill: #92400e;"/>
-            </VBox>
-            <FlowPane hgap="10" vgap="8">
-                <Button fx:id="calculateButton" text="Calculate Result" onAction="#handleCalculate" prefWidth="145"/>
-                <Button fx:id="saveButton" text="Save / Update Result" onAction="#handleSave" prefWidth="160"/>
-                <Button fx:id="publishButton" text="Publish Result" onAction="#handlePublish" prefWidth="130"
-                        visible="false" managed="false" disable="true"/>
-                <Button fx:id="clearButton" text="Clear" onAction="#handleClear" prefWidth="100"/>
-                <Button text="SGPA / CGPA" onAction="#handleGpa"/><Button text="Reports" onAction="#handleReports"/>
-                <Button fx:id="refreshButton" text="Refresh" onAction="#handleRefresh" prefWidth="100"/>
-            </FlowPane>
-            <Label text="Save / Update recalculates current data and saves an unpublished draft. Published results are protected from changes. Refresh reloads saved results and discards previews."
-                   wrapText="true" maxWidth="Infinity" style="-fx-text-fill: #4b5563;"/>
-            <Label fx:id="publicationPolicyLabel" wrapText="true" maxWidth="Infinity" style="-fx-text-fill: #92400e;"/>
-            <VBox spacing="5" VBox.vgrow="ALWAYS">
-                <Label text="Batch results" style="-fx-font-size: 16px; -fx-font-weight: bold;"/>
-                <Label text="Select a row to view the individual result. Calculations are saved one enrollment at a time."
-                       wrapText="true"/>
-                <TableView fx:id="batchTable" VBox.vgrow="ALWAYS" minHeight="140">
-                    <columns>
-                        <TableColumn fx:id="enrollmentColumn" text="Enrollment" prefWidth="85"/>
-                        <TableColumn fx:id="studentColumn" text="Student" prefWidth="245"/>
-                        <TableColumn fx:id="caMarkColumn" text="CA %" prefWidth="80"/>
-                        <TableColumn fx:id="finalExamMarkColumn" text="Final exam %" prefWidth="100"/>
-                        <TableColumn fx:id="overallMarkColumn" text="Overall %" prefWidth="85"/>
-                        <TableColumn fx:id="resultStatusColumn" text="Result status" prefWidth="125"/>
-                        <TableColumn fx:id="gradeLetterColumn" text="Grade" prefWidth="65"/>
-                        <TableColumn fx:id="gradePointColumn" text="Grade point" prefWidth="90"/>
-                        <TableColumn fx:id="stateColumn" text="Saved state" prefWidth="180"/>
-                        <TableColumn fx:id="eligibilityColumn" text="Eligibility" prefWidth="120"/>
-                    </columns>
-                </TableView>
-            </VBox>
-            <HBox spacing="10" alignment="CENTER_LEFT">
-                <ProgressIndicator fx:id="progressIndicator" prefWidth="20" prefHeight="20" maxWidth="20" maxHeight="20"/>
-                <Label fx:id="statusLabel" text="Loading course offerings..." wrapText="true" maxWidth="Infinity"/>
-            </HBox>
-        </VBox>
-        </content>
+        <ScrollPane fitToWidth="true" fitToHeight="false" vbarPolicy="AS_NEEDED">
+            <content>
+                <VBox spacing="15">
+                    <padding><Insets top="25" right="30" bottom="25" left="30"/></padding>
+                    <GridPane hgap="15" vgap="8">
+                        <columnConstraints>
+                            <ColumnConstraints percentWidth="52" hgrow="ALWAYS"/>
+                            <ColumnConstraints percentWidth="48" hgrow="ALWAYS"/>
+                        </columnConstraints>
+                        <Label text="Course / Offering" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+                        <ComboBox fx:id="offeringCombo" promptText="Select a course/offering" maxWidth="Infinity"
+                                  GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+                        <Label text="Student / Enrollment" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+                        <ComboBox fx:id="enrollmentCombo" promptText="Select a student/enrollment" maxWidth="Infinity"
+                                  GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+                    </GridPane>
+                    <VBox spacing="10">
+                        <Label text="Individual result" style="-fx-font-size: 16px; -fx-font-weight: bold;"/>
+                        <Label fx:id="resultStateLabel" text="No enrollment selected" wrapText="true"/>
+                        <GridPane hgap="20" vgap="10">
+                            <columnConstraints>
+                                <ColumnConstraints minWidth="145"/>
+                                <ColumnConstraints minWidth="150" hgrow="ALWAYS"/>
+                                <ColumnConstraints minWidth="145"/>
+                                <ColumnConstraints minWidth="150" hgrow="ALWAYS"/>
+                            </columnConstraints>
+                            <Label text="CA mark (%)" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+                            <Label fx:id="caMarkLabel" text="--" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+                            <Label text="Final exam mark (%)" GridPane.columnIndex="2" GridPane.rowIndex="0"/>
+                            <Label fx:id="finalExamMarkLabel" text="--" GridPane.columnIndex="3" GridPane.rowIndex="0"/>
+                            <Label text="Overall mark (%)" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+                            <Label fx:id="overallMarkLabel" text="--" style="-fx-font-weight: bold;"
+                                   GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+                            <Label text="Result status" GridPane.columnIndex="2" GridPane.rowIndex="1"/>
+                            <Label fx:id="resultStatusLabel" text="--" style="-fx-font-weight: bold;"
+                                   GridPane.columnIndex="3" GridPane.rowIndex="1"/>
+                            <Label text="Grade letter" GridPane.columnIndex="0" GridPane.rowIndex="2"/>
+                            <Label fx:id="gradeLetterLabel" text="--" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+                            <Label text="Grade point" GridPane.columnIndex="2" GridPane.rowIndex="2"/>
+                            <Label fx:id="gradePointLabel" text="--" GridPane.columnIndex="3" GridPane.rowIndex="2"/>
+                        </GridPane>
+                        <Label fx:id="reasonLabel" text="Select an enrollment to view a result." wrapText="true"/>
+                        <Label fx:id="eligibilityLabel" text="Eligibility: select an enrollment." wrapText="true"/>
+                        <Label text="CA and final exam values are percentages within each component. The overall mark uses this offering's assessment weights. A dash means unavailable or not applicable."
+                               wrapText="true" maxWidth="Infinity" style="-fx-text-fill: #4b5563;"/>
+                        <Label text="Grades use the configured database rules. Current sample rules are demo data, not confirmed official grading policy."
+                               wrapText="true" maxWidth="Infinity" style="-fx-text-fill: #92400e;"/>
+                    </VBox>
+                    <FlowPane hgap="10" vgap="8">
+                        <Button fx:id="calculateButton" text="Calculate Result" onAction="#handleCalculate" prefWidth="145"/>
+                        <Button fx:id="saveButton" text="Save / Update Result" onAction="#handleSave" prefWidth="160"/>
+                        <Button fx:id="publishButton" text="Publish Result" onAction="#handlePublish" prefWidth="130"
+                                visible="false" managed="false" disable="true"/>
+                        <Button fx:id="clearButton" text="Clear" onAction="#handleClear" prefWidth="100"/>
+                        <Button text="SGPA / CGPA" onAction="#handleGpa"/><Button text="Reports" onAction="#handleReports"/>
+                        <Button fx:id="refreshButton" text="Refresh" onAction="#handleRefresh" prefWidth="100"/>
+                    </FlowPane>
+                    <Label text="Save / Update recalculates current data and saves an unpublished draft. Published results are protected from changes. Refresh reloads saved results and discards previews."
+                           wrapText="true" maxWidth="Infinity" style="-fx-text-fill: #4b5563;"/>
+                    <Label fx:id="publicationPolicyLabel" wrapText="true" maxWidth="Infinity" style="-fx-text-fill: #92400e;"/>
+                    <VBox spacing="8" VBox.vgrow="NEVER">
+                        <Label text="Batch results" style="-fx-font-size: 16px; -fx-font-weight: bold;"/>
+                        <Label text="Select a row to view the individual result. Calculations are saved one enrollment at a time."
+                               wrapText="true"/>
+                        <TableView fx:id="batchTable" VBox.vgrow="NEVER" prefHeight="260" minHeight="220" maxHeight="260">
+                            <columns>
+                                <TableColumn fx:id="enrollmentColumn" text="Enrollment" prefWidth="85"/>
+                                <TableColumn fx:id="studentColumn" text="Student" prefWidth="245"/>
+                                <TableColumn fx:id="caMarkColumn" text="CA %" prefWidth="80"/>
+                                <TableColumn fx:id="finalExamMarkColumn" text="Final exam %" prefWidth="100"/>
+                                <TableColumn fx:id="overallMarkColumn" text="Overall %" prefWidth="85"/>
+                                <TableColumn fx:id="resultStatusColumn" text="Result status" prefWidth="125"/>
+                                <TableColumn fx:id="gradeLetterColumn" text="Grade" prefWidth="65"/>
+                                <TableColumn fx:id="gradePointColumn" text="Grade point" prefWidth="90"/>
+                                <TableColumn fx:id="stateColumn" text="Saved state" prefWidth="180"/>
+                                <TableColumn fx:id="eligibilityColumn" text="Eligibility" prefWidth="120"/>
+                            </columns>
+                        </TableView>
+                        <Label text="Batch results - Charts" style="-fx-font-size: 16px; -fx-font-weight: bold;"/>
+                        <Label fx:id="chartMessageLabel" text="Select an offering to display charts."
+                               wrapText="true" style="-fx-text-fill: #4b5563;"/>
+                        <!-- Scroll the bar chart horizontally for offerings with many students. -->
+                        <ScrollPane hbarPolicy="AS_NEEDED" vbarPolicy="NEVER"
+                                    fitToHeight="true" prefHeight="460" minHeight="460" maxHeight="460"
+                                    prefViewportHeight="430" VBox.vgrow="NEVER">
+                            <content>
+                                <BarChart fx:id="marksChart" title="CA / Final Exam / Overall Marks by Student"
+                                          animated="false" legendVisible="true" barGap="2"
+                                          categoryGap="12" prefHeight="430" minHeight="430" maxHeight="430">
+                                    <xAxis>
+                                        <CategoryAxis label="Student (Enrollment ID)" tickLabelRotation="-35"/>
+                                    </xAxis>
+                                    <yAxis>
+                                        <NumberAxis label="Mark (%)" autoRanging="false"
+                                                    lowerBound="0" upperBound="100" tickUnit="20"/>
+                                    </yAxis>
+                                </BarChart>
+                            </content>
+                        </ScrollPane>
+                        <HBox spacing="15" alignment="CENTER_LEFT" minHeight="350" prefHeight="350" VBox.vgrow="NEVER">
+                            <PieChart fx:id="statusChart" title="Result Status (including drafts)"
+                                      animated="false" prefWidth="510" prefHeight="340" minHeight="330" HBox.hgrow="ALWAYS"/>
+                            <PieChart fx:id="eligibilityChart" title="Overall Eligibility"
+                                      animated="false" prefWidth="510" prefHeight="340" minHeight="330" HBox.hgrow="ALWAYS"/>
+                        </HBox>
+                    </VBox>
+                    <HBox spacing="10" alignment="CENTER_LEFT">
+                        <ProgressIndicator fx:id="progressIndicator" prefWidth="20" prefHeight="20" maxWidth="20" maxHeight="20"/>
+                        <Label fx:id="statusLabel" text="Loading course offerings..." wrapText="true" maxWidth="Infinity"/>
+                    </HBox>
+                </VBox>
+            </content>
         </ScrollPane>
     </center>
 </BorderPane>
